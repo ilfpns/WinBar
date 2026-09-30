@@ -17,6 +17,7 @@ internal sealed class WinBarContext : ApplicationContext
     private readonly List<BarForm> bars = [];
     private readonly SystemMetrics metrics = new();
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 2000 };
+    private int tickCount;
 
     public WinBarContext()
     {
@@ -26,9 +27,29 @@ internal sealed class WinBarContext : ApplicationContext
         if (bars.Count == 0) { ExitThread(); return; }
         foreach (BarForm bar in bars) bar.Show();
         UpdateBars();
-        timer.Tick += (_, _) => UpdateBars();
+        timer.Tick += (_, _) => OnTick();
         timer.Start();
     }
+
+    private void OnTick()
+    {
+        UpdateBars();
+        // 시작 직후 한 번만 쓰인 DLL·초기화 페이지를 작업 집합에서 내보낸다(약 5분마다 반복).
+        if (tickCount++ % 150 == 2) TrimWorkingSet();
+    }
+
+    private static void TrimWorkingSet()
+    {
+        try
+        {
+            GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+            SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
+        }
+        catch (Exception) { }
+    }
+
+    [DllImport("kernel32.dll")] private static extern IntPtr GetCurrentProcess();
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool SetProcessWorkingSetSize(IntPtr process, nint minimum, nint maximum);
 
     private void UpdateBars()
     {
@@ -48,6 +69,7 @@ internal sealed class WinBarContext : ApplicationContext
 internal sealed class BarForm : Form
 {
     private SystemSnapshot snapshot = new();
+    private readonly Font font = new("Segoe UI", 10, FontStyle.Regular, GraphicsUnit.Point);
 
     public BarForm(Rectangle bounds)
     {
@@ -69,10 +91,15 @@ internal sealed class BarForm : Form
 
     public void UpdateSnapshot(SystemSnapshot value) { snapshot = value; Invalidate(); }
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) font.Dispose();
+        base.Dispose(disposing);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        using Font font = new("Segoe UI", 10, FontStyle.Regular, GraphicsUnit.Point);
         Color textColor = Color.FromArgb(242, 242, 247);
         const TextFormatFlags commonFlags = TextFormatFlags.VerticalCenter
             | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
@@ -80,17 +107,17 @@ internal sealed class BarForm : Form
         TextRenderer.DrawText(e.Graphics, "WinBar", font, leftArea, textColor,
             commonFlags | TextFormatFlags.Left);
 
-        string Text(string icon, string name, double? value) => $"{icon} {name} {(value is null ? "--" : $"{value:0}%")}";
+        string Text(string name, double? value) => $"{name} {(value is null ? "--" : $"{value:0}%")}";
         string[] values =
         [
-            Text("⚙️", "CPU", snapshot.CpuPercent),
-            "🎮 GPU 0%",
-            Text("🧠", "RAM", snapshot.RamPercent)
+            Text("CPU", snapshot.CpuPercent),
+            Text("GPU", snapshot.GpuPercent),
+            Text("RAM", snapshot.RamPercent)
         ];
         const int columnWidth = 116;
         var batteryArea = new Rectangle(ClientSize.Width - 14 - columnWidth, 0,
             columnWidth, ClientSize.Height);
-        DrawBattery(e.Graphics, font, textColor, batteryArea);
+        DrawBattery(e.Graphics, textColor, batteryArea, commonFlags);
 
         int right = batteryArea.Left;
         for (int index = values.Length - 1; index >= 0; index--)
@@ -102,43 +129,124 @@ internal sealed class BarForm : Form
         }
     }
 
-    private void DrawBattery(Graphics graphics, Font font, Color textColor, Rectangle area)
+    private enum MetricIcon { Gpu, Cpu, Ram }
+
+    private static void DrawMetric(Graphics graphics, Font font, Color textColor,
+        Rectangle area, MetricIcon icon, string text)
     {
-        const int bodyWidth = 48;
-        const int bodyHeight = 18;
-        const int terminalWidth = 4;
-        const int gap = 8;
-        string percentText = snapshot.BatteryPercent is null
-            ? "--"
-            : $"{snapshot.BatteryPercent}%{(snapshot.Charging ? "+" : "")}";
-        Size textSize = TextRenderer.MeasureText(graphics, percentText, font,
-            Size.Empty, TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
-        int groupWidth = bodyWidth + terminalWidth + gap + textSize.Width;
-        int bodyLeft = area.Left + (area.Width - groupWidth) / 2;
-        int bodyTop = area.Top + (area.Height - bodyHeight) / 2;
-        var body = new Rectangle(bodyLeft, bodyTop, bodyWidth, bodyHeight);
-        var terminal = new Rectangle(body.Right, bodyTop + 5, terminalWidth, bodyHeight - 10);
+        const int iconWidth = 22;
+        const int iconHeight = 16;
+        const int gap = 5;
+        Size textSize = TextRenderer.MeasureText(graphics, text, font, Size.Empty,
+            TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
+        int groupWidth = iconWidth + gap + textSize.Width;
+        int iconLeft = area.Left + (area.Width - groupWidth) / 2;
+        int iconTop = area.Top + (area.Height - iconHeight) / 2;
+        var iconArea = new Rectangle(iconLeft, iconTop, iconWidth, iconHeight);
 
-        using var outline = new Pen(textColor, 2);
-        graphics.DrawRectangle(outline, body);
-        graphics.DrawRectangle(outline, terminal);
-
-        if (snapshot.BatteryPercent is byte percent)
+        System.Drawing.Drawing2D.SmoothingMode previousSmoothing = graphics.SmoothingMode;
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        switch (icon)
         {
-            int visualPercent = percent >= 99 ? 100 : percent;
-            int fillWidth = (body.Width - 6) * visualPercent / 100;
-            if (fillWidth > 0)
-            {
-                using var fill = new SolidBrush(Color.FromArgb(48, 209, 88));
-                graphics.FillRectangle(fill, body.Left + 3, body.Top + 3,
-                    fillWidth, body.Height - 5);
-            }
+            case MetricIcon.Gpu: DrawGpuIcon(graphics, iconArea, textColor); break;
+            case MetricIcon.Cpu: DrawCpuIcon(graphics, iconArea, textColor); break;
+            case MetricIcon.Ram: DrawRamIcon(graphics, iconArea, textColor); break;
         }
+        graphics.SmoothingMode = previousSmoothing;
 
-        var textArea = new Rectangle(terminal.Right + gap, area.Top,
-            textSize.Width, area.Height);
-        TextRenderer.DrawText(graphics, percentText, font, textArea, textColor,
+        var textArea = new Rectangle(iconArea.Right + gap, area.Top, textSize.Width, area.Height);
+        TextRenderer.DrawText(graphics, text, font, textArea, textColor,
             TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine
             | TextFormatFlags.NoPadding | TextFormatFlags.Left);
+    }
+
+    private static void DrawGpuIcon(Graphics graphics, Rectangle area, Color outlineColor)
+    {
+        using var outline = new Pen(outlineColor, 1.3f);
+        using var board = new SolidBrush(Color.FromArgb(36, 138, 61));
+        using var fan = new SolidBrush(Color.FromArgb(55, 66, 72));
+        var body = new Rectangle(area.Left + 2, area.Top + 2, 18, 11);
+        graphics.FillRectangle(board, body);
+        graphics.DrawRectangle(outline, body);
+        graphics.DrawLine(outline, area.Left, area.Top + 3, area.Left + 2, area.Top + 3);
+        graphics.DrawLine(outline, area.Left, area.Top + 7, area.Left + 2, area.Top + 7);
+        graphics.DrawLine(outline, area.Left, area.Top + 11, area.Left + 2, area.Top + 11);
+        graphics.DrawLine(outline, body.Left + 4, body.Bottom, body.Left + 15, body.Bottom);
+        graphics.FillEllipse(fan, body.Left + 6, body.Top + 2, 7, 7);
+        graphics.DrawEllipse(outline, body.Left + 6, body.Top + 2, 7, 7);
+        graphics.FillEllipse(board, body.Left + 8, body.Top + 4, 3, 3);
+    }
+
+    private static void DrawCpuIcon(Graphics graphics, Rectangle area, Color outlineColor)
+    {
+        using var outline = new Pen(outlineColor, 1.3f);
+        using var shell = new SolidBrush(Color.FromArgb(66, 78, 84));
+        using var core = new SolidBrush(Color.FromArgb(210, 166, 61));
+        var chip = new Rectangle(area.Left + 5, area.Top + 2, 12, 12);
+        graphics.FillRectangle(shell, chip);
+        graphics.DrawRectangle(outline, chip);
+        graphics.FillRectangle(core, chip.Left + 3, chip.Top + 3, 6, 6);
+        graphics.DrawRectangle(outline, chip.Left + 3, chip.Top + 3, 6, 6);
+        for (int offset = 4; offset <= 12; offset += 4)
+        {
+            graphics.DrawLine(outline, area.Left + offset, area.Top, area.Left + offset, chip.Top);
+            graphics.DrawLine(outline, area.Left + offset, chip.Bottom, area.Left + offset, area.Bottom);
+            graphics.DrawLine(outline, area.Left + 3, area.Top + offset, chip.Left, area.Top + offset);
+            graphics.DrawLine(outline, chip.Right, area.Top + offset, area.Right - 2, area.Top + offset);
+        }
+    }
+
+    private static void DrawRamIcon(Graphics graphics, Rectangle area, Color outlineColor)
+    {
+        using var outline = new Pen(outlineColor, 1.3f);
+        using var board = new SolidBrush(Color.FromArgb(36, 138, 61));
+        using var chip = new SolidBrush(Color.FromArgb(55, 66, 72));
+        using var contact = new SolidBrush(Color.FromArgb(210, 166, 61));
+        var body = new Rectangle(area.Left + 1, area.Top + 3, 20, 10);
+        graphics.FillRectangle(board, body);
+        graphics.DrawRectangle(outline, body);
+        for (int index = 0; index < 4; index++)
+        {
+            graphics.FillRectangle(chip, body.Left + 2 + index * 5, body.Top + 2, 3, 5);
+            graphics.FillRectangle(contact, body.Left + 2 + index * 5, body.Bottom, 3, 2);
+        }
+    }
+
+    private void DrawBattery(Graphics graphics, Color textColor, Rectangle area, TextFormatFlags flags)
+    {
+        const int boltGap = 2, boltWidth = 8, boltHeight = 13, numberGap = 5;
+        const TextFormatFlags measureFlags = TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
+        string percent = snapshot.BatteryPercent is byte value ? $"{value}%" : "--";
+        Size label = TextRenderer.MeasureText(graphics, "BAT", font, Size.Empty, measureFlags);
+        Size number = TextRenderer.MeasureText(graphics, percent, font, Size.Empty, measureFlags);
+        int left = area.Left + (area.Width - (label.Width + boltGap + boltWidth + numberGap + number.Width)) / 2;
+
+        TextRenderer.DrawText(graphics, "BAT", font,
+            new Rectangle(left, area.Top, label.Width, area.Height), textColor, flags | TextFormatFlags.Left);
+
+        // 충전 중이면 번개 안쪽까지 채우고, 아니면 테두리만 그린다.
+        float x = left + label.Width + boltGap, y = area.Top + (area.Height - boltHeight) / 2f;
+        PointF[] bolt =
+        [
+            new(x + 6, y), new(x, y + 7.5f), new(x + 3.5f, y + 7.5f),
+            new(x + 2, y + boltHeight), new(x + boltWidth, y + 5.5f), new(x + 4.5f, y + 5.5f)
+        ];
+        System.Drawing.Drawing2D.SmoothingMode previousSmoothing = graphics.SmoothingMode;
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        if (snapshot.Charging)
+        {
+            using var fill = new SolidBrush(textColor);
+            graphics.FillPolygon(fill, bolt);
+        }
+        else
+        {
+            using var outline = new Pen(textColor, 1f);
+            graphics.DrawPolygon(outline, bolt);
+        }
+        graphics.SmoothingMode = previousSmoothing;
+
+        int numberLeft = left + label.Width + boltGap + boltWidth + numberGap;
+        TextRenderer.DrawText(graphics, percent, font,
+            new Rectangle(numberLeft, area.Top, number.Width, area.Height), textColor, flags | TextFormatFlags.Left);
     }
 }

@@ -8,5 +8,9 @@
     <PlatformTarget>x64</PlatformTarget>
     <AssemblyName>WinBar</AssemblyName>
     <RootNamespace>WinBar</RootNamespace>
+    <!-- 메모리 40MB 기준: ICU 로드 제거, 백그라운드 GC 스레드와 PGO 계측 비활성화 -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
   </PropertyGroup>
 </Project>
