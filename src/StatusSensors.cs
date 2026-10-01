@@ -43,6 +43,8 @@ internal sealed class StatusSensors : IDisposable
         privacyThread.Start();
     }
 
+    private (string Label, string Name) lastInput = ("A", "알 수 없음");
+
     public StatusSnapshot Sample(bool includeBluetooth)
     {
         (bool available, bool connected, string? name, int? quality) wifi = default;
@@ -51,11 +53,10 @@ internal sealed class StatusSensors : IDisposable
         {
             try { SampleBluetooth(); } catch (Exception) { bluetoothOn = null; bluetoothDevices = []; }
         }
-        (string label, string inputName) input = ("A", "알 수 없음");
-        try { input = SampleInputSource(); } catch (Exception) { }
+        try { lastInput = SampleInputSource() ?? lastInput; } catch (Exception) { }
 
         return new StatusSnapshot(wifi.available, wifi.connected, wifi.name, wifi.quality,
-            ethernetConnected, bluetoothOn, bluetoothDevices, input.label, input.inputName,
+            ethernetConnected, bluetoothOn, bluetoothDevices, lastInput.Label, lastInput.Name,
             microphoneInUse, cameraInUse);
     }
 
@@ -63,8 +64,8 @@ internal sealed class StatusSensors : IDisposable
     {
         try
         {
-            (string label, string name) = SampleInputSource();
-            return current with { InputLabel = label, InputName = name };
+            lastInput = SampleInputSource() ?? lastInput;
+            return current with { InputLabel = lastInput.Label, InputName = lastInput.Name };
         }
         catch (Exception) { return current; }
     }
@@ -170,18 +171,74 @@ internal sealed class StatusSensors : IDisposable
         finally { CloseHandle(radio); }
     }
 
-    private static (string label, string name) SampleInputSource()
+    // 메모장·Chrome처럼 TSF만 쓰는 앱은 Windows가 알려 주는 한/영 값(IMM)이 바뀌지 않는다.
+    // 그런 앱(스레드)은 한/영 키를 직접 따라가며 상태를 기억한다.
+    private readonly Dictionary<uint, bool> trackedNative = [];
+    private uint pendingThread;
+    private bool? pendingImmBefore;
+    private bool pendingShownBefore;
+    private long pendingSince = -1;
+    private const int ImmSettleMilliseconds = 90;
+
+    // 한/영 키를 누른 순간(UI 스레드)에 호출한다. 이후 확인에서 IMM 값이 바뀌는지 본다.
+    public void NoteInputToggle()
+    {
+        try
+        {
+            IntPtr window = GetForegroundWindow();
+            uint thread = GetWindowThreadProcessId(window, out uint processId);
+            if (window == IntPtr.Zero || processId == (uint)Environment.ProcessId) return;
+            if (((long)GetKeyboardLayout(thread) & 0xFFFF) != 0x0412) return;
+            bool? imm = ReadImmNative(window);
+            pendingThread = thread;
+            pendingImmBefore = imm;
+            pendingShownBefore = trackedNative.TryGetValue(thread, out bool tracked) ? tracked : imm ?? false;
+            pendingSince = Environment.TickCount64;
+        }
+        catch (Exception) { pendingSince = -1; }
+    }
+
+    private static bool? ReadImmNative(IntPtr window)
+    {
+        IntPtr ime = ImmGetDefaultIMEWnd(window);
+        if (ime == IntPtr.Zero
+            || SendMessageTimeout(ime, 0x0283, (IntPtr)0x0001, IntPtr.Zero, 0x0002, 25, out IntPtr mode) == IntPtr.Zero)
+            return null;
+        return ((long)mode & 0x0001) != 0; // WM_IME_CONTROL · IMC_GETCONVERSIONMODE · IME_CMODE_NATIVE
+    }
+
+    // 사용 중인 앱(맨 앞 창)의 입력 상태를 읽는다. 맨 앞 창이 WinBar 자신이면 읽지 않고 이전 값을 유지한다.
+    private (string label, string name)? SampleInputSource()
     {
         IntPtr window = GetForegroundWindow();
-        uint thread = GetWindowThreadProcessId(window, out _);
+        uint thread = GetWindowThreadProcessId(window, out uint processId);
+        if (window == IntPtr.Zero || processId == (uint)Environment.ProcessId) return null;
         int language = (int)((long)GetKeyboardLayout(thread) & 0xFFFF);
         if (language == 0x0412)
         {
-            bool native = false;
-            IntPtr ime = ImmGetDefaultIMEWnd(window);
-            if (ime != IntPtr.Zero
-                && SendMessageTimeout(ime, 0x0283, (IntPtr)0x0001, IntPtr.Zero, 0x0002, 25, out IntPtr mode) != IntPtr.Zero)
-                native = ((long)mode & 0x0001) != 0; // WM_IME_CONTROL · IMC_GETCONVERSIONMODE · IME_CMODE_NATIVE
+            bool? imm = ReadImmNative(window);
+            bool native;
+            if (pendingSince >= 0 && Environment.TickCount64 - pendingSince > 1000) pendingSince = -1;
+            if (pendingSince >= 0 && thread == pendingThread)
+            {
+                if (imm is not null && imm != pendingImmBefore)
+                {
+                    // IMM이 바로 따라오는 앱: Windows 값을 그대로 쓴다.
+                    trackedNative.Remove(thread);
+                    pendingSince = -1;
+                    native = imm.Value;
+                }
+                else if (Environment.TickCount64 - pendingSince >= ImmSettleMilliseconds)
+                {
+                    // IMM이 바뀌지 않는 앱(TSF): 한/영 키를 직접 따라간다.
+                    if (trackedNative.Count > 64) trackedNative.Clear();
+                    native = trackedNative[thread] = !pendingShownBefore;
+                    pendingSince = -1;
+                }
+                else return null; // 아직 확인 중이면 표시를 바꾸지 않는다.
+            }
+            else if (trackedNative.TryGetValue(thread, out bool tracked)) native = tracked;
+            else native = imm ?? false;
             return native ? ("K", "한국어 · 한글") : ("A", "한국어 · 영문");
         }
         return language switch
@@ -298,4 +355,131 @@ internal sealed class StatusSensors : IDisposable
     [DllImport("user32.dll")] private static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
     [DllImport("imm32.dll")] private static extern IntPtr ImmGetDefaultIMEWnd(IntPtr window);
     [DllImport("advapi32.dll")] private static extern int RegNotifyChangeKeyValue(SafeRegistryHandle key, bool watchSubtree, uint filter, SafeWaitHandle changeEvent, bool asynchronous);
+}
+
+// 화면에 보이지 않는 창 하나로 키보드·마우스 입력과 전원 변경을 "지켜보기만" 한다.
+// Raw Input(RIDEV_INPUTSINK)은 입력을 가로채거나 막지 않으며, 키 내용을 저장하지 않는다.
+internal sealed class SystemEventWatcher : NativeWindow, IDisposable
+{
+    private const int WmInput = 0x00FF;
+    private const int WmPowerBroadcast = 0x0218;
+    private const int PbtPowerStatusChange = 0x000A;
+    private const int PbtPowerSettingChange = 0x8013;
+    private const ushort VkHangul = 0x15;
+    private const ushort VkSpace = 0x20;
+    private const ushort VkMenu = 0x12;
+    private const ushort VkEscape = 0x1B;
+    private static readonly Guid AcDcPowerSource = new("5D3E9A59-E9D5-4B00-A6BD-FF34FF516548");
+    private IntPtr powerNotification;
+
+    // 한/영 전환이 일어났을 수 있는 키 입력. 인수가 true면 한/영 키를 누른 순간이다(누르고 있을 때의 반복은 제외).
+    // false면 오른쪽 Alt·Shift+Space처럼 설정에 따라 전환일 수도 있는 입력이라 다시 확인만 한다.
+    public event Action<bool>? InputToggleKey;
+    private bool hangulHeld;
+    private long hangulPressedAt;
+    public event Action? EscapePressed;
+    // 마우스 버튼을 누른 화면 좌표
+    public event Action<Point>? MouseButtonDown;
+    // 충전기 연결·분리 등 전원 상태 변경
+    public event Action? PowerChanged;
+
+    public SystemEventWatcher()
+    {
+        CreateHandle(new CreateParams { Caption = "WinBar events", Style = unchecked((int)0x80000000) }); // 보이지 않는 WS_POPUP
+        var devices = new[]
+        {
+            new RawInputDevice { UsagePage = 1, Usage = 6, Flags = 0x00000100, Target = Handle }, // 키보드, RIDEV_INPUTSINK
+            new RawInputDevice { UsagePage = 1, Usage = 2, Flags = 0x00000100, Target = Handle }  // 마우스, RIDEV_INPUTSINK
+        };
+        try { RegisterRawInputDevices(devices, devices.Length, Marshal.SizeOf<RawInputDevice>()); } catch (Exception) { }
+        try
+        {
+            Guid source = AcDcPowerSource;
+            powerNotification = RegisterPowerSettingNotification(Handle, ref source, 0);
+        }
+        catch (Exception) { powerNotification = IntPtr.Zero; }
+    }
+
+    // 사용 중인 앱에 한/영 키를 한 번 보낸다(WinBar 스위치를 눌렀을 때만 호출).
+    public static void SendInputToggle()
+    {
+        keybd_event((byte)VkHangul, 0, 0, UIntPtr.Zero);
+        keybd_event((byte)VkHangul, 0, 0x0002, UIntPtr.Zero);
+    }
+
+    protected override unsafe void WndProc(ref Message m)
+    {
+        if (m.Msg == WmInput)
+        {
+            try { HandleRawInput(m.LParam); } catch (Exception) { }
+        }
+        else if (m.Msg == WmPowerBroadcast
+            && ((int)m.WParam == PbtPowerStatusChange || (int)m.WParam == PbtPowerSettingChange))
+        {
+            PowerChanged?.Invoke();
+        }
+        base.WndProc(ref m);
+    }
+
+    private unsafe void HandleRawInput(IntPtr handle)
+    {
+        const int headerSize = 24; // RAWINPUTHEADER(x64): 형식·크기·장치·wParam
+        byte* buffer = stackalloc byte[64];
+        uint size = 64;
+        if (GetRawInputData(handle, 0x10000003, (IntPtr)buffer, ref size, (uint)headerSize) == uint.MaxValue) return;
+        uint type = *(uint*)buffer;
+        if (type == 1) // 키보드
+        {
+            ushort flags = *(ushort*)(buffer + headerSize + 2);
+            ushort key = *(ushort*)(buffer + headerSize + 6);
+            bool keyDown = (flags & 0x0001) == 0;
+            bool extended = (flags & 0x0002) != 0;
+            if (key == VkHangul)
+            {
+                // 한/영 키는 누를 때 한 번만 센다. 떼는 신호가 없는 키보드도 있어 0.5초가 지나면 새로 누른 것으로 본다.
+                if (!keyDown) { hangulHeld = false; return; }
+                long now = Environment.TickCount64;
+                bool repeated = hangulHeld && now - hangulPressedAt < 500;
+                hangulHeld = true;
+                hangulPressedAt = now;
+                if (!repeated) InputToggleKey?.Invoke(true);
+            }
+            else if ((key == VkMenu && extended && keyDown)
+                || (key == VkSpace && keyDown && (GetKeyState(0x10) & 0x8000) != 0))
+                InputToggleKey?.Invoke(false);
+            else if (key == VkEscape && keyDown)
+                EscapePressed?.Invoke();
+        }
+        else if (type == 0) // 마우스: 버튼을 누를 때만 처리하고 움직임은 무시한다.
+        {
+            ushort buttons = *(ushort*)(buffer + headerSize + 4);
+            if ((buttons & (0x0001 | 0x0004 | 0x0010)) != 0 && GetCursorPos(out NativePoint point))
+                MouseButtonDown?.Invoke(new Point(point.X, point.Y));
+        }
+    }
+
+    public void Dispose()
+    {
+        InputToggleKey = null;
+        EscapePressed = null;
+        MouseButtonDown = null;
+        PowerChanged = null;
+        if (powerNotification != IntPtr.Zero) UnregisterPowerSettingNotification(powerNotification);
+        powerNotification = IntPtr.Zero;
+        DestroyHandle();
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RawInputDevice { public ushort UsagePage, Usage; public uint Flags; public IntPtr Target; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint { public int X, Y; }
+
+    [DllImport("user32.dll")] private static extern bool RegisterRawInputDevices(RawInputDevice[] devices, int count, int size);
+    [DllImport("user32.dll")] private static extern uint GetRawInputData(IntPtr rawInput, uint command, IntPtr data, ref uint size, uint headerSize);
+    [DllImport("user32.dll")] private static extern short GetKeyState(int key);
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out NativePoint point);
+    [DllImport("user32.dll")] private static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
+    [DllImport("user32.dll")] private static extern IntPtr RegisterPowerSettingNotification(IntPtr recipient, ref Guid setting, int flags);
+    [DllImport("user32.dll")] private static extern bool UnregisterPowerSettingNotification(IntPtr handle);
 }

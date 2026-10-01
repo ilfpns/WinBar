@@ -34,14 +34,19 @@ internal sealed class ControlPopup : Form
         BackColor = Theme.PopupBackground;
     }
 
+    // 포커스를 가져가지 않아 사용 중인 앱의 한/영 상태가 바뀌지 않는다.
+    // 바깥 클릭·Esc로 닫는 것은 SystemEventWatcher가 알려 준다.
+    protected override bool ShowWithoutActivation => true;
+
     protected override CreateParams CreateParams
     {
         get
         {
             const int WsExToolWindow = 0x80;
+            const int WsExNoActivate = 0x08000000;
             const int CsDropShadow = 0x00020000;
             CreateParams value = base.CreateParams;
-            value.ExStyle |= WsExToolWindow;
+            value.ExStyle |= WsExToolWindow | WsExNoActivate;
             value.ClassStyle |= CsDropShadow;
             return value;
         }
@@ -64,7 +69,6 @@ internal sealed class ControlPopup : Form
         Location = new Point(x, y);
         Show();
         Topmost.Raise(this);
-        Activate();
         Invalidate();
     }
 

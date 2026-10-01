@@ -279,7 +279,10 @@ internal sealed class WinBarContext : ApplicationContext
     private readonly StatusSensors sensors = new();
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 2000 };
     private readonly System.Windows.Forms.Timer fullscreenTimer = new() { Interval = 200 };
-    private readonly System.Windows.Forms.Timer inputTimer = new() { Interval = 250 };
+    // 한/영 키·클릭 직후에만 잠깐 입력 상태를 확인한다(30ms 간격으로 최대 4번). 평소에는 멈춰 있다.
+    private readonly System.Windows.Forms.Timer inputBurstTimer = new() { Interval = 30 };
+    private int inputBurstRemaining;
+    private SystemEventWatcher? watcher;
     private readonly SynchronizationContext? uiContext;
     private readonly WinEventDelegate? winEventCallback;
     private readonly List<IntPtr> winEventHooks = [];
@@ -305,10 +308,27 @@ internal sealed class WinBarContext : ApplicationContext
         fullscreenTimer.Tick += (_, _) => UpdateFullscreenState();
         fullscreenTimer.Start();
 
-        // 한/영 전환은 키보드 레이아웃이 바뀌지 않아 Windows 이벤트가 누락될 수 있다.
-        // 입력 소스만 가볍게 확인해 K/A 표시를 빠르게 갱신한다.
-        inputTimer.Tick += (_, _) => RefreshInputSource();
-        inputTimer.Start();
+        // 한/영 전환은 Windows 이벤트가 오지 않을 수 있어, 한/영 키·마우스 클릭을 감지한 직후에만 확인한다.
+        // 충전기 연결·분리는 Windows 전원 알림을 받는 즉시 배터리를 다시 읽는다.
+        inputBurstTimer.Tick += (_, _) =>
+        {
+            RefreshInputSource();
+            if (--inputBurstRemaining <= 0) inputBurstTimer.Stop();
+        };
+        try
+        {
+            watcher = new SystemEventWatcher();
+            watcher.InputToggleKey += hangulKey =>
+            {
+                // 한/영 키를 누른 순간을 기록해, 메모장처럼 Windows 값이 바뀌지 않는 앱도 따라갈 수 있게 한다.
+                if (hangulKey) sensors.NoteInputToggle();
+                StartInputBurst(5);
+            };
+            watcher.MouseButtonDown += OnMouseButtonDown;
+            watcher.EscapePressed += () => { foreach (BarForm bar in bars) bar.CloseMenus(); SettingsForm.CloseIfOpen(); };
+            watcher.PowerChanged += UpdateBars;
+        }
+        catch (Exception) { watcher = null; }
         winEventCallback = OnWinEvent;
         const uint flags = WinEventOutOfContext | WinEventSkipOwnProcess;
         winEventHooks.Add(SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, winEventCallback, 0, 0, flags));
@@ -321,7 +341,7 @@ internal sealed class WinBarContext : ApplicationContext
     {
         foreach (Screen screen in Screen.AllScreens)
         {
-            var bar = new BarForm(screen, metrics, sensors, ExitThread);
+            var bar = new BarForm(screen, metrics, sensors, ExitThread, ToggleInputSource);
             bars.Add(bar);
             bar.Show();
         }
@@ -389,6 +409,33 @@ internal sealed class WinBarContext : ApplicationContext
     {
         if (eventType == EventSystemForeground) UpdateFullscreenState();
         RefreshInputSource();
+    }
+
+    private void StartInputBurst(int checks)
+    {
+        inputBurstRemaining = Math.Max(inputBurstRemaining, checks);
+        inputBurstTimer.Stop();
+        inputBurstTimer.Start();
+    }
+
+    // 다른 곳을 누르면 열린 메뉴·팝업을 닫고, 작업 표시줄의 한/영 단추일 수 있으니 입력 상태를 다시 확인한다.
+    private void OnMouseButtonDown(Point point)
+    {
+        bool insideWinBar = false;
+        foreach (BarForm bar in bars)
+            insideWinBar |= bar.ContainsScreenPoint(point);
+        if (insideWinBar || SettingsForm.ContainsScreenPoint(point)) return;
+        foreach (BarForm bar in bars) bar.CloseMenus();
+        StartInputBurst(5);
+    }
+
+    // WinBar의 한/영 스위치를 누르면 사용 중인 앱에 한/영 키를 보내 실제로 전환한다.
+    public void ToggleInputSource()
+    {
+        // 보낸 한/영 키도 SystemEventWatcher가 감지해 기록한다. 감지기를 못 만든 경우에만 여기서 기록한다.
+        if (watcher is null) sensors.NoteInputToggle();
+        SystemEventWatcher.SendInputToggle();
+        StartInputBurst(5);
     }
 
     private void RefreshInputSource()
@@ -479,7 +526,8 @@ internal sealed class WinBarContext : ApplicationContext
         AppSettings.Current.Changed -= OnSettingsChanged;
         timer.Dispose();
         fullscreenTimer.Dispose();
-        inputTimer.Dispose();
+        inputBurstTimer.Dispose();
+        watcher?.Dispose();
         foreach (BarForm bar in bars) bar.Dispose();
         metrics.Dispose();
         sensors.Dispose();
@@ -555,8 +603,11 @@ internal sealed class BarForm : Form
 
     public Rectangle MonitorBounds { get; }
 
-    public BarForm(Screen screen, SystemMetrics metrics, StatusSensors sensors, Action requestExit)
+    private readonly Action toggleInput;
+
+    public BarForm(Screen screen, SystemMetrics metrics, StatusSensors sensors, Action requestExit, Action toggleInput)
     {
+        this.toggleInput = toggleInput;
         this.screen = screen;
         this.metrics = metrics;
         this.sensors = sensors;
@@ -736,6 +787,17 @@ internal sealed class BarForm : Form
         Invalidate();
     }
 
+    public bool ContainsScreenPoint(Point point) =>
+        (Visible && Bounds.Contains(point))
+        || (logoMenu.Visible && logoMenu.Bounds.Contains(point))
+        || (controlPopup.Visible && controlPopup.Bounds.Contains(point));
+
+    public void CloseMenus()
+    {
+        logoMenu.HideMenu();
+        controlPopup.HidePopup();
+    }
+
     public bool RaiseWindowAt(Point cursor)
     {
         foreach (Form form in new Form[] { logoMenu, controlPopup, statusPopup, this })
@@ -861,6 +923,13 @@ internal sealed class BarForm : Form
         }
 
         Item item = ItemAt(e.Location);
+        if (item == Item.Input)
+        {
+            // 메뉴바는 포커스를 가져가지 않으므로, 한/영 키는 지금 사용 중인 앱에 전달된다.
+            HideMetricTip();
+            toggleInput();
+            return;
+        }
         ControlPopup.Kind? kind = item switch
         {
             Item.Volume => ControlPopup.Kind.Volume,
@@ -1200,14 +1269,19 @@ internal sealed class LogoMenuPopup : Form
         AccessibleName = "WinBar 메뉴";
     }
 
+    // 포커스를 가져가지 않아 사용 중인 앱의 한/영 상태가 바뀌지 않는다.
+    // 바깥 클릭·Esc로 닫는 것은 SystemEventWatcher가 알려 준다.
+    protected override bool ShowWithoutActivation => true;
+
     protected override CreateParams CreateParams
     {
         get
         {
             const int WsExToolWindow = 0x80;
+            const int WsExNoActivate = 0x08000000;
             const int CsDropShadow = 0x00020000;
             CreateParams value = base.CreateParams;
-            value.ExStyle |= WsExToolWindow;
+            value.ExStyle |= WsExToolWindow | WsExNoActivate;
             value.ClassStyle |= CsDropShadow;
             return value;
         }
@@ -1221,7 +1295,6 @@ internal sealed class LogoMenuPopup : Form
         Location = new Point(x, Math.Max(workArea.Top + 6, y));
         if (!Visible) Show();
         Topmost.Raise(this);
-        Activate();
         Invalidate();
     }
 

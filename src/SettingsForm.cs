@@ -39,16 +39,23 @@ internal sealed class SettingsForm : Form
 
     public static void ShowModal(Screen screen, Action requestExit)
     {
-        if (instance is { IsDisposed: false })
-        {
-            instance.Activate();
-            return;
-        }
+        if (instance is { IsDisposed: false }) return;
         instance = new SettingsForm(screen, requestExit);
         instance.backdrop.Show();
         instance.Show(instance.backdrop);
-        instance.Activate();
     }
+
+    // Esc를 누르면 닫는다. 설정 창은 포커스를 가져가지 않으므로 SystemEventWatcher가 알려 준다.
+    public static void CloseIfOpen()
+    {
+        if (instance is { IsDisposed: false }) instance.Close();
+    }
+
+    public static bool ContainsScreenPoint(Point point) =>
+        instance is { IsDisposed: false, Visible: true } && instance.backdrop.Bounds.Contains(point);
+
+    // 포커스를 가져가지 않아 사용 중인 앱의 한/영 상태가 바뀌지 않는다.
+    protected override bool ShowWithoutActivation => true;
 
     private SettingsForm(Screen screen, Action requestExit)
     {
@@ -123,9 +130,10 @@ internal sealed class SettingsForm : Form
         get
         {
             const int WsExToolWindow = 0x80;
+            const int WsExNoActivate = 0x08000000;
             const int CsDropShadow = 0x00020000;
             CreateParams value = base.CreateParams;
-            value.ExStyle |= WsExToolWindow;
+            value.ExStyle |= WsExToolWindow | WsExNoActivate;
             value.ClassStyle |= CsDropShadow;
             return value;
         }
@@ -424,8 +432,9 @@ internal sealed class SettingsForm : Form
             get
             {
                 const int WsExToolWindow = 0x80;
+                const int WsExNoActivate = 0x08000000;
                 CreateParams value = base.CreateParams;
-                value.ExStyle |= WsExToolWindow;
+                value.ExStyle |= WsExToolWindow | WsExNoActivate;
                 return value;
             }
         }

@@ -26,8 +26,6 @@ internal sealed class SystemMetrics : IDisposable
 
     // 음량·밝기가 바뀌었을 때 백그라운드 스레드에서 호출된다. 주기적으로 읽지 않는다.
     public event Action? ControlsChanged;
-    private bool stableCharging;
-    private int missingChargingSamples;
 
     public SystemMetrics()
     {
@@ -119,27 +117,10 @@ internal sealed class SystemMetrics : IDisposable
             && power.BatteryLifePercent != 255)
         {
             battery = power.BatteryLifePercent;
+            // 충전기가 연결되면 Windows 전원 알림 직후 바로 번개를 표시한다.
+            // (배터리의 "충전 중" 신호는 연결 후 수 초 늦게 켜질 수 있어 기다리지 않는다.)
             bool pluggedIn = power.ACLineStatus == 1;
-            bool chargingSignal = (power.BatteryFlag & 0x08) != 0;
-            if (!pluggedIn)
-            {
-                stableCharging = false;
-                missingChargingSamples = 0;
-            }
-            else if (chargingSignal)
-            {
-                stableCharging = true;
-                missingChargingSamples = 0;
-            }
-            else if (stableCharging && missingChargingSamples < 15)
-            {
-                missingChargingSamples++;
-            }
-            else
-            {
-                stableCharging = false;
-            }
-            charging = stableCharging;
+            charging = pluggedIn;
             if (!pluggedIn && power.BatteryLifeTime != uint.MaxValue)
                 batteryMinutes = (int)(power.BatteryLifeTime / 60);
         }
