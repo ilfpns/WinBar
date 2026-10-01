@@ -73,6 +73,23 @@ internal sealed class AppSettings
     // 슬라이더를 끄는 동안 파일에 쓰지 않고 화면에만 바로 반영한다.
     public void Preview() => Changed?.Invoke();
 
+    // 마이크로소프트 스토어(MSIX)로 설치되어 실행 중인지. 이때는 레지스트리 자동 실행이 동작하지 않으므로,
+    // 패키지에 선언한 시작 작업을 사용자가 Windows 설정 > 앱 > 시작 프로그램에서 직접 켠다.
+    public static bool IsPackaged { get; } = DetectPackage();
+
+    private static bool DetectPackage()
+    {
+        try
+        {
+            int length = 0;
+            return GetCurrentPackageFullName(ref length, null) != 15700; // APPMODEL_ERROR_NO_PACKAGE
+        }
+        catch (Exception) { return false; }
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    private static extern int GetCurrentPackageFullName(ref int length, char[]? name);
+
     public static bool IsAutoStartEnabled()
     {
         try

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WinBar 마이크로소프트 스토어(MSIX) 패키지 설명 파일.
+  Identity 값은 파트너 센터 > 앱 > 제품 관리 > 제품 ID 에서 받은 값이다.
+  {VERSION} 은 packaging/pack-msix.ps1 이 WinBar.csproj 의 Version 으로 채운다(마지막 자리는 스토어 규칙상 0).
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap desktop rescap">
+
+  <Identity
+    Name="E5DA490F.WinBar"
+    Publisher="CN=95AE808F-40A7-4EA8-BC59-51F0BCE0B6AC"
+    Version="{VERSION}"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>WinBar</DisplayName>
+    <PublisherDisplayName>대덕소프트웨어마이스터고등학교</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Windows 10/11용 macOS 스타일 메뉴바 (프로토타입)</Description>
+  </Properties>
+
+  <!-- Windows 10 1809 이상 데스크톱 전용 -->
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="ko-KR" />
+  </Resources>
+
+  <Applications>
+    <Application Id="WinBar" Executable="WinBar.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="WinBar"
+        Description="Windows 10/11용 macOS 스타일 메뉴바 (프로토타입)"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- 로그인 시 자동 실행: 기본은 꺼짐. 사용자가 Windows 설정 > 앱 > 시작 프로그램에서 직접 켠다. -->
+        <desktop:Extension Category="windows.startupTask" Executable="WinBar.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="WinBarStartup" Enabled="false" DisplayName="WinBar" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!-- Win32 데스크톱 앱(WinForms) 실행에 필요한 권한 -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

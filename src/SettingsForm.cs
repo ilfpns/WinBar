@@ -8,7 +8,8 @@ namespace WinBar;
 // 바깥을 누르거나 Esc·닫기 단추로 닫히며 작업 표시줄에 나타나지 않는다.
 internal sealed class SettingsForm : Form
 {
-    private sealed record Option(string Label, Func<bool> Get, Action<bool> Set);
+    // IsLink가 true면 스위치 대신 › 표시를 그리고, 누르면 Set(true)로 다른 화면을 연다.
+    private sealed record Option(string Label, Func<bool> Get, Action<bool> Set, bool IsLink = false);
     private sealed record Slider(string Label, int Min, int Max, Func<int> Get, Action<int> Preview, Action Commit);
     private sealed record Page(string Title, string Summary, string Glyph, Option[] Options,
         Slider? Slider = null, bool About = false);
@@ -68,10 +69,17 @@ internal sealed class SettingsForm : Form
         [
             new("일반", "로그인 시 자동 실행, 시계 형식", Icons.Settings,
             [
-                new("로그인 시 자동 실행", () => autoStart, value =>
-                {
-                    if (AppSettings.SetAutoStart(value)) autoStart = value;
-                }),
+                AppSettings.IsPackaged
+                    // 스토어 설치본: 사용자가 Windows 설정 > 앱 > 시작 프로그램에서 직접 켠다.
+                    ? new("로그인 시 자동 실행 (Windows 설정에서 켜기)", () => false, _ =>
+                    {
+                        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:startupapps") { UseShellExecute = true }); }
+                        catch (Exception) { }
+                    }, IsLink: true)
+                    : new("로그인 시 자동 실행", () => autoStart, value =>
+                    {
+                        if (AppSettings.SetAutoStart(value)) autoStart = value;
+                    }),
                 Toggle("24시간 형식 시계", s => s.Use24HourClock, (s, v) => s.Use24HourClock = v)
             ]),
             new("모양", "메뉴바 배경 불투명도", "", [],
@@ -257,7 +265,11 @@ internal sealed class SettingsForm : Form
             }
             TextRenderer.DrawText(graphics, option.Label, rowFont, new Rectangle(row.Left + 14, row.Top, row.Width - 90, row.Height),
                 Theme.Primary, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-            DrawSwitch(graphics, new Rectangle(row.Right - 54, row.Top + (RowHeight - 22) / 2, 40, 22), option.Get());
+            if (option.IsLink)
+                TextRenderer.DrawText(graphics, Icons.Chevron, iconFont, new Rectangle(row.Right - 40, row.Top, 24, row.Height),
+                    Theme.Secondary, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            else
+                DrawSwitch(graphics, new Rectangle(row.Right - 54, row.Top + (RowHeight - 22) / 2, 40, 22), option.Get());
         }
     }
 

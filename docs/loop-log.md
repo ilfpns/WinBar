@@ -92,3 +92,14 @@
 | 1회 | 배포용 exe 실행 | dist의 exe만 실행 | - | - | 실행·응답 정상, 파일 속성에 `WinBar (Prototype)`·`0.1.0-prototype`·`Windows 10/11 (x64) only` 표시, 90초 측정 최대 31.0MB·CPU 0.235% |
 
 - 남은 확인: .NET이 설치되지 않은 다른 PC에서 실행, 코드 서명이 없어 첫 실행 때 SmartScreen 경고가 나오는지
+
+## 반복 기록 (7일차) — 마이크로소프트 스토어 제출 준비(MSIX)
+- 시작 조건: 파트너 센터에서 앱 이름 예약 완료(Identity Name `E5DA490F.WinBar`).
+
+| 회차 | 실패한 기준 | 실패 근거(한 일 → 보인 것) | 조치 | 바뀐 파일 | 재검증 결과 |
+|---|---|---|---|---|---|
+| 1회 | 스토어 제출용 패키지 | exe는 스토어 MSI/EXE 조건(설치 프로그램·유료 코드 서명)에 맞지 않음 | MSIX로 패키징(스토어가 서명). 예약 Identity·최소 Windows 10 1809·runFullTrust·기본 꺼진 StartupTask 선언, 스토어 아이콘 자동 생성 | `packaging/AppxManifest.xml`, `packaging/pack-msix.ps1` | `makeappx pack` 성공(설명 파일 형식 검사 통과), `dist/WinBar_0.1.0.0_x64.msix` 48.4MB |
+| 1회 | MSIX에서 자동 실행 | MSIX는 레지스트리 Run 등록이 동작하지 않음 | 스토어 설치본이면 "로그인 시 자동 실행"을 Windows 시작 프로그램 설정 링크로 바꿈(사용자가 직접 켬) | `src/AppSettings.cs`, `src/SettingsForm.cs` | Release 빌드 경고 0개·오류 0개 |
+
+- 함께 만든 것: 개인정보 처리방침 `docs/privacy.md`, 제출 안내 `docs/store-listing.md`, 스토어 스크린샷 3장(`dist/store`, 실제 앱 캡처만 사용)
+- 남은 확인: 개발자 모드가 꺼져 있고 관리자 권한을 쓰지 않아 MSIX 설치 시험은 하지 못함. 실제 설치·실행은 스토어 심사 또는 사람이 확인
