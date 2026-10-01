@@ -542,6 +542,13 @@ internal sealed class BarForm : Form
     private const int SlideDurationMilliseconds = 220;
     private long slideStartedAt;
     private int slideStartTop;
+    private readonly System.Windows.Forms.Timer inputTransitionTimer = new() { Interval = 15 };
+    private const int InputTransitionDurationMilliseconds = 160;
+    private bool inputTransitionInitialized;
+    private long inputTransitionStartedAt;
+    private double inputPosition;
+    private double inputStartPosition;
+    private double inputTargetPosition;
     private int visibleTop;
     private int hiddenTop;
     private int targetTop;
@@ -596,6 +603,7 @@ internal sealed class BarForm : Form
             Invalidate();
         };
         slideTimer.Tick += (_, _) => AnimateSlide();
+        inputTransitionTimer.Tick += (_, _) => AnimateInputTransition();
     }
 
     protected override bool ShowWithoutActivation => true;
@@ -679,9 +687,40 @@ internal sealed class BarForm : Form
 
     public void UpdateStatus(StatusSnapshot value)
     {
+        string previousInput = status.InputLabel;
         status = value;
+        UpdateInputTransition(previousInput, value.InputLabel);
         UpdateDiagnosticsTitle();
         RefreshPopups();
+    }
+
+    private void UpdateInputTransition(string previous, string next)
+    {
+        double target = next == "A" ? 0 : 1;
+        if (!inputTransitionInitialized)
+        {
+            inputTransitionInitialized = true;
+            inputPosition = inputStartPosition = inputTargetPosition = target;
+            return;
+        }
+        if (previous == next && Math.Abs(inputTargetPosition - target) < 0.001) return;
+        inputStartPosition = inputPosition;
+        inputTargetPosition = target;
+        inputTransitionStartedAt = Environment.TickCount64;
+        inputTransitionTimer.Start();
+    }
+
+    private void AnimateInputTransition()
+    {
+        double progress = Math.Clamp(
+            (Environment.TickCount64 - inputTransitionStartedAt) / (double)InputTransitionDurationMilliseconds, 0, 1);
+        double eased = progress * progress * (3 - 2 * progress);
+        inputPosition = inputStartPosition + (inputTargetPosition - inputStartPosition) * eased;
+        if (areas.TryGetValue(Item.Input, out Rectangle inputArea)) Invalidate(inputArea);
+        else Invalidate();
+        if (progress < 1) return;
+        inputPosition = inputTargetPosition;
+        inputTransitionTimer.Stop();
     }
 
     private void UpdateDiagnosticsTitle()
@@ -932,6 +971,7 @@ internal sealed class BarForm : Form
             keepOnTopTimer.Dispose();
             badgeFont.Dispose();
             slideTimer.Dispose();
+            inputTransitionTimer.Dispose();
             font.Dispose();
         }
         base.Dispose(disposing);
@@ -1042,7 +1082,6 @@ internal sealed class BarForm : Form
     // 입력 소스를 무채색 스위치로 표시한다. 한국어 K와 영문 A는 같은 색을 사용한다.
     private void DrawInputBadge(Graphics graphics, Rectangle area, Color color)
     {
-        bool native = status.InputLabel != "A";
         var track = new Rectangle(area.Left + (area.Width - 32) / 2, area.Top + (area.Height - 18) / 2, 32, 18);
         SmoothingMode previous = graphics.SmoothingMode;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
@@ -1050,15 +1089,21 @@ internal sealed class BarForm : Form
         using (GraphicsPath path = Theme.RoundedRectangle(track, track.Height / 2))
             graphics.FillPath(trackBrush, path);
         const int knob = 14;
-        int knobLeft = native ? track.Right - knob - 2 : track.Left + 2;
+        int knobLeft = (int)Math.Round(track.Left + 2 + (track.Width - knob - 4) * inputPosition);
         using (var knobBrush = new SolidBrush(Color.FromArgb(250, 250, 252)))
             graphics.FillEllipse(knobBrush, knobLeft, track.Top + 2, knob, knob);
         graphics.SmoothingMode = previous;
 
-        var label = native
-            ? new Rectangle(track.Left + 2, track.Top, track.Width - knob - 4, track.Height)
-            : new Rectangle(track.Left + knob + 2, track.Top, track.Width - knob - 4, track.Height);
-        BarText.Draw(graphics, status.InputLabel, badgeFont, label, color, StringAlignment.Center);
+        var alternativeLabel = new Rectangle(track.Left + 2, track.Top, track.Width - knob - 4, track.Height);
+        var englishLabel = new Rectangle(track.Left + knob + 2, track.Top, track.Width - knob - 4, track.Height);
+        int alternativeAlpha = (int)Math.Round(color.A * inputPosition);
+        int englishAlpha = (int)Math.Round(color.A * (1 - inputPosition));
+        if (alternativeAlpha > 0)
+            BarText.Draw(graphics, status.InputLabel == "A" ? "K" : status.InputLabel, badgeFont,
+                alternativeLabel, Color.FromArgb(alternativeAlpha, color), StringAlignment.Center);
+        if (englishAlpha > 0)
+            BarText.Draw(graphics, "A", badgeFont, englishLabel,
+                Color.FromArgb(englishAlpha, color), StringAlignment.Center);
     }
 
     // macOS처럼 카메라 사용 중은 초록 점, 마이크 사용 중은 주황 점으로 표시한다.
