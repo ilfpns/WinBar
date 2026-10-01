@@ -12,5 +12,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <TieredPGO>false</TieredPGO>
+    <!-- GPU 카운터 버퍼를 문자열로 바꾸지 않고 직접 읽기 위해 사용 -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 </Project>
