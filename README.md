@@ -10,6 +10,9 @@
 ![외부 패키지 없음](https://img.shields.io/badge/외부%20패키지-없음-2ea44f)
 ![유휴 CPU 0.17%](https://img.shields.io/badge/유휴%20CPU-0.17%25-2ea44f)
 ![메모리 34MB](https://img.shields.io/badge/메모리-34MB-2ea44f)
+![프로토타입](https://img.shields.io/badge/버전-0.1.0%20프로토타입-orange)
+
+**[⬇ WinBar 다운로드 (Windows 10/11 x64, 프로토타입)](https://github.com/ilfpns/WinBar/releases/download/v0.1.0-prototype/WinBar-0.1.0-prototype-win10-11-x64.exe)**
 
 <img src="docs/media/menubar.png" alt="WinBar 메뉴바 전체 화면" width="100%">
 
@@ -30,6 +33,16 @@
     <td align="center" width="33%"><b>가볍고 안전하게</b><br><sub>관리자 권한 없이, 설정은 이 PC에만 저장</sub></td>
   </tr>
 </table>
+
+## 다운받아 사용하기
+> **프로토타입 버전입니다.** Windows 10과 Windows 11(64비트)에서만 동작합니다. 설치할 필요 없이 파일 하나로 실행합니다.
+
+1. **[WinBar-0.1.0-prototype-win10-11-x64.exe](https://github.com/ilfpns/WinBar/releases/download/v0.1.0-prototype/WinBar-0.1.0-prototype-win10-11-x64.exe)** 를 내려받습니다. (약 111MB, [릴리스 페이지](https://github.com/ilfpns/WinBar/releases/tag/v0.1.0-prototype))
+2. 받은 파일을 원하는 폴더(예: `문서` 폴더)에 두고 두 번 클릭합니다. .NET 같은 다른 프로그램은 따로 설치하지 않아도 됩니다.
+3. 처음 실행할 때 **"Windows의 PC 보호"** 창이 나오면 `추가 정보` → `실행`을 누릅니다. 아직 코드 서명을 하지 않은 프로토타입이라 나오는 안내입니다.
+4. 화면 맨 위에 메뉴바가 나타나면 끝입니다. 컴퓨터를 켤 때마다 자동으로 띄우려면 맨 왼쪽 로고 → `설정` → `일반` → `로그인 시 자동 실행`을 켭니다.
+
+**지우는 방법**: 로고 → `설정` → `일반`에서 자동 실행을 끈 뒤, 로고 → `WinBar 종료`를 누르고 받은 exe 파일을 삭제합니다. 설정까지 지우려면 `%LOCALAPPDATA%\WinBar` 폴더도 삭제합니다.
 
 ## 1. 앱 이름과 한 줄 소개
 **WinBar**는 Windows 화면 맨 위에 맥(macOS)처럼 얇은 메뉴바를 띄워, 컴퓨터 상태를 한눈에 보여 주는 앱입니다.
@@ -69,12 +82,15 @@
 </table>
 
 ## 5. 실행 방법
+그냥 쓰려면 위의 [다운받아 사용하기](#다운받아-사용하기)를 따르면 됩니다. 아래는 코드를 직접 빌드하는 개발자용 방법입니다.
+
 1. Windows 10 또는 11에 .NET 10 SDK를 설치합니다.
 2. 이 폴더에서 아래 명령으로 앱을 만듭니다.
    ```powershell
    dotnet build WinBar.csproj -c Release
    ```
 3. `bin\Release\net10.0-windows\WinBar.exe`를 실행합니다. 관리자 권한은 필요 없습니다.
+4. 다른 사람에게 줄 exe 파일 하나를 만들려면 `powershell -ExecutionPolicy Bypass -File packaging\publish.ps1`을 실행합니다. 결과는 `dist\` 폴더에 생깁니다.
 
 ## 6. 확인 방법
 자세한 점검 순서는 [docs/checklist.md](docs/checklist.md)에 있습니다. 핵심 항목은 다음과 같습니다.
@@ -95,14 +111,15 @@
 - **루프 엔지니어링**: 실행 → 측정·화면 확인 → 실패 기준 수정을 반복하고, 같은 문제는 3번까지만 고치도록 정해 [docs/loop-log.md](docs/loop-log.md)에 기록했습니다.
 
 ## 9. 배포 주소
-배포 후 추가
+https://github.com/ilfpns/WinBar/releases/tag/v0.1.0-prototype (Windows 10/11 x64 전용 프로토타입)
 
 ## 10. AI 활용 표시
 이 앱은 AI 코딩 도우미(Codex, Claude Code)의 도움을 받아 만들었고, 사람이 직접 실행하고 검증했습니다.
 
 ## 알려진 문제
-- 설치 프로그램은 아직 없습니다. 지금은 위의 실행 방법으로만 쓸 수 있습니다.
+- 설치 프로그램은 아직 없습니다. exe 파일 하나를 받아 바로 실행하는 방식이고, 코드 서명이 없어 처음 실행할 때 Windows 경고가 나옵니다.
+- 마이크로소프트 스토어에는 아직 올리지 않았습니다.
 - 모니터를 여러 대 연결한 실제 환경에서는 아직 확인하지 못했습니다.
 - 다른 앱이 화면 맨 위를 계속 덮고 있으면, 마우스를 올린 뒤 최대 0.5초 뒤에 메뉴바를 누를 수 있습니다.
-- 크롬처럼 일부 앱에서는 Windows가 알려 주는 한/영 값이 늦거나 틀려서, 표시가 실제와 다를 수 있습니다.
+- 메모장·크롬처럼 Windows가 한/영 값을 알려 주지 않는 앱에서는, WinBar가 한/영 키와 스위치를 직접 따라가며 표시합니다. 그래서 그런 앱을 처음 열었을 때나 작업 표시줄 단추로 바꿨을 때는 표시가 실제와 다를 수 있습니다. 한/영 키를 한 번 누르면 다시 맞춰집니다.
 - 충전기를 꽂았을 때 반영되는 시간과 작업 표시줄의 한/영 단추로 바꿨을 때의 동작은 사람이 직접 확인해야 합니다.

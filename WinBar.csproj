@@ -14,5 +14,13 @@
     <TieredPGO>false</TieredPGO>
     <!-- GPU 카운터 버퍼를 문자열로 바꾸지 않고 직접 읽기 위해 사용 -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- 배포 정보: Windows 10/11 전용 프로토타입 (exe 파일 속성과 설정 > 정보에 표시) -->
+    <Version>0.1.0</Version>
+    <InformationalVersion>0.1.0-prototype</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Product>WinBar (Prototype)</Product>
+    <AssemblyTitle>WinBar - macOS style menu bar for Windows 10/11 (prototype)</AssemblyTitle>
+    <Description>Prototype. Windows 10/11 (x64) only.</Description>
   </PropertyGroup>
 </Project>

@@ -263,10 +263,11 @@ internal sealed class SettingsForm : Form
 
     private void PaintAbout(Graphics graphics)
     {
-        string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+        string version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.1.0";
         (string Label, string Value)[] rows =
         [
-            ("버전", version),
+            ("버전", $"{version} (프로토타입)"),
+            ("지원 OS", "Windows 10/11 (x64) 전용"),
             ("아이콘", Icons.Family),
             ("설정 파일", AppSettings.FilePath)
         ];
