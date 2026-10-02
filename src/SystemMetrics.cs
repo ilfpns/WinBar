@@ -6,7 +6,11 @@ namespace WinBar;
 internal sealed record SystemSnapshot(double? CpuPercent = null, double? GpuPercent = null,
     double? RamPercent = null, byte? BatteryPercent = null, bool Charging = false,
     double? VolumePercent = null, bool Muted = false, double? BrightnessPercent = null,
-    int? BatteryMinutes = null);
+    int? BatteryMinutes = null, string? PowerMode = null, bool SaverOn = false, int? SaverThreshold = null,
+    string? OutputName = null);
+
+// 소리 출력 장치 하나(스피커, 블루투스 헤드폰 등)
+internal sealed record AudioDevice(string Id, string Name, bool IsDefault);
 
 internal sealed class SystemMetrics : IDisposable
 {
@@ -40,30 +44,24 @@ internal sealed class SystemMetrics : IDisposable
             gpuCounter = IntPtr.Zero;
         }
 
+        // 기본 출력 장치가 바뀌거나(블루투스 헤드폰 연결 등) 장치가 추가·제거되면 알림을 받아 다시 연결한다.
         try
         {
-            var enumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumeratorComObject();
-            if (enumerator.GetDefaultAudioEndpoint(0, 1, out IMMDevice device) == 0)
-            {
-                Guid interfaceId = typeof(IAudioEndpointVolume).GUID;
-                if (device.Activate(ref interfaceId, 23, IntPtr.Zero, out object endpoint) == 0)
-                    audioVolume = (IAudioEndpointVolume)endpoint;
-                Marshal.ReleaseComObject(device);
-            }
-            Marshal.ReleaseComObject(enumerator);
+            deviceEnumerator = (IMMDeviceEnumerator)(object)new MMDeviceEnumeratorComObject();
+            deviceNotifications = new DeviceNotificationClient(() => { if (!disposed) AudioDevicesChanged?.Invoke(); });
+            deviceEnumerator.RegisterEndpointNotificationCallback(deviceNotifications);
         }
-        catch (Exception) { audioVolume = null; }
+        catch (Exception) { deviceNotifications = null; }
+        RebindAudio();
 
-        if (audioVolume is not null)
+        // 전원 모드(최고의 전원 효율·균형·최고 성능 등)는 Windows가 바뀔 때 바로 알려 준다.
+        try
         {
-            SampleVolume();
-            try
-            {
-                var callback = new VolumeCallback(OnVolumeNotify);
-                if (audioVolume.RegisterControlChangeNotify(callback) == 0) volumeCallback = callback;
-            }
-            catch (Exception) { volumeCallback = null; }
+            powerModeCallback = OnPowerModeChanged;
+            if (PowerRegisterForEffectivePowerModeNotifications(2, powerModeCallback, IntPtr.Zero, out IntPtr handle) == 0)
+                powerModeRegistration = handle;
         }
+        catch (Exception) { powerModeRegistration = IntPtr.Zero; }
 
         brightnessThread = new Thread(() => MonitorBrightness(brightnessCancellation.Token))
         {
@@ -71,6 +69,160 @@ internal sealed class SystemMetrics : IDisposable
             Name = "WinBar brightness"
         };
         brightnessThread.Start();
+    }
+
+    private IMMDeviceEnumerator? deviceEnumerator;
+    private DeviceNotificationClient? deviceNotifications;
+    private string? outputName;
+    private string? outputId;
+    private PowerModeCallback? powerModeCallback;
+    private IntPtr powerModeRegistration;
+    private volatile int powerMode = -1;
+
+    // 기본 출력 장치 변경·장치 추가/제거 시 백그라운드 스레드에서 호출된다. UI 스레드에서 RebindAudio()를 불러 처리한다.
+    public event Action? AudioDevicesChanged;
+    // 전원 모드가 바뀌면 백그라운드 스레드에서 호출된다.
+    public event Action? PowerModeChanged;
+
+    // 현재 기본 출력 장치의 음량 조절 개체에 다시 연결한다(UI 스레드).
+    public void RebindAudio()
+    {
+        if (disposed) return;
+        try
+        {
+            if (audioVolume is not null)
+            {
+                if (volumeCallback is not null)
+                    try { audioVolume.UnregisterControlChangeNotify(volumeCallback); } catch (Exception) { }
+                Marshal.ReleaseComObject(audioVolume);
+            }
+        }
+        catch (Exception) { }
+        audioVolume = null;
+        volumeCallback = null;
+        outputName = null;
+        outputId = null;
+        try
+        {
+            if (deviceEnumerator?.GetDefaultAudioEndpoint(0, 1, out IMMDevice device) == 0)
+            {
+                Guid interfaceId = typeof(IAudioEndpointVolume).GUID;
+                if (device.Activate(ref interfaceId, 23, IntPtr.Zero, out object endpoint) == 0)
+                    audioVolume = (IAudioEndpointVolume)endpoint;
+                if (device.GetId(out string id) == 0) outputId = id;
+                outputName = ReadFriendlyName(device);
+                Marshal.ReleaseComObject(device);
+            }
+        }
+        catch (Exception) { audioVolume = null; }
+
+        if (audioVolume is null)
+        {
+            lock (controlLock) { volumePercent = null; muted = false; }
+            return;
+        }
+        SampleVolume();
+        try
+        {
+            var callback = new VolumeCallback(OnVolumeNotify);
+            if (audioVolume.RegisterControlChangeNotify(callback) == 0) volumeCallback = callback;
+        }
+        catch (Exception) { volumeCallback = null; }
+    }
+
+    // 지금 선택할 수 있는 출력 장치 목록(사용 가능한 장치만)
+    public IReadOnlyList<AudioDevice> GetOutputDevices()
+    {
+        var devices = new List<AudioDevice>();
+        if (deviceEnumerator is null) return devices;
+        IMMDeviceCollection? collection = null;
+        try
+        {
+            if (deviceEnumerator.EnumAudioEndpoints(0, 0x1, out collection) != 0 || collection is null) return devices;
+            collection.GetCount(out uint count);
+            for (uint index = 0; index < count && index < 16; index++)
+            {
+                if (collection.Item(index, out IMMDevice device) != 0) continue;
+                try
+                {
+                    if (device.GetId(out string id) != 0) continue;
+                    devices.Add(new AudioDevice(id, ReadFriendlyName(device) ?? "알 수 없는 장치", id == outputId));
+                }
+                finally { Marshal.ReleaseComObject(device); }
+            }
+        }
+        catch (Exception) { }
+        finally { if (collection is not null) Marshal.ReleaseComObject(collection); }
+        return devices;
+    }
+
+    // 기본 출력 장치를 바꾼다. Windows 사운드 설정과 같은 방법(IPolicyConfig)이며 관리자 권한이 필요 없다.
+    public bool SetDefaultOutput(string id)
+    {
+        object? config = null;
+        try
+        {
+            config = new PolicyConfigComObject();
+            var policy = (IPolicyConfig)config;
+            bool ok = true;
+            for (int role = 0; role < 3; role++) ok &= policy.SetDefaultEndpoint(id, role) == 0;
+            return ok;
+        }
+        catch (Exception) { return false; }
+        finally { if (config is not null) Marshal.ReleaseComObject(config); }
+    }
+
+    private static string? ReadFriendlyName(IMMDevice device)
+    {
+        IPropertyStore? store = null;
+        var value = new PropVariant();
+        try
+        {
+            if (device.OpenPropertyStore(0, out store) != 0 || store is null) return null;
+            var key = new PropertyKey { FormatId = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"), PropertyId = 14 };
+            if (store.GetValue(ref key, out value) != 0 || value.Type != 31 || value.Pointer == IntPtr.Zero) return null;
+            return Marshal.PtrToStringUni(value.Pointer);
+        }
+        catch (Exception) { return null; }
+        finally
+        {
+            try { PropVariantClear(ref value); } catch (Exception) { }
+            if (store is not null) Marshal.ReleaseComObject(store);
+        }
+    }
+
+    private void OnPowerModeChanged(int mode, IntPtr context)
+    {
+        powerMode = mode;
+        if (!disposed) PowerModeChanged?.Invoke();
+    }
+
+    private static string? PowerModeName(int mode) => mode switch
+    {
+        0 => "절전 모드",
+        1 => "최고의 전원 효율",
+        2 => "균형",
+        3 or 4 => "최고 성능",
+        5 => "게임 모드",
+        6 => "혼합 현실",
+        _ => null
+    };
+
+    // 절전 모드가 켜지는 배터리 기준(%) — 현재 전원 구성표의 배터리 사용 값
+    private static int? ReadSaverThreshold()
+    {
+        IntPtr scheme = IntPtr.Zero;
+        try
+        {
+            if (PowerGetActiveScheme(IntPtr.Zero, out scheme) != 0 || scheme == IntPtr.Zero) return null;
+            Guid active = Marshal.PtrToStructure<Guid>(scheme);
+            Guid subgroup = new("DE830923-A562-41AF-A086-E3A2C6BAD2DA");
+            Guid setting = new("E69653CA-CF7F-4F05-AA73-CB833FA90AD4");
+            return PowerReadDCValueIndex(IntPtr.Zero, ref active, ref subgroup, ref setting, out uint value) == 0
+                ? (int)Math.Clamp(value, 0u, 100u) : null;
+        }
+        catch (Exception) { return null; }
+        finally { if (scheme != IntPtr.Zero) LocalFree(scheme); }
     }
 
     private void OnVolumeNotify(bool nextMuted, float scalar)
@@ -102,29 +254,53 @@ internal sealed class SystemMetrics : IDisposable
         byte? battery = null;
         bool charging = false;
         int? batteryMinutes = null;
+        bool saverOn = false;
 
-        try { SampleBattery(ref battery, ref charging, ref batteryMinutes); } catch (Exception) { }
+        try { SampleBattery(ref battery, ref charging, ref batteryMinutes, ref saverOn); } catch (Exception) { }
+        int? saverThreshold = battery is null ? null : ReadSaverThreshold();
 
         // 변경 알림을 놓쳤을 때를 대비해 2초 주기에서만 음량을 직접 확인한다.
         if (volumeCallback is null) SampleVolume();
-        return ApplyControls(new(cpu, gpu, ram, battery, charging, BatteryMinutes: batteryMinutes));
+        return ApplyControls(new(cpu, gpu, ram, battery, charging, BatteryMinutes: batteryMinutes,
+            PowerMode: PowerModeName(powerMode), SaverOn: saverOn, SaverThreshold: saverThreshold));
     }
 
-    private void SampleBattery(ref byte? battery, ref bool charging, ref int? batteryMinutes)
+    private void SampleBattery(ref byte? battery, ref bool charging, ref int? batteryMinutes, ref bool saverOn)
     {
         if (GetSystemPowerStatus(out SystemPowerStatus power)
             && power.BatteryFlag is not 128 and not 255
             && power.BatteryLifePercent != 255)
         {
             battery = power.BatteryLifePercent;
+            saverOn = power.SystemStatusFlag == 1; // 절전 모드 켜짐
             // 충전기가 연결되면 Windows 전원 알림 직후 바로 번개를 표시한다.
             // (배터리의 "충전 중" 신호는 연결 후 수 초 늦게 켜질 수 있어 기다리지 않는다.)
             bool pluggedIn = power.ACLineStatus == 1;
             charging = pluggedIn;
-            if (!pluggedIn && power.BatteryLifeTime != uint.MaxValue)
-                batteryMinutes = (int)(power.BatteryLifeTime / 60);
+            // 남은 사용 예측 시간은 직접 계산하지 않고, Windows 전원 관리자가 내는 예측값
+            // (작업 표시줄 배터리·설정 앱과 같은 출처)을 그대로 쓴다. 읽지 못하면 GetSystemPowerStatus 값을 쓴다.
+            if (!pluggedIn)
+            {
+                uint seconds = ReadEstimatedSeconds() ?? power.BatteryLifeTime;
+                if (seconds != uint.MaxValue) batteryMinutes = (int)(seconds / 60);
+            }
         }
     }
+
+    // SYSTEM_BATTERY_STATE(32바이트)의 EstimatedTime(초, 20바이트 위치). 모르면 0xFFFFFFFF.
+    private static uint? ReadEstimatedSeconds()
+    {
+        try
+        {
+            var state = new byte[32];
+            if (CallNtPowerInformation(5, IntPtr.Zero, 0, state, (uint)state.Length) != 0) return null; // SystemBatteryState
+            return BitConverter.ToUInt32(state, 20);
+        }
+        catch (Exception) { return null; }
+    }
+
+    [DllImport("powrprof.dll")]
+    private static extern uint CallNtPowerInformation(int level, IntPtr input, uint inputLength, byte[] output, uint outputLength);
 
     public void SetVolume(double percent)
     {
@@ -209,7 +385,9 @@ internal sealed class SystemMetrics : IDisposable
             {
                 VolumePercent = volumePercent,
                 Muted = muted,
-                BrightnessPercent = ReadBrightness()
+                BrightnessPercent = ReadBrightness(),
+                OutputName = outputName,
+                PowerMode = PowerModeName(powerMode) ?? current.PowerMode
             };
         }
     }
@@ -390,6 +568,20 @@ internal sealed class SystemMetrics : IDisposable
     {
         disposed = true;
         ControlsChanged = null;
+        AudioDevicesChanged = null;
+        PowerModeChanged = null;
+        if (powerModeRegistration != IntPtr.Zero)
+        {
+            try { PowerUnregisterFromEffectivePowerModeNotifications(powerModeRegistration); } catch (Exception) { }
+            powerModeRegistration = IntPtr.Zero;
+        }
+        if (deviceEnumerator is not null)
+        {
+            if (deviceNotifications is not null)
+                try { deviceEnumerator.UnregisterEndpointNotificationCallback(deviceNotifications); } catch (Exception) { }
+            try { Marshal.ReleaseComObject(deviceEnumerator); } catch (Exception) { }
+            deviceEnumerator = null;
+        }
         brightnessCancellation.Cancel();
         brightnessThread.Join(1500);
         brightnessCancellation.Dispose();
@@ -495,19 +687,88 @@ internal sealed class SystemMetrics : IDisposable
     [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IMMDeviceEnumerator
     {
-        [PreserveSig] int EnumAudioEndpoints(int dataFlow, uint stateMask, out IntPtr devices);
+        [PreserveSig] int EnumAudioEndpoints(int dataFlow, uint stateMask, out IMMDeviceCollection devices);
         [PreserveSig] int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice device);
         [PreserveSig] int GetDevice([MarshalAs(UnmanagedType.LPWStr)] string id, out IMMDevice device);
-        [PreserveSig] int RegisterEndpointNotificationCallback(IntPtr client);
-        [PreserveSig] int UnregisterEndpointNotificationCallback(IntPtr client);
+        [PreserveSig] int RegisterEndpointNotificationCallback(IMMNotificationClient client);
+        [PreserveSig] int UnregisterEndpointNotificationCallback(IMMNotificationClient client);
     }
+
+    [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMMDeviceCollection
+    {
+        [PreserveSig] int GetCount(out uint count);
+        [PreserveSig] int Item(uint index, out IMMDevice device);
+    }
+
+    [ComImport, Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IPropertyStore
+    {
+        [PreserveSig] int GetCount(out uint count);
+        [PreserveSig] int GetAt(uint index, out PropertyKey key);
+        [PreserveSig] int GetValue(ref PropertyKey key, out PropVariant value);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PropertyKey { public Guid FormatId; public int PropertyId; }
+
+    [StructLayout(LayoutKind.Explicit, Size = 24)]
+    private struct PropVariant { [FieldOffset(0)] public ushort Type; [FieldOffset(8)] public IntPtr Pointer; }
+
+    [ComImport, Guid("7991EEC9-7E89-4D85-8390-6C703CEC60C0"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMMNotificationClient
+    {
+        [PreserveSig] int OnDeviceStateChanged([MarshalAs(UnmanagedType.LPWStr)] string id, uint state);
+        [PreserveSig] int OnDeviceAdded([MarshalAs(UnmanagedType.LPWStr)] string id);
+        [PreserveSig] int OnDeviceRemoved([MarshalAs(UnmanagedType.LPWStr)] string id);
+        [PreserveSig] int OnDefaultDeviceChanged(int flow, int role, [MarshalAs(UnmanagedType.LPWStr)] string? id);
+        [PreserveSig] int OnPropertyValueChanged([MarshalAs(UnmanagedType.LPWStr)] string id, PropertyKey key);
+    }
+
+    // 장치 상태·추가·제거·기본 장치 변경만 알린다(속성 변경은 너무 잦아 무시).
+    private sealed class DeviceNotificationClient(Action changed) : IMMNotificationClient
+    {
+        public int OnDeviceStateChanged(string id, uint state) { changed(); return 0; }
+        public int OnDeviceAdded(string id) { changed(); return 0; }
+        public int OnDeviceRemoved(string id) { changed(); return 0; }
+        public int OnDefaultDeviceChanged(int flow, int role, string? id) { if (flow == 0 && role == 1) changed(); return 0; }
+        public int OnPropertyValueChanged(string id, PropertyKey key) => 0;
+    }
+
+    [ComImport, Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")]
+    private sealed class PolicyConfigComObject { }
+
+    // Windows 사운드 설정이 기본 장치를 바꿀 때 쓰는 인터페이스(공개 문서는 없음). SetDefaultEndpoint만 사용한다.
+    [ComImport, Guid("F8679F50-850A-41CF-9C72-430F290290C8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IPolicyConfig
+    {
+        [PreserveSig] int GetMixFormat([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr format);
+        [PreserveSig] int GetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id, int defaultFormat, IntPtr format);
+        [PreserveSig] int ResetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id);
+        [PreserveSig] int SetDeviceFormat([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr endpointFormat, IntPtr mixFormat);
+        [PreserveSig] int GetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string id, int defaultPeriod, IntPtr defaultPeriodValue, IntPtr minimumPeriod);
+        [PreserveSig] int SetProcessingPeriod([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr period);
+        [PreserveSig] int GetShareMode([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr mode);
+        [PreserveSig] int SetShareMode([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr mode);
+        [PreserveSig] int GetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr key, IntPtr value);
+        [PreserveSig] int SetPropertyValue([MarshalAs(UnmanagedType.LPWStr)] string id, IntPtr key, IntPtr value);
+        [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
+    }
+
+    private delegate void PowerModeCallback(int mode, IntPtr context);
+    [DllImport("powrprof.dll")] private static extern int PowerRegisterForEffectivePowerModeNotifications(uint version, PowerModeCallback callback, IntPtr context, out IntPtr registration);
+    [DllImport("powrprof.dll")] private static extern int PowerUnregisterFromEffectivePowerModeNotifications(IntPtr registration);
+    [DllImport("powrprof.dll")] private static extern uint PowerGetActiveScheme(IntPtr rootPowerKey, out IntPtr activeScheme);
+    [DllImport("powrprof.dll")] private static extern uint PowerReadDCValueIndex(IntPtr rootPowerKey, ref Guid scheme, ref Guid subgroup, ref Guid setting, out uint value);
+    [DllImport("kernel32.dll")] private static extern IntPtr LocalFree(IntPtr memory);
+    [DllImport("ole32.dll")] private static extern int PropVariantClear(ref PropVariant value);
 
     [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IMMDevice
     {
         [PreserveSig] int Activate(ref Guid interfaceId, uint classContext, IntPtr activationParameters,
             [MarshalAs(UnmanagedType.IUnknown)] out object endpoint);
-        [PreserveSig] int OpenPropertyStore(uint access, out IntPtr properties);
+        [PreserveSig] int OpenPropertyStore(uint access, out IPropertyStore properties);
         [PreserveSig] int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
         [PreserveSig] int GetState(out uint state);
     }

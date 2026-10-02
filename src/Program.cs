@@ -1,4 +1,4 @@
-using System.Drawing.Drawing2D;
+﻿using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32;
@@ -24,18 +24,43 @@ internal static class Program
 
 internal static class Theme
 {
-    public static readonly Color BarBackground = Color.FromArgb(30, 30, 32);
-    public static readonly Color BarText = Color.FromArgb(232, 232, 235);
-    public static readonly Color Dim = Color.FromArgb(118, 118, 124);
-    public static readonly Color PopupBackground = Color.FromArgb(36, 36, 38);
-    public static readonly Color PopupBorder = Color.FromArgb(70, 70, 74);
-    public static readonly Color Primary = Color.FromArgb(236, 236, 239);
-    public static readonly Color Secondary = Color.FromArgb(158, 158, 164);
-    public static readonly Color Separator = Color.FromArgb(55, 55, 58);
-    public static readonly Color Hover = Color.FromArgb(52, 52, 55);
-    public static readonly Color Card = Color.FromArgb(44, 44, 47);
-    public static readonly Color Track = Color.FromArgb(72, 72, 76);
-    public static readonly Color Accent = Color.FromArgb(10, 132, 255);
+    public static bool IsLight => AppSettings.Current.LightMode;
+    public static Color BarBackground => IsLight ? Color.FromArgb(242, 242, 244) : Color.FromArgb(30, 30, 32);
+    // 메뉴바 유리에 깔 테마 색의 실제 불투명도(%).
+    // 0%: 배경을 완전히 없앤다(흐림·색 없음, 아이콘과 글자만 보임).
+    // 1~100%: 15~100%로 환산한다. 아주 옅으면 Windows 아크릴이 테마 색(화이트·다크)을 따르지 않아 글자가 배경에 묻힌다.
+    public static int BarTintPercent => Math.Clamp(AppSettings.Current.BarOpacity, 0, 100) is int value && value > 0
+        ? 15 + value * 85 / 100
+        : 0;
+    public static Color BarText => IsLight ? Color.FromArgb(28, 28, 30) : Color.FromArgb(232, 232, 235);
+    public static Color Dim => IsLight ? Color.FromArgb(132, 132, 138) : Color.FromArgb(118, 118, 124);
+    public static Color PopupBackground => IsLight ? Color.FromArgb(244, 244, 246) : Color.FromArgb(36, 36, 38);
+    public static Color PopupBorder => IsLight ? Color.FromArgb(188, 188, 194) : Color.FromArgb(70, 70, 74);
+    public static Color Primary => IsLight ? Color.FromArgb(28, 28, 30) : Color.FromArgb(236, 236, 239);
+    public static Color Secondary => IsLight ? Color.FromArgb(92, 92, 98) : Color.FromArgb(158, 158, 164);
+    public static Color Separator => IsLight ? Color.FromArgb(205, 205, 210) : Color.FromArgb(55, 55, 58);
+    public static Color Hover => IsLight ? Color.FromArgb(220, 220, 224) : Color.FromArgb(52, 52, 55);
+    public static Color Card => IsLight ? Color.FromArgb(218, 250, 250, 252) : Color.FromArgb(172, 54, 54, 58);
+    public static Color Track => IsLight ? Color.FromArgb(194, 194, 200) : Color.FromArgb(72, 72, 76);
+    public static Color Accent => IsLight ? Color.FromArgb(28, 28, 30) : Color.FromArgb(236, 236, 239);
+    public static Color AccentText => IsLight ? Color.White : Color.FromArgb(24, 24, 26);
+    // 배터리 잔량 구간별 색(메뉴바 배터리 채움과 배터리 모달의 큰 숫자에 같이 쓴다).
+    // 10% 미만 빨강 · 10%~절전 기준 노랑 · 절전 기준 초과~70% 미만 옅은 파랑 · 70~100% 초록. 기준을 못 읽으면 Windows 기본 20%.
+    public static Color BatteryLevel(int percent, int? saverThreshold)
+    {
+        int threshold = saverThreshold ?? 20;
+        if (percent < 10) return IsLight ? Color.FromArgb(255, 59, 48) : Color.FromArgb(255, 69, 58);
+        if (percent <= threshold) return IsLight ? Color.FromArgb(242, 176, 0) : Color.FromArgb(255, 214, 10);
+        if (percent < 70) return IsLight ? Color.FromArgb(64, 170, 235) : Color.FromArgb(100, 210, 255);
+        return IsLight ? Color.FromArgb(40, 180, 80) : Color.FromArgb(48, 209, 88);
+    }
+
+    // 메뉴·설정 호버 색(macOS 강조 파랑, 종료는 빨강). 배경은 옅게 물들이고 아이콘은 이 색으로 바뀐다.
+    public static Color HoverAccent => IsLight ? Color.FromArgb(0, 122, 255) : Color.FromArgb(10, 132, 255);
+    public static Color HoverDanger => IsLight ? Color.FromArgb(255, 59, 48) : Color.FromArgb(255, 69, 58);
+    public static Color HoverTint(Color accent, float level) =>
+        Color.FromArgb((int)Math.Round(Math.Clamp(level, 0, 1) * (IsLight ? 32 : 52)), accent);
+    public static Color Knob => IsLight ? Color.White : Color.FromArgb(246, 246, 248);
     public static readonly Color CameraDot = Color.FromArgb(52, 199, 89);
     public static readonly Color MicrophoneDot = Color.FromArgb(255, 159, 10);
 
@@ -51,14 +76,22 @@ internal static class Theme
         return path;
     }
 
-    public static void DrawPopupBackground(Graphics graphics, Size size, int radius = 14)
+    public static void DrawPopupBackground(Graphics graphics, Size size, int radius = 14, bool glass = false)
     {
         Rectangle body = new(0, 0, size.Width - 1, size.Height - 1);
         using GraphicsPath path = RoundedRectangle(body, radius);
-        using var fill = new SolidBrush(PopupBackground);
+        Color background = glass
+            ? Color.FromArgb(IsLight ? 178 : 158, PopupBackground)
+            : PopupBackground;
+        using var fill = new SolidBrush(background);
         using var border = new Pen(PopupBorder);
         graphics.FillPath(fill, path);
         graphics.DrawPath(border, path);
+        if (glass)
+        {
+            using var highlight = new Pen(Color.FromArgb(IsLight ? 150 : 48, Color.White));
+            graphics.DrawArc(highlight, body.Left + 1, body.Top + 1, body.Width - 2, Math.Max(8, radius * 2), 190, 160);
+        }
     }
 
     public static void ApplyRoundedRegion(Form form, int radius)
@@ -80,13 +113,19 @@ internal static class BarText
         var format = (StringFormat)StringFormat.GenericTypographic.Clone();
         format.LineAlignment = StringAlignment.Center;
         format.FormatFlags |= StringFormatFlags.NoWrap | StringFormatFlags.MeasureTrailingSpaces;
+        // 한글 글꼴은 줄 높이가 커서, 상자보다 줄이 조금만 커도 글자를 통째로 그리지 않는 LineLimit을 끈다.
+        format.FormatFlags &= ~StringFormatFlags.LineLimit;
+        format.Trimming = StringTrimming.EllipsisCharacter;
         return format;
     }
 
     public static float Measure(Graphics graphics, string text, Font font) =>
         graphics.MeasureString(text, font, PointF.Empty, Format).Width;
 
-    public static void Draw(Graphics graphics, string text, Font font, Rectangle area, Color color, StringAlignment alignment)
+    public static void Draw(Graphics graphics, string text, Font font, Rectangle area, Color color, StringAlignment alignment) =>
+        Draw(graphics, text, font, (RectangleF)area, color, alignment);
+
+    public static void Draw(Graphics graphics, string text, Font font, RectangleF area, Color color, StringAlignment alignment)
     {
         System.Drawing.Text.TextRenderingHint previous = graphics.TextRenderingHint;
         graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
@@ -100,14 +139,17 @@ internal static class BarText
 // Windows 10/11의 아크릴(흐림) 효과를 창 배경에 적용한다. 지원하지 않으면 false를 돌려준다.
 internal static class BarBackdrop
 {
-    public static bool Apply(IntPtr window, Color tint, int opacityPercent)
+    // moving: 창을 움직이는 동안에는 흐림 없이 반투명 색만 쓴다(아크릴은 움직일 때 매 프레임 다시 계산돼 끊긴다).
+    public static bool Apply(IntPtr window, Color tint, int opacityPercent, bool moving = false)
     {
         try
         {
-            int alpha = (int)Math.Round(Math.Clamp(opacityPercent, 0, 100) * 2.55);
+            // 0%는 흐림 없이 완전히 투명한 배경(움직이는 동안에도 그대로)
+            bool clear = opacityPercent <= 0;
+            int alpha = clear ? 0 : (int)Math.Round(Math.Clamp(moving ? Math.Max(opacityPercent, 80) : opacityPercent, 0, 100) * 2.55);
             var accent = new AccentPolicy
             {
-                AccentState = 4, // ACCENT_ENABLE_ACRYLICBLURBEHIND
+                AccentState = moving || clear ? 2 : 4, // ACCENT_ENABLE_TRANSPARENTGRADIENT : ACCENT_ENABLE_ACRYLICBLURBEHIND
                 AccentFlags = 2,
                 GradientColor = (alpha << 24) | (tint.B << 16) | (tint.G << 8) | tint.R
             };
@@ -131,6 +173,28 @@ internal static class BarBackdrop
     private struct CompositionData { public int Attribute; public IntPtr Data; public int Size; }
 
     [DllImport("user32.dll")] private static extern int SetWindowCompositionAttribute(IntPtr window, ref CompositionData data);
+}
+
+// 모달·메뉴·설정 창을 닫고 1.5초 뒤 한 번, 그리는 데 쓴 메모리를 Windows에 돌려준다(유휴 메모리 40MB 이하 유지).
+// 연달아 닫으면 마지막에 한 번만 한다. UI 스레드에서만 부른다.
+internal static class MemoryTrim
+{
+    private static System.Windows.Forms.Timer? timer;
+
+    public static void Request()
+    {
+        if (timer is null)
+        {
+            timer = new System.Windows.Forms.Timer { Interval = 1500 };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                WinBarContext.TrimWorkingSet();
+            };
+        }
+        timer.Stop();
+        timer.Start();
+    }
 }
 
 internal static class Topmost
@@ -165,10 +229,33 @@ internal static class Icons
 
     private static readonly FontFamily IconFamily = new(Family);
 
-    // macOS SF Symbols처럼 굵게 보이도록, 글꼴 외곽선을 채운 뒤 같은 색으로 한 번 더 테두리를 그린다.
+    // 호버 애니메이션용: 아이콘을 칸 가운데를 기준으로 돌리거나(angle, 도) 키우고(scale) 옮겨(dx, dy) 그린다.
+    public static void DrawMoved(Graphics graphics, string glyph, Rectangle area, Color color, float points,
+        float angle = 0, float scale = 1, float dx = 0, float dy = 0)
+    {
+        GraphicsState state = graphics.Save();
+        float centerX = area.Left + area.Width / 2f, centerY = area.Top + area.Height / 2f;
+        graphics.TranslateTransform(centerX + dx, centerY + dy);
+        if (angle != 0) graphics.RotateTransform(angle);
+        if (scale != 1) graphics.ScaleTransform(scale, scale);
+        graphics.TranslateTransform(-centerX, -centerY);
+        DrawBold(graphics, glyph, area, color, points);
+        graphics.Restore(state);
+    }
+
+    // 0→1 값을 천천히 출발해 천천히 멈추는 곡선으로 바꾼다.
+    public static float Ease(float value) => value * value * (3 - 2 * value);
+
+    // 모든 아이콘의 선 굵기 기준(화면 배율 100%에서 1.25px). 글꼴 아이콘·직접 그린 아이콘(Wi-Fi·배터리·제어 센터)이
+    // 크기와 상관없이 같은 굵기로 보이게 한다.
+    public static float Stroke(Graphics graphics) => 1.25f * graphics.DpiY / 96f;
+
+    // macOS SF Symbols처럼 굵게 보이도록 글꼴 외곽선을 채운 뒤 테두리를 한 번 더 그린다.
+    // 글꼴 아이콘의 원래 선 굵기는 글자 크기의 약 1/16이라, 모자란 만큼만 테두리로 채워 크기와 상관없이 기준 굵기에 맞춘다.
     public static void DrawBold(Graphics graphics, string glyph, Rectangle area, Color color, float points = 12)
     {
         float emPixels = graphics.DpiY * points / 72f;
+        float outline = Math.Max(0.3f, Stroke(graphics) - emPixels / 16f);
         using var path = new GraphicsPath();
         path.AddString(glyph, IconFamily, 0, emPixels, PointF.Empty, StringFormat.GenericTypographic);
         RectangleF bounds = path.GetBounds();
@@ -182,14 +269,14 @@ internal static class Icons
         SmoothingMode previous = graphics.SmoothingMode;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var brush = new SolidBrush(color);
-        using var pen = new Pen(color, emPixels * 0.05f) { LineJoin = LineJoin.Round };
+        using var pen = new Pen(color, outline) { LineJoin = LineJoin.Round };
         graphics.FillPath(brush, path);
         graphics.DrawPath(pen, path);
         graphics.SmoothingMode = previous;
     }
 
-    // macOS 메뉴바 배터리: 둥근 테두리 + 잔량만큼 채움, 충전 중이면 번개, 20% 이하는 빨간색.
-    public static void DrawBattery(Graphics graphics, Rectangle area, byte? percent, bool charging, Color color)
+    // macOS 메뉴바 배터리: 둥근 테두리 + 잔량만큼 채움(잔량 구간별 색), 충전 중이면 번개.
+    public static void DrawBattery(Graphics graphics, Rectangle area, byte? percent, bool charging, Color color, int? saverThreshold = null)
     {
         float scale = graphics.DpiY / 96f;
         float width = 23 * scale, height = 11.5f * scale;
@@ -198,7 +285,7 @@ internal static class Icons
         SmoothingMode previous = graphics.SmoothingMode;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-        using (var outline = new Pen(Color.FromArgb(170, color), 1.1f * scale))
+        using (var outline = new Pen(Color.FromArgb(170, color), Stroke(graphics)))
         using (GraphicsPath bodyPath = Rounded(body, 3.2f * scale))
             graphics.DrawPath(outline, bodyPath);
         using (var nub = new SolidBrush(Color.FromArgb(170, color)))
@@ -209,7 +296,7 @@ internal static class Icons
         var inner = RectangleF.Inflate(body, -2f * scale, -2f * scale);
         if (level > 0)
         {
-            Color fillColor = !charging && percent <= 20 ? Color.FromArgb(255, 69, 58) : color;
+            Color fillColor = Theme.BatteryLevel(percent ?? 0, saverThreshold);
             using var fill = new SolidBrush(fillColor);
             using GraphicsPath fillPath = Rounded(new RectangleF(inner.Left, inner.Top, Math.Max(inner.Width * level, 2f * scale), inner.Height), 1.6f * scale);
             graphics.FillPath(fill, fillPath);
@@ -269,6 +356,8 @@ internal static class Icons
 internal sealed class WinBarContext : ApplicationContext
 {
     private const uint EventSystemForeground = 0x0003;
+    private const uint EventSystemMoveSizeStart = 0x000A;
+    private const uint EventSystemMoveSizeEnd = 0x000B;
     private const uint EventObjectImeShow = 0x8027;
     private const uint EventObjectImeChange = 0x8029;
     private const uint WinEventOutOfContext = 0x0000;
@@ -303,6 +392,8 @@ internal sealed class WinBarContext : ApplicationContext
         timer.Tick += (_, _) => OnTick();
         timer.Start();
         metrics.ControlsChanged += OnControlsChanged;
+        metrics.AudioDevicesChanged += OnAudioDevicesChanged;
+        metrics.PowerModeChanged += OnPowerModeChanged;
         sensors.Changed += OnStatusChanged;
         AppSettings.Current.Changed += OnSettingsChanged;
         fullscreenTimer.Tick += (_, _) => UpdateFullscreenState();
@@ -332,6 +423,7 @@ internal sealed class WinBarContext : ApplicationContext
         winEventCallback = OnWinEvent;
         const uint flags = WinEventOutOfContext | WinEventSkipOwnProcess;
         winEventHooks.Add(SetWinEventHook(EventSystemForeground, EventSystemForeground, IntPtr.Zero, winEventCallback, 0, 0, flags));
+        winEventHooks.Add(SetWinEventHook(EventSystemMoveSizeStart, EventSystemMoveSizeEnd, IntPtr.Zero, winEventCallback, 0, 0, flags));
         winEventHooks.Add(SetWinEventHook(EventObjectImeShow, EventObjectImeChange, IntPtr.Zero, winEventCallback, 0, 0, flags));
 
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
@@ -356,7 +448,7 @@ internal sealed class WinBarContext : ApplicationContext
         if (tickCount++ % 30 == 0) TrimWorkingSet();
     }
 
-    private static void TrimWorkingSet()
+    internal static void TrimWorkingSet()
     {
         try
         {
@@ -390,6 +482,27 @@ internal sealed class WinBarContext : ApplicationContext
         }, null);
     }
 
+    // 기본 출력 장치 변경(블루투스 헤드폰 연결 등)·장치 추가/제거: 새 장치의 음량에 다시 연결한다.
+    private int audioPending;
+
+    private void OnAudioDevicesChanged()
+    {
+        if (uiContext is null || Interlocked.Exchange(ref audioPending, 1) == 1) return;
+        uiContext.Post(_ =>
+        {
+            Volatile.Write(ref audioPending, 0);
+            metrics.RebindAudio();
+            latestSnapshot = metrics.ApplyControls(latestSnapshot);
+            foreach (BarForm bar in bars)
+            {
+                bar.UpdateSnapshot(latestSnapshot);
+                bar.RefreshOutputs();
+            }
+        }, null);
+    }
+
+    private void OnPowerModeChanged() => uiContext?.Post(_ => UpdateBars(), null);
+
     private void OnStatusChanged()
     {
         if (uiContext is null || Interlocked.Exchange(ref statusPending, 1) == 1) return;
@@ -407,6 +520,13 @@ internal sealed class WinBarContext : ApplicationContext
 
     private void OnWinEvent(IntPtr hook, uint eventType, IntPtr window, int objectId, int childId, uint thread, uint time)
     {
+        // 창을 끄는 동안에만 50ms 간격으로 위치를 확인해 메뉴바를 덮는 순간 바로 숨긴다. 평소에는 200ms.
+        if (eventType is EventSystemMoveSizeStart or EventSystemMoveSizeEnd)
+        {
+            fullscreenTimer.Interval = eventType == EventSystemMoveSizeStart ? 50 : 200;
+            UpdateFullscreenState();
+            return;
+        }
         if (eventType == EventSystemForeground) UpdateFullscreenState();
         RefreshInputSource();
     }
@@ -466,10 +586,16 @@ internal sealed class WinBarContext : ApplicationContext
     {
         IntPtr foreground = GetForegroundWindow();
         Rectangle? fullscreenBounds = null;
-        if (foreground != IntPtr.Zero && !IsShellWindow(foreground)
+        Rectangle? coveringBounds = null;
+        if (foreground != IntPtr.Zero && !IsShellWindow(foreground) && !IsIconic(foreground)
             && GetWindowRect(foreground, out NativeRect window))
         {
             Rectangle windowBounds = Rectangle.FromLTRB(window.Left, window.Top, window.Right, window.Bottom);
+            // 보이는 테두리 기준 위치(Windows 10/11 창의 투명한 크기 조절 여백 제외)
+            if (DwmGetWindowAttribute(foreground, 9, out NativeRect frame, Marshal.SizeOf<NativeRect>()) == 0)
+                coveringBounds = Rectangle.FromLTRB(frame.Left, frame.Top, frame.Right, frame.Bottom);
+            else
+                coveringBounds = windowBounds;
             Rectangle monitor = Screen.FromHandle(foreground).Bounds;
             // 창이 모니터 전체를 덮거나 최대화 상태이면 전체 화면으로 본다.
             // 최대화 창은 앱바 작업 영역 아래에서 시작하므로 좌표 비교만으로는 감지할 수 없다.
@@ -492,8 +618,10 @@ internal sealed class WinBarContext : ApplicationContext
             Rectangle monitor = bar.MonitorBounds;
             bool pointerAtTop = hasCursor && cursor.X >= monitor.Left && cursor.X < monitor.Right
                 && cursor.Y >= monitor.Top && cursor.Y <= monitor.Top + (bar.IsShown ? bar.Height : 1);
-            bool fullscreen = fullscreenBounds == monitor || (bar.ShellReportsFullscreen && !ownForeground);
-            bar.SetFullscreen(fullscreen, pointerAtTop);
+            bool fullscreen = fullscreenBounds == monitor;
+            // 사용자가 창을 위로 끌어 메뉴바 자리에 닿게 하면 메뉴바가 위로 숨고, 창을 내리면 다시 나온다.
+            bool covered = !fullscreen && coveringBounds is Rectangle cover && cover.IntersectsWith(bar.VisibleArea);
+            bar.SetFullscreen(fullscreen, covered, pointerAtTop);
         }
 
         // 다른 앱의 항상 위 창이 메뉴바나 WinBar 메뉴·팝업을 덮고 있으면,
@@ -522,6 +650,8 @@ internal sealed class WinBarContext : ApplicationContext
         foreach (IntPtr hook in winEventHooks)
             if (hook != IntPtr.Zero) UnhookWinEvent(hook);
         metrics.ControlsChanged -= OnControlsChanged;
+        metrics.AudioDevicesChanged -= OnAudioDevicesChanged;
+        metrics.PowerModeChanged -= OnPowerModeChanged;
         sensors.Changed -= OnStatusChanged;
         AppSettings.Current.Changed -= OnSettingsChanged;
         timer.Dispose();
@@ -550,6 +680,8 @@ internal sealed class WinBarContext : ApplicationContext
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll", SetLastError = true)] private static extern bool GetWindowRect(IntPtr window, out NativeRect rectangle);
     [DllImport("user32.dll")] private static extern bool IsZoomed(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr window);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out NativeRect value, int size);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr window, StringBuilder name, int capacity);
     [DllImport("user32.dll")] private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventDelegate callback, uint processId, uint threadId, uint flags);
@@ -558,27 +690,26 @@ internal sealed class WinBarContext : ApplicationContext
 
 internal sealed class BarForm : Form
 {
-    private enum Item { None, Privacy, Input, Wifi, Bluetooth, Cpu, Volume, Brightness, Battery, Clock }
+    // 오른쪽에서부터: 날짜시간 · 제어 센터(스위치) · 소리 · 네트워크 · 배터리 · … · 카메라/마이크
+    private enum Item { None, Privacy, More, Battery, Network, Sound, Control, Clock }
 
     private const int BarHeight = 30;
 
     private readonly SystemMetrics metrics;
-    private readonly StatusSensors sensors;
     private readonly Screen screen;
     private SystemSnapshot snapshot = new();
     private StatusSnapshot status = new();
     private readonly Font font = new("Segoe UI Semibold", 9.5f, FontStyle.Regular, GraphicsUnit.Point);
-    private string clockText = string.Empty;
-    private readonly Font badgeFont = new("Segoe UI Semibold", 7, FontStyle.Regular, GraphicsUnit.Point);
-    private readonly StatusPopup statusPopup = new();
-    private readonly ControlPopup controlPopup;
+    // 배터리를 한 번이라도 읽었으면 칸을 유지해, 잠깐 못 읽어도 다른 아이콘이 밀리지 않게 한다.
+    private bool batterySeen;
+    private (bool Light, int Tint)? appliedAppearance;
+    private readonly GlassPanel panel;
     private readonly LogoMenuPopup logoMenu;
     private readonly Dictionary<Item, Rectangle> areas = [];
     private Rectangle logoArea;
     private Item hoverItem;
-    private Item openItem;
+    private Item panelItem;
     private bool logoHovered;
-    private bool metricTipVisible;
     private bool appBarRegistered;
     private bool translucent;
     private bool reservePending;
@@ -586,35 +717,35 @@ internal sealed class BarForm : Form
     private bool fullscreenActive;
     private bool edgeRevealArmed;
     private Rectangle reservedBounds;
-    private readonly System.Windows.Forms.Timer slideTimer = new() { Interval = 10 };
-    private const int SlideDurationMilliseconds = 220;
-    private long slideStartedAt;
-    private int slideStartTop;
-    private readonly System.Windows.Forms.Timer inputTransitionTimer = new() { Interval = 15 };
-    private const int InputTransitionDurationMilliseconds = 160;
-    private bool inputTransitionInitialized;
-    private long inputTransitionStartedAt;
-    private double inputPosition;
-    private double inputStartPosition;
-    private double inputTargetPosition;
+    // 숨김·표시 애니메이션: 화면 갱신(DWM 프레임)에 맞춰 별도 스레드에서 창을 옮긴다.
+    private const int SlideDurationMilliseconds = 240;
+    private int slideVersion;
+    private bool sliding;
     private int visibleTop;
     private int hiddenTop;
     private int targetTop;
+    // 초 단위 시계: 1초마다 시계 부분만 다시 그린다(센서를 다시 읽지 않음).
+    private readonly System.Windows.Forms.Timer clockTimer = new() { Interval = 1000 };
+    // Wi-Fi 연결 중일 때만 아이콘을 깜빡인다.
+    private readonly System.Windows.Forms.Timer blinkTimer = new() { Interval = 450 };
+    private bool blinkOn = true;
+    // 마우스로만 연 모달은 마우스가 항목과 모달을 모두 벗어나면 닫는다(모달이 열린 동안만 동작).
+    // 30ms마다 확인하고 벗어난 지 120ms가 지나면 닫는다 → 마우스를 떼고 늦어도 150ms 안에 닫힘(170ms 기준). 항목과 모달 사이 틈을 지나는 동안은 닫지 않는다.
+    private readonly System.Windows.Forms.Timer panelWatchTimer = new() { Interval = 30 };
+    private long panelLeftAt;
+    // 다른 앱이 항상 위 창을 계속 다시 올려도, WinBar 메뉴·모달이 열려 있는 동안에는 그 위에 머물게 한다.
+    private readonly System.Windows.Forms.Timer keepOnTopTimer = new() { Interval = 150 };
 
     public Rectangle MonitorBounds { get; }
 
-    private readonly Action toggleInput;
-
     public BarForm(Screen screen, SystemMetrics metrics, StatusSensors sensors, Action requestExit, Action toggleInput)
     {
-        this.toggleInput = toggleInput;
         this.screen = screen;
         this.metrics = metrics;
-        this.sensors = sensors;
-        controlPopup = new ControlPopup(metrics);
-        controlPopup.VisibleChanged += (_, _) =>
+        panel = new GlassPanel(metrics, sensors, toggleInput);
+        panel.VisibleChanged += (_, _) =>
         {
-            if (!controlPopup.Visible) openItem = Item.None;
+            if (!panel.Visible) panelItem = Item.None;
             UpdateKeepOnTop();
             Invalidate();
         };
@@ -627,7 +758,15 @@ internal sealed class BarForm : Form
         keepOnTopTimer.Tick += (_, _) =>
         {
             if (logoMenu.Visible) Topmost.Raise(logoMenu);
-            if (controlPopup.Visible) Topmost.Raise(controlPopup);
+            if (panel.Visible) Topmost.Raise(panel);
+        };
+        panelWatchTimer.Tick += (_, _) => WatchHoverPanel();
+        clockTimer.Tick += (_, _) => TickClock();
+        blinkTimer.Tick += (_, _) =>
+        {
+            blinkOn = !blinkOn;
+            if (!status.WifiConnecting) { blinkOn = true; blinkTimer.Stop(); }
+            InvalidateItem(Item.Network);
         };
 
         Rectangle bounds = screen.Bounds;
@@ -643,18 +782,16 @@ internal sealed class BarForm : Form
         BackColor = Theme.BarBackground;
         DoubleBuffered = true;
         MouseMove += OnBarMouseMove;
-        // macOS 메뉴바처럼 누르는 순간 메뉴·팝업을 연다.
+        // macOS 메뉴바처럼 누르는 순간 메뉴·모달을 연다.
         MouseDown += OnBarMouseClick;
         MouseLeave += (_, _) =>
         {
-            HideMetricTip();
             hoverItem = Item.None;
             logoHovered = false;
             Cursor = Cursors.Default;
             Invalidate();
         };
-        slideTimer.Tick += (_, _) => AnimateSlide();
-        inputTransitionTimer.Tick += (_, _) => AnimateInputTransition();
+        clockTimer.Start();
     }
 
     protected override bool ShowWithoutActivation => true;
@@ -667,15 +804,30 @@ internal sealed class BarForm : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        appBarRegistered = AppBar.Register(Handle);
-        if (appBarRegistered) ReserveScreenSpace();
+        RestoreScreenSpace();
         ApplyAppearance();
     }
 
     // macOS처럼 배경화면이 비치는 반투명(흐림) 배경. 불투명도는 설정에서 조절한다.
     public void ApplyAppearance()
     {
-        translucent = BarBackdrop.Apply(Handle, Theme.BarBackground, AppSettings.Current.BarOpacity);
+        // 테마·불투명도가 그대로면(예: 표시 항목 스위치) 유리 효과를 다시 걸지 않는다.
+        // 다시 걸면 Windows가 창을 새로 합성하느라 설정 창 스위치 애니메이션이 잠깐 끊긴다.
+        (bool, int) appearance = (Theme.IsLight, Theme.BarTintPercent);
+        if (appliedAppearance == appearance && IsHandleCreated)
+        {
+            // 언어 등 글자만 바뀐 경우: 메뉴바·로고 메뉴·모달을 다시 그리기만 한다.
+            Invalidate();
+            logoMenu.Invalidate();
+            panel.Invalidate();
+            return;
+        }
+        appliedAppearance = appearance;
+        BackColor = Theme.BarBackground;
+        translucent = BarBackdrop.Apply(Handle, Theme.BarBackground, Theme.BarTintPercent, moving: sliding);
+        panel.ApplyGlass();
+        logoMenu.BackColor = Theme.PopupBackground;
+        logoMenu.Invalidate();
         Invalidate();
     }
 
@@ -687,17 +839,12 @@ internal sealed class BarForm : Form
 
     protected override void OnHandleDestroyed(EventArgs e)
     {
-        if (appBarRegistered) AppBar.Unregister(Handle);
-        appBarRegistered = false;
+        ReleaseScreenSpace();
         base.OnHandleDestroyed(e);
     }
 
     protected override void WndProc(ref Message m)
     {
-        // Windows 작업 표시줄이 쓰는 전체 화면 알림: 전체 화면 앱이 열리면 1, 닫히면 0이 온다.
-        if (appBarRegistered && m.Msg == AppBar.CallbackMessage && (int)m.WParam == AppBar.FullscreenApp)
-            ShellReportsFullscreen = m.LParam != IntPtr.Zero;
-
         // 위치 변경 알림은 보낸 쪽이 기다리는 중에 처리하지 않고, 한 번으로 묶어 나중에 처리한다.
         if (appBarRegistered && m.Msg == AppBar.CallbackMessage && (int)m.WParam == AppBar.PositionChanged
             && !reservePending)
@@ -712,9 +859,28 @@ internal sealed class BarForm : Form
         base.WndProc(ref m);
     }
 
+    // 메뉴바 높이만큼 화면 위쪽을 작업 영역에서 비워 둔다(최대화 창이 메뉴바 아래에서 시작).
+    private void RestoreScreenSpace()
+    {
+        if (appBarRegistered || !IsHandleCreated || IsDisposed) return;
+        appBarRegistered = AppBar.Register(Handle);
+        reservedBounds = Rectangle.Empty;
+        if (appBarRegistered) ReserveScreenSpace();
+    }
+
+    // 전체 화면·최대화일 때는 비워 둔 공간을 Windows에 돌려줘서 앱이 화면 맨 위까지 채우게 한다.
+    private void ReleaseScreenSpace()
+    {
+        if (!appBarRegistered) return;
+        AppBar.Unregister(Handle);
+        appBarRegistered = false;
+        reservedBounds = Rectangle.Empty;
+    }
+
     private void ReserveScreenSpace()
     {
-        if (slideTimer.Enabled)
+        if (!appBarRegistered) return;
+        if (sliding)
         {
             reserveAfterSlide = true;
             return;
@@ -733,74 +899,65 @@ internal sealed class BarForm : Form
     {
         snapshot = value;
         UpdateDiagnosticsTitle();
-        RefreshPopups();
+        RefreshPanel();
     }
 
     public void UpdateStatus(StatusSnapshot value)
     {
-        string previousInput = status.InputLabel;
+        bool wasConnecting = status.WifiConnecting;
         status = value;
-        UpdateInputTransition(previousInput, value.InputLabel);
+        if (status.WifiConnecting && !wasConnecting) { blinkOn = true; blinkTimer.Start(); }
         UpdateDiagnosticsTitle();
-        RefreshPopups();
+        RefreshPanel();
     }
 
-    private void UpdateInputTransition(string previous, string next)
-    {
-        double target = next == "A" ? 0 : 1;
-        if (!inputTransitionInitialized)
-        {
-            inputTransitionInitialized = true;
-            inputPosition = inputStartPosition = inputTargetPosition = target;
-            return;
-        }
-        if (previous == next && Math.Abs(inputTargetPosition - target) < 0.001) return;
-        inputStartPosition = inputPosition;
-        inputTargetPosition = target;
-        inputTransitionStartedAt = Environment.TickCount64;
-        inputTransitionTimer.Start();
-    }
+    // 출력 장치가 추가·제거·변경되면 소리 모달의 목록을 다시 읽는다.
+    public void RefreshOutputs() => panel.RefreshOutputs();
 
-    private void AnimateInputTransition()
-    {
-        double progress = Math.Clamp(
-            (Environment.TickCount64 - inputTransitionStartedAt) / (double)InputTransitionDurationMilliseconds, 0, 1);
-        double eased = progress * progress * (3 - 2 * progress);
-        inputPosition = inputStartPosition + (inputTargetPosition - inputStartPosition) * eased;
-        if (areas.TryGetValue(Item.Input, out Rectangle inputArea)) Invalidate(inputArea);
-        else Invalidate();
-        if (progress < 1) return;
-        inputPosition = inputTargetPosition;
-        inputTransitionTimer.Stop();
-    }
-
+    // 시험·점검용: 창 제목에 지금 표시 중인 값을 남긴다(화면에는 보이지 않음).
     private void UpdateDiagnosticsTitle()
     {
-        string title = $"WinBar|Volume={snapshot.VolumePercent:0}|Brightness={snapshot.BrightnessPercent:0}|Input={status.InputLabel}";
+        string title = $"WinBar|Volume={snapshot.VolumePercent:0}|Muted={snapshot.Muted}|Output={snapshot.OutputName}|Input={status.InputLabel}"
+            + $"|Bars={status.WifiBars}|Connecting={status.WifiConnecting}|Battery={snapshot.BatteryPercent}|Charging={snapshot.Charging}"
+            + $"|Saver={snapshot.SaverThreshold}|SaverOn={snapshot.SaverOn}|Mode={snapshot.PowerMode}";
         if (Text != title) Text = title;
     }
 
-    private void RefreshPopups()
+    private void RefreshPanel()
     {
-        if (metricTipVisible) ShowMetricTip();
-        if (controlPopup.Visible) controlPopup.UpdateData(snapshot, status);
+        if (panel.Visible) panel.UpdateData(snapshot, status);
         Invalidate();
+    }
+
+    private void TickClock()
+    {
+        // 다음 초가 바뀌는 순간에 맞춘다.
+        clockTimer.Interval = Math.Max(200, 1000 - DateTime.Now.Millisecond + 5);
+        InvalidateItem(Item.Clock);
+    }
+
+    private void InvalidateItem(Item item)
+    {
+        if (areas.TryGetValue(item, out Rectangle area)) Invalidate(area);
+        else Invalidate();
     }
 
     public bool ContainsScreenPoint(Point point) =>
         (Visible && Bounds.Contains(point))
         || (logoMenu.Visible && logoMenu.Bounds.Contains(point))
-        || (controlPopup.Visible && controlPopup.Bounds.Contains(point));
+        || panel.ContainsScreenPoint(point);
 
     public void CloseMenus()
     {
         logoMenu.HideMenu();
-        controlPopup.HidePopup();
+        panel.HidePanel();
+        // 설정 창은 메뉴 옆에 붙어 뜨는 창이라 바깥을 누르면 메뉴와 함께 닫는다.
+        SettingsForm.CloseIfOpen();
     }
 
     public bool RaiseWindowAt(Point cursor)
     {
-        foreach (Form form in new Form[] { logoMenu, controlPopup, statusPopup, this })
+        foreach (Form form in new Form[] { logoMenu, panel, this })
         {
             if (!form.Visible || !form.Bounds.Contains(cursor)) continue;
             Topmost.Raise(form);
@@ -809,28 +966,42 @@ internal sealed class BarForm : Form
         return false;
     }
 
-    // 다른 앱이 항상 위 창을 계속 다시 올려도, WinBar 메뉴·팝업이 열려 있는 동안에는 그 위에 머물게 한다.
-    // 팝업이 닫히면 타이머도 멈춘다.
-    private readonly System.Windows.Forms.Timer keepOnTopTimer = new() { Interval = 150 };
-
     private void UpdateKeepOnTop()
     {
-        if (logoMenu.Visible || controlPopup.Visible) keepOnTopTimer.Start();
+        if (logoMenu.Visible || panel.Visible) keepOnTopTimer.Start();
         else keepOnTopTimer.Stop();
+        if (panel.Visible) { panelLeftAt = 0; panelWatchTimer.Start(); }
+        else panelWatchTimer.Stop();
+    }
+
+    private void WatchHoverPanel()
+    {
+        if (!panel.Visible || panel.Pinned) { panelLeftAt = 0; return; }
+        Point cursor = Cursor.Position;
+        bool inside = panel.ContainsScreenPoint(cursor)
+            || (areas.TryGetValue(panelItem, out Rectangle area) && RectangleToScreen(area).Contains(cursor));
+        if (inside) { panelLeftAt = 0; return; }
+        long now = Environment.TickCount64;
+        if (panelLeftAt == 0) panelLeftAt = now;
+        else if (now - panelLeftAt > 120) panel.HidePanel();
     }
 
     public bool IsShown => targetTop == visibleTop;
 
-    public bool ShellReportsFullscreen { get; private set; }
+    public bool HasOpenPopup => logoMenu.Visible || (panel.Visible && panel.Pinned);
 
-    public bool HasOpenPopup => logoMenu.Visible || controlPopup.Visible;
+    // 메뉴바 영역(보일 때 자리)을 화면 좌표로 돌려준다. 창이 이 영역을 덮으면 메뉴바를 위로 숨긴다.
+    public Rectangle VisibleArea => new(MonitorBounds.Left, visibleTop, MonitorBounds.Width, BarHeight);
 
-    public void SetFullscreen(bool fullscreen, bool pointerAtTop)
+    // fullscreen: 최대화·전체 화면 앱(비워 둔 공간을 돌려줌, 맨 위에 마우스를 대면 잠깐 표시)
+    // covered: 사용자가 창을 끌어 올려 메뉴바 자리를 덮은 경우(공간은 그대로, 창을 내리면 다시 표시)
+    public void SetFullscreen(bool fullscreen, bool covered, bool pointerAtTop)
     {
         if (!fullscreen)
         {
             fullscreenActive = false;
             edgeRevealArmed = false;
+            RestoreScreenSpace();
         }
         else if (!fullscreenActive)
         {
@@ -838,6 +1009,8 @@ internal sealed class BarForm : Form
             // 이후 커서가 상단을 떠나야 가장자리 표시가 다시 활성화된다.
             fullscreenActive = true;
             edgeRevealArmed = false;
+            visibleTop = MonitorBounds.Top;
+            hiddenTop = MonitorBounds.Top - BarHeight;
         }
         else if (!pointerAtTop)
         {
@@ -845,45 +1018,97 @@ internal sealed class BarForm : Form
         }
 
         bool revealAtEdge = fullscreen && edgeRevealArmed && pointerAtTop;
-        bool shouldHide = fullscreen && !revealAtEdge && !HasOpenPopup;
+        bool shouldHide = ((fullscreen && !revealAtEdge) || (!fullscreen && covered)) && !HasOpenPopup;
         int nextTarget = shouldHide ? hiddenTop : visibleTop;
-        if (targetTop == nextTarget) return;
+        if (targetTop == nextTarget)
+        {
+            // 숨김 애니메이션이 끝난 뒤 전체 화면이 이어지면 비워 둔 30px을 돌려준다.
+            if (fullscreenActive && shouldHide && !sliding) ReleaseScreenSpace();
+            return;
+        }
         targetTop = nextTarget;
-        HideMetricTip();
-        slideStartTop = Top;
-        slideStartedAt = Environment.TickCount64;
-        slideTimer.Start();
+        if (shouldHide) panel.HidePanel();
+        StartSlide();
     }
 
-    private void AnimateSlide()
+    // 화면 새로 고침(DWM 프레임)마다 한 번씩 창을 옮겨 끊김 없이 움직인다.
+    // 움직이는 동안에는 흐림(아크릴)을 잠시 끄고 반투명 색만 써서, Windows가 매 프레임 흐림을 다시 계산하느라 늦어지지 않게 한다.
+    private void StartSlide()
     {
-        double progress = Math.Clamp(
-            (Environment.TickCount64 - slideStartedAt) / (double)SlideDurationMilliseconds, 0, 1);
-        // 작은 30px 이동에서도 픽셀 단계가 고르게 보이는 smoothstep 곡선.
-        double eased = progress * progress * (3 - 2 * progress);
-        int nextTop = progress >= 1
-            ? targetTop
-            : (int)Math.Round(slideStartTop + (targetTop - slideStartTop) * eased);
-
-        if (nextTop != Top)
-            SetBounds(Left, nextTop, Width, Height, BoundsSpecified.Y);
-
-        if (progress >= 1)
+        if (!IsHandleCreated || IsDisposed) return;
+        int version = ++slideVersion;
+        int from = Top, to = targetTop, left = Left;
+        IntPtr handle = Handle;
+        if (!sliding && translucent)
+            BarBackdrop.Apply(handle, Theme.BarBackground, Theme.BarTintPercent, moving: true);
+        sliding = true;
+        var thread = new Thread(() =>
         {
-            slideTimer.Stop();
-            if (reserveAfterSlide)
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            double lastFrame = -16;
+            while (version == Volatile.Read(ref slideVersion))
             {
-                reserveAfterSlide = false;
-                BeginInvoke(ReserveScreenSpace);
+                double now = clock.Elapsed.TotalMilliseconds;
+                double progress = Math.Min(1, now / SlideDurationMilliseconds);
+                // macOS처럼 천천히 출발해 천천히 멈추는 곡선
+                double eased = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.Pow(-2 * progress + 2, 3) / 2;
+                int y = (int)Math.Round(from + (to - from) * eased);
+                SetWindowPos(handle, IntPtr.Zero, left, y, 0, 0, SwpNoSize | SwpNoZOrder | SwpNoActivate | SwpNoOwnerZOrder);
+                if (progress >= 1) break;
+                // 다음 화면 갱신까지 기다린다. 실패하거나 너무 빨리 돌아오면 짧게 쉰다.
+                if (DwmFlush() != 0 || now - lastFrame < 4) Thread.Sleep(6);
+                lastFrame = now;
             }
+            try { BeginInvoke(() => FinishSlide(version)); } catch (Exception) { }
+        }) { IsBackground = true, Name = "WinBar slide" };
+        thread.Start();
+    }
+
+    private void FinishSlide(int version)
+    {
+        if (version != slideVersion || IsDisposed) return;
+        sliding = false;
+        if (Top != targetTop) SetBounds(Left, targetTop, Width, Height, BoundsSpecified.Y);
+        if (translucent) BarBackdrop.Apply(Handle, Theme.BarBackground, Theme.BarTintPercent);
+        // 숨긴 뒤에 공간을 돌려줘야 최대화 창이 다시 배치되는 작업이 애니메이션과 겹치지 않는다.
+        if (fullscreenActive && targetTop == hiddenTop) ReleaseScreenSpace();
+        if (reserveAfterSlide)
+        {
+            reserveAfterSlide = false;
+            ReserveScreenSpace();
         }
     }
+
+    private const uint SwpNoSize = 0x0001, SwpNoZOrder = 0x0004, SwpNoActivate = 0x0010, SwpNoOwnerZOrder = 0x0200;
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+    [DllImport("dwmapi.dll")] private static extern int DwmFlush();
 
     private Item ItemAt(Point location)
     {
         foreach ((Item item, Rectangle area) in areas)
             if (area.Contains(location)) return item;
         return Item.None;
+    }
+
+    private static GlassPanel.Kind? KindOf(Item item) => item switch
+    {
+        Item.Battery => GlassPanel.Kind.Battery,
+        Item.Network => GlassPanel.Kind.Network,
+        Item.Sound => GlassPanel.Kind.Sound,
+        Item.Control => GlassPanel.Kind.Control,
+        Item.Clock => GlassPanel.Kind.Clock,
+        Item.Privacy => GlassPanel.Kind.Privacy,
+        Item.More => GlassPanel.Kind.More,
+        _ => null
+    };
+
+    private void OpenPanel(Item item, bool pinned)
+    {
+        if (KindOf(item) is not GlassPanel.Kind kind || !areas.TryGetValue(item, out Rectangle area)) return;
+        logoMenu.HideMenu();
+        panelItem = item;
+        panel.ShowPanel(kind, RectangleToScreen(area), snapshot, status, pinned);
+        Invalidate();
     }
 
     private void OnBarMouseMove(object? sender, MouseEventArgs e)
@@ -897,14 +1122,12 @@ internal sealed class BarForm : Form
 
         Item next = ItemAt(e.Location);
         Cursor = logoHovered || next != Item.None ? Cursors.Hand : Cursors.Default;
-        if (next != hoverItem)
-        {
-            HideMetricTip();
-            hoverItem = next;
-            Invalidate();
-        }
-        if (hoverItem != Item.None && !metricTipVisible && !controlPopup.Visible && !logoMenu.Visible)
-            ShowMetricTip();
+        if (next == hoverItem) return;
+        hoverItem = next;
+        Invalidate();
+        // macOS처럼 마우스를 올리면 모달이 열리고, 열린 상태에서 다른 항목으로 옮기면 그 모달로 바뀐다.
+        if (next != Item.None && !logoMenu.Visible && (panelItem != next || !panel.Visible))
+            OpenPanel(next, pinned: panel.Visible && panel.Pinned);
     }
 
     private void OnBarMouseClick(object? sender, MouseEventArgs e)
@@ -913,157 +1136,61 @@ internal sealed class BarForm : Form
 
         if (logoArea.Contains(e.Location))
         {
-            HideMetricTip();
-            controlPopup.HidePopup();
-            if (logoMenu.Visible)
+            panel.HidePanel();
+            if (logoMenu.Visible || SettingsForm.IsOpen)
+            {
                 logoMenu.HideMenu();
+                SettingsForm.CloseIfOpen();
+            }
             else if (!logoMenu.RecentlyHidden)
                 logoMenu.ShowMenu(PointToScreen(new Point(logoArea.Left, ClientSize.Height + 6)));
             return;
         }
 
         Item item = ItemAt(e.Location);
-        if (item == Item.Input)
+        if (KindOf(item) is null) return;
+        // 이미 고정된 같은 모달을 다시 누르면 닫는다. 마우스로만 열린 모달을 누르면 고정한다.
+        if (panel.Visible && panelItem == item && panel.Pinned)
         {
-            // 메뉴바는 포커스를 가져가지 않으므로, 한/영 키는 지금 사용 중인 앱에 전달된다.
-            HideMetricTip();
-            toggleInput();
+            panel.HidePanel();
             return;
         }
-        ControlPopup.Kind? kind = item switch
-        {
-            Item.Volume => ControlPopup.Kind.Volume,
-            Item.Brightness => ControlPopup.Kind.Brightness,
-            Item.Wifi => ControlPopup.Kind.Wifi,
-            Item.Bluetooth => ControlPopup.Kind.Bluetooth,
-            _ => null
-        };
-        if (kind is null) return;
-
-        HideMetricTip();
-        logoMenu.HideMenu();
-        bool sameOpen = (controlPopup.Visible || controlPopup.RecentlyHidden) && openItem == item;
-        if (controlPopup.Visible) controlPopup.HidePopup();
-        if (sameOpen)
-        {
-            openItem = Item.None;
-            return;
-        }
-        if (kind == ControlPopup.Kind.Bluetooth) status = sensors.Sample(includeBluetooth: true);
-        openItem = item;
-        Rectangle area = areas[item];
-        controlPopup.ShowControl(kind.Value, PointToScreen(new Point(area.Left - 4, ClientSize.Height + 6)), snapshot, status);
-        Invalidate();
-    }
-
-    private void ShowMetricTip()
-    {
-        if (!areas.TryGetValue(hoverItem, out Rectangle area)) return;
-        string Value(double? value) => value is null ? "--" : $"{value:0}%";
-        string title;
-        StatusPopup.Row[] rows;
-        switch (hoverItem)
-        {
-            case Item.Cpu:
-                title = "시스템 사용량";
-                rows =
-                [
-                    new("CPU", Value(snapshot.CpuPercent), snapshot.CpuPercent),
-                    new("GPU", Value(snapshot.GpuPercent), snapshot.GpuPercent),
-                    new("메모리", Value(snapshot.RamPercent), snapshot.RamPercent)
-                ];
-                break;
-            case Item.Volume:
-                title = "음량";
-                rows = [new(snapshot.Muted ? "음소거" : "출력 음량", Value(snapshot.VolumePercent), snapshot.VolumePercent)];
-                break;
-            case Item.Brightness:
-                title = "화면 밝기";
-                rows = [new("밝기", Value(snapshot.BrightnessPercent), snapshot.BrightnessPercent)];
-                break;
-            case Item.Wifi:
-                title = "네트워크";
-                rows = status.WifiConnected
-                    ? [new(status.WifiName ?? "Wi-Fi", Value(status.WifiQuality), status.WifiQuality)]
-                    : [new("Wi-Fi", "연결 안 됨", null, false)];
-                if (status.EthernetConnected) rows = [.. rows, new("유선 네트워크", "연결됨", null, false)];
-                break;
-            case Item.Bluetooth:
-                title = "Bluetooth";
-                rows =
-                [
-                    new("상태", status.BluetoothOn == true ? "켜짐" : "꺼짐", null, false),
-                    new("연결된 기기", $"{status.BluetoothDevices?.Length ?? 0}개", null, false)
-                ];
-                break;
-            case Item.Input:
-                title = "입력 소스";
-                rows = [new("현재", status.InputName, null, false)];
-                break;
-            case Item.Clock:
-                title = "날짜와 시간";
-                rows = [new(DateTime.Now.ToString("yyyy년 M월 d일") + $" {"일월화수목금토"[(int)DateTime.Now.DayOfWeek]}요일", "", null, false)];
-                break;
-            case Item.Privacy:
-                title = "개인 정보 표시";
-                rows = [];
-                if (status.CameraInUse) rows = [.. rows, new("카메라", "사용 중", null, false)];
-                if (status.MicrophoneInUse) rows = [.. rows, new("마이크", "사용 중", null, false)];
-                break;
-            default:
-                title = "배터리";
-                rows = [new(snapshot.Charging ? "충전 중" : "배터리 잔량", Value(snapshot.BatteryPercent), snapshot.BatteryPercent)];
-                if (snapshot.BatteryMinutes is int minutes)
-                    rows = [.. rows, new("남은 시간", minutes >= 60 ? $"{minutes / 60}시간 {minutes % 60}분" : $"{minutes}분", null, false)];
-                break;
-        }
-
-        Point anchor = PointToScreen(new Point(area.Left, ClientSize.Height + 5));
-        statusPopup.ShowStatus(title, rows, anchor);
-        metricTipVisible = true;
-    }
-
-    private void HideMetricTip()
-    {
-        if (!metricTipVisible) return;
-        statusPopup.Hide();
-        metricTipVisible = false;
+        OpenPanel(item, pinned: true);
     }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            statusPopup.Dispose();
-            controlPopup.Dispose();
+            panel.Dispose();
             logoMenu.Dispose();
             keepOnTopTimer.Dispose();
-            badgeFont.Dispose();
-            slideTimer.Dispose();
-            inputTransitionTimer.Dispose();
+            panelWatchTimer.Dispose();
+            clockTimer.Dispose();
+            blinkTimer.Dispose();
+            slideVersion++; // 진행 중인 애니메이션 스레드를 멈춘다.
             font.Dispose();
         }
         base.Dispose(disposing);
     }
 
-    // 오른쪽부터 배치한다: 시계 · 배터리 · 밝기 · 음량 · 시스템 · Bluetooth · Wi-Fi · 입력 소스 · 카메라/마이크
     private void LayoutItems(AppSettings options, int clockWidth)
     {
         areas.Clear();
         int right = ClientSize.Width - 10;
+        int spacing = Math.Clamp(options.IconSpacing, AppSettings.MinIconSpacing, AppSettings.MaxIconSpacing);
         void Add(Item item, int width)
         {
             areas[item] = new Rectangle(right - width, 0, width, ClientSize.Height);
-            right -= width + 4;
+            right -= width + spacing;
         }
         Add(Item.Clock, clockWidth + 16);
-        if (options.ShowBattery && snapshot.BatteryPercent is not null) Add(Item.Battery, options.ShowBatteryPercent ? 88 : 40);
-        if (options.ShowBrightness) Add(Item.Brightness, 34);
-        if (options.ShowVolume) Add(Item.Volume, 34);
-        if (options.ShowSystemUsage) Add(Item.Cpu, 32);
-        if (options.ShowBluetooth) Add(Item.Bluetooth, 32);
-        if (options.ShowWifi) Add(Item.Wifi, 34);
-        if (options.ShowInputSource) Add(Item.Input, 38);
+        Add(Item.Control, 32);
+        if (options.ShowVolume) Add(Item.Sound, 32);
+        if (options.ShowWifi) Add(Item.Network, 32);
+        batterySeen |= snapshot.BatteryPercent is not null;
+        if (options.ShowBattery && batterySeen) Add(Item.Battery, 40);
+        Add(Item.More, 30);
         if (options.ShowPrivacy && (status.CameraInUse || status.MicrophoneInUse))
             Add(Item.Privacy, status.CameraInUse && status.MicrophoneInUse ? 32 : 22);
     }
@@ -1073,106 +1200,100 @@ internal sealed class BarForm : Form
         base.OnPaint(e);
         Graphics graphics = e.Graphics;
         AppSettings options = AppSettings.Current;
-        clockText = FormatDateTime(DateTime.Now, options.Use24HourClock);
-        int clockWidth = (int)Math.Ceiling(BarText.Measure(graphics, clockText, font));
-        LayoutItems(options, clockWidth);
+        LayoutItems(options, Slots(graphics, options.Use24HourClock).Width);
         if (!areas.ContainsKey(hoverItem)) hoverItem = Item.None;
 
-        foreach (Item highlighted in new[] { hoverItem, openItem }.Distinct())
+        foreach (Item highlighted in new[] { hoverItem, panel.Visible ? panelItem : Item.None }.Distinct())
             if (areas.TryGetValue(highlighted, out Rectangle area)) DrawHighlight(graphics, Rectangle.Inflate(area, -1, -4));
 
-        const TextFormatFlags commonFlags = TextFormatFlags.VerticalCenter
-            | TextFormatFlags.SingleLine | TextFormatFlags.NoPadding;
         logoArea = new Rectangle(10, 0, 30, ClientSize.Height);
         if (logoHovered || logoMenu.Visible) DrawHighlight(graphics, Rectangle.Inflate(logoArea, 0, -4));
         Icons.DrawBold(graphics, Icons.Logo, logoArea, Theme.BarText, 11);
 
         foreach ((Item item, Rectangle area) in areas)
         {
-            try { DrawItem(graphics, item, area, commonFlags); }
+            try { DrawItem(graphics, item, area); }
             catch (Exception) { }
         }
     }
 
-    private void DrawItem(Graphics graphics, Item item, Rectangle area, TextFormatFlags flags)
+    private void DrawItem(Graphics graphics, Item item, Rectangle area)
     {
         Color color = Theme.BarText;
+        Color dim = Color.FromArgb(80, color);
         switch (item)
         {
             case Item.Battery:
-                if (AppSettings.Current.ShowBatteryPercent)
-                {
-                    // macOS처럼 퍼센트를 먼저, 배터리 아이콘을 오른쪽에 둔다.
-                    BarText.Draw(graphics, $"{snapshot.BatteryPercent}%", font,
-                        new Rectangle(area.Left + 2, 0, 46, area.Height), color, StringAlignment.Far);
-                    Icons.DrawBattery(graphics, new Rectangle(area.Right - 38, 0, 36, area.Height),
-                        snapshot.BatteryPercent, snapshot.Charging, color);
-                }
-                else
-                {
-                    Icons.DrawBattery(graphics, area, snapshot.BatteryPercent, snapshot.Charging, color);
-                }
+                // macOS처럼 메뉴바에는 아이콘만, 퍼센트는 마우스를 올렸을 때 보여 준다.
+                Icons.DrawBattery(graphics, area, snapshot.BatteryPercent, snapshot.Charging, color, snapshot.SaverThreshold);
                 break;
-            case Item.Brightness:
-                DrawGlyph(graphics, Icons.Brightness, area, snapshot.BrightnessPercent is null ? Theme.Dim : color, flags);
-                break;
-            case Item.Volume:
-                DrawGlyph(graphics, Icons.Volume(snapshot.VolumePercent, snapshot.Muted), area, color, flags);
-                break;
-            case Item.Cpu:
-                DrawGlyph(graphics, Icons.Cpu, area, color, flags);
-                break;
-            case Item.Bluetooth:
-                DrawGlyph(graphics, Icons.Bluetooth, area, status.BluetoothOn == true ? color : Theme.Dim, flags);
-                break;
-            case Item.Wifi:
-                if (status.WifiConnected)
-                    DrawGlyph(graphics, Icons.Wifi(status.WifiQuality), area, color, flags);
+            case Item.Network:
+                var wifiArea = new Rectangle(area.Left + (area.Width - 20) / 2, area.Top + (area.Height - 16) / 2, 20, 16);
+                if (status.WifiConnecting)
+                    WifiIcon.Draw(graphics, wifiArea, blinkOn ? 5 : 0, color, dim);
+                else if (status.WifiConnected)
+                    WifiIcon.Draw(graphics, wifiArea, status.WifiBars, color, dim);
                 else if (status.EthernetConnected)
-                    DrawGlyph(graphics, Icons.Ethernet, area, color, flags);
+                    Icons.DrawBold(graphics, Icons.Ethernet, area, color, 11);
                 else
-                    DrawGlyph(graphics, Icons.Wifi(null), area, Theme.Dim, flags);
+                    // Wi-Fi 연결이 끊기면 흐린 아이콘 위로 대각선을 긋는다.
+                    WifiIcon.Draw(graphics, wifiArea, 0, color, Color.FromArgb(110, color), disconnected: true);
                 break;
-            case Item.Input:
-                DrawInputBadge(graphics, area, color);
+            case Item.Sound:
+                string glyph = snapshot.VolumePercent is null ? ""
+                    : IsHeadphones(snapshot.OutputName) && !snapshot.Muted ? ""
+                    : Icons.Volume(snapshot.VolumePercent, snapshot.Muted);
+                Icons.DrawBold(graphics, glyph, area, snapshot.VolumePercent is null ? dim : color, 11);
+                break;
+            case Item.Control:
+                DrawControlCenterIcon(graphics, area, color);
+                break;
+            case Item.More:
+                Icons.DrawBold(graphics, "", area, color, 11);
                 break;
             case Item.Privacy:
                 DrawPrivacyDots(graphics, area);
                 break;
             case Item.Clock:
-                BarText.Draw(graphics, clockText, font, area, color, StringAlignment.Center);
+                DrawClock(graphics, area, color, AppSettings.Current.Use24HourClock);
                 break;
         }
     }
 
-    private static void DrawGlyph(Graphics graphics, string glyph, Rectangle area, Color color, TextFormatFlags flags) =>
-        Icons.DrawBold(graphics, glyph, area, color, 11);
+    private static bool IsHeadphones(string? name) =>
+        name is not null && (name.Contains("Headphone", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("Headset", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("헤드폰") || name.Contains("헤드셋")
+            || name.Contains("Buds", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("AirPods", StringComparison.OrdinalIgnoreCase));
 
-    // 입력 소스를 무채색 스위치로 표시한다. 한국어 K와 영문 A는 같은 색을 사용한다.
-    private void DrawInputBadge(Graphics graphics, Rectangle area, Color color)
+    // macOS 제어 센터 아이콘: 토글 스위치 두 개(위는 켜짐, 아래는 꺼짐).
+    private static void DrawControlCenterIcon(Graphics graphics, Rectangle area, Color color)
     {
-        var track = new Rectangle(area.Left + (area.Width - 32) / 2, area.Top + (area.Height - 18) / 2, 32, 18);
         SmoothingMode previous = graphics.SmoothingMode;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        using (var trackBrush = new SolidBrush(Theme.Track))
-        using (GraphicsPath path = Theme.RoundedRectangle(track, track.Height / 2))
-            graphics.FillPath(trackBrush, path);
-        const int knob = 14;
-        int knobLeft = (int)Math.Round(track.Left + 2 + (track.Width - knob - 4) * inputPosition);
-        using (var knobBrush = new SolidBrush(Color.FromArgb(250, 250, 252)))
-            graphics.FillEllipse(knobBrush, knobLeft, track.Top + 2, knob, knob);
+        float scale = graphics.DpiY / 96f;
+        float width = 16 * scale, height = 6.5f * scale, gap = 2.5f * scale;
+        float left = area.Left + (area.Width - width) / 2f;
+        float top = area.Top + (area.Height - height * 2 - gap) / 2f;
+        using var pen = new Pen(color, Icons.Stroke(graphics));
+        using var brush = new SolidBrush(color);
+        for (int row = 0; row < 2; row++)
+        {
+            var pill = new RectangleF(left, top + row * (height + gap), width, height);
+            using (var path = new GraphicsPath())
+            {
+                path.AddArc(pill.Left, pill.Top, pill.Height, pill.Height, 90, 180);
+                path.AddArc(pill.Right - pill.Height, pill.Top, pill.Height, pill.Height, 270, 180);
+                path.CloseFigure();
+                graphics.DrawPath(pen, path);
+            }
+            // 손잡이는 테두리 안쪽에 작게 그려 스위치처럼 보이게 한다.
+            float knob = pill.Height - 2.6f * scale;
+            float knobX = row == 0 ? pill.Right - knob - 1.3f * scale : pill.Left + 1.3f * scale;
+            graphics.FillEllipse(brush, knobX, pill.Top + 1.3f * scale, knob, knob);
+        }
         graphics.SmoothingMode = previous;
-
-        var alternativeLabel = new Rectangle(track.Left + 2, track.Top, track.Width - knob - 4, track.Height);
-        var englishLabel = new Rectangle(track.Left + knob + 2, track.Top, track.Width - knob - 4, track.Height);
-        int alternativeAlpha = (int)Math.Round(color.A * inputPosition);
-        int englishAlpha = (int)Math.Round(color.A * (1 - inputPosition));
-        if (alternativeAlpha > 0)
-            BarText.Draw(graphics, status.InputLabel == "A" ? "K" : status.InputLabel, badgeFont,
-                alternativeLabel, Color.FromArgb(alternativeAlpha, color), StringAlignment.Center);
-        if (englishAlpha > 0)
-            BarText.Draw(graphics, "A", badgeFont, englishLabel,
-                Color.FromArgb(englishAlpha, color), StringAlignment.Center);
     }
 
     // macOS처럼 카메라 사용 중은 초록 점, 마이크 사용 중은 주황 점으로 표시한다.
@@ -1199,23 +1320,79 @@ internal sealed class BarForm : Form
     {
         SmoothingMode previous = graphics.SmoothingMode;
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        // macOS처럼 반투명 흰색으로 눌린 항목을 표시한다.
-        using var highlight = new SolidBrush(Color.FromArgb(46, 255, 255, 255));
+        // macOS처럼 반투명으로 눌린 항목을 표시한다(밝은 테마에서는 어둡게).
+        using var highlight = new SolidBrush(Theme.IsLight ? Color.FromArgb(36, 0, 0, 0) : Color.FromArgb(46, 255, 255, 255));
         using GraphicsPath path = Theme.RoundedRectangle(area, 6);
         graphics.FillPath(highlight, path);
         graphics.SmoothingMode = previous;
     }
 
-    // macOS 한국어 메뉴바 형식: "10월 1일 (목) 오후 1:12"
-    private static string FormatDateTime(DateTime value, bool use24Hour)
+    // 메뉴바 시계(초 단위). 표시 언어에 맞춰 "10월 2일 (금) 오후 1:44:05" / "Fri Oct 2  1:44:05 PM" / "10月2日 周五 下午1:44:05" / "10月2日(金) 午後 1:44:05".
+    // 글자마다 폭이 조금씩 달라 초가 바뀔 때 흔들리지 않도록
+    // ① 숫자는 모두 가장 넓은 숫자 폭의 같은 칸에 한 글자씩 그리고
+    // ② [날짜] [시각]을 각자 가장 긴 경우(모든 달·요일·두 자리 날짜와 시) 폭의 고정 칸에 오른쪽 정렬로 둔다.
+    // 그래서 초·분이 바뀌면 아무것도 움직이지 않고, 2일→10일·9시→10시가 되어도 자기 칸 안에서만 늘어나 옆 아이콘이 밀리지 않는다.
+    private sealed record ClockSlots(bool Use24Hour, string Language, float Digit, float Gap, float Date, float Time)
     {
-        string[] days = ["일", "월", "화", "수", "목", "금", "토"];
-        string date = $"{value.Month}월 {value.Day}일 ({days[(int)value.DayOfWeek]})";
-        if (use24Hour) return $"{date} {value:HH}:{value:mm}";
-        string period = value.Hour < 12 ? "오전" : "오후";
-        int hour = value.Hour % 12;
-        if (hour == 0) hour = 12;
-        return $"{date} {period} {hour}:{value:mm}";
+        public int Width => (int)Math.Ceiling(Date + Gap + Time) + 2;
+    }
+
+    private ClockSlots? clockSlots;
+    private readonly Dictionary<char, float> glyphWidths = [];
+
+    private ClockSlots Slots(Graphics graphics, bool use24Hour)
+    {
+        string language = L.Code;
+        if (clockSlots is { } cached && cached.Use24Hour == use24Hour && cached.Language == language) return cached;
+        float digit = 0;
+        for (char c = '0'; c <= '9'; c++) digit = Math.Max(digit, BarText.Measure(graphics, c.ToString(), font));
+        clockSlots = new ClockSlots(use24Hour, language, digit, 0, 0, 0); // 숫자 폭을 먼저 정해야 아래 폭을 잴 수 있다.
+        // 12개월 × 7요일(22~28일) × 오전·오후 두 자리 시를 모두 재서 가장 넓은 폭을 쓴다(언어를 바꿀 때 한 번만).
+        float date = 0, time = 0;
+        for (int month = 1; month <= 12; month++)
+            for (int day = 22; day <= 28; day++)
+                date = Math.Max(date, FixedWidth(graphics, L.Clock(new DateTime(2000, month, day), use24Hour).Date));
+        foreach (int hour in new[] { 10, 22 })
+            time = Math.Max(time, FixedWidth(graphics, L.Clock(new DateTime(2000, 1, 1, hour, 58, 58), use24Hour).Time));
+        clockSlots = new ClockSlots(use24Hour, language, digit, GlyphWidth(graphics, ' '), date, time);
+        return clockSlots;
+    }
+
+    private float GlyphWidth(Graphics graphics, char glyph)
+    {
+        if (char.IsAsciiDigit(glyph) && clockSlots is { Digit: > 0 } slots) return slots.Digit;
+        if (!glyphWidths.TryGetValue(glyph, out float width))
+            glyphWidths[glyph] = width = BarText.Measure(graphics, glyph.ToString(), font);
+        return width;
+    }
+
+    private float FixedWidth(Graphics graphics, string text)
+    {
+        float width = 0;
+        foreach (char glyph in text) width += GlyphWidth(graphics, glyph);
+        return width;
+    }
+
+    // 오른쪽 끝(right)에 맞춰 뒤에서부터 한 글자씩 자기 칸 가운데에 그린다.
+    private void DrawFixed(Graphics graphics, string text, float right, Rectangle area, Color color)
+    {
+        float x = right;
+        for (int index = text.Length - 1; index >= 0; index--)
+        {
+            float width = GlyphWidth(graphics, text[index]);
+            x -= width;
+            if (text[index] != ' ')
+                BarText.Draw(graphics, text[index].ToString(), font, new RectangleF(x, area.Top, width, area.Height), color, StringAlignment.Center);
+        }
+    }
+
+    private void DrawClock(Graphics graphics, Rectangle area, Color color, bool use24Hour)
+    {
+        ClockSlots slots = Slots(graphics, use24Hour);
+        (string date, string time) = L.Clock(DateTime.Now, use24Hour);
+        float right = area.Right - 8;
+        DrawFixed(graphics, time, right, area, color);
+        DrawFixed(graphics, date, right - slots.Time - slots.Gap, area, color);
     }
 }
 
@@ -1230,6 +1407,9 @@ internal sealed class LogoMenuPopup : Form
     private readonly Rectangle exitArea = new(8, 92, 220, 40);
     private Rectangle hovered;
     private long hiddenAt;
+    // 호버 애니메이션: 0(보통) → 1(마우스 올림). 움직이는 동안에만 타이머가 돈다.
+    private readonly System.Windows.Forms.Timer animationTimer = new() { Interval = 15 };
+    private float settingsLevel, exitLevel;
 
     // 메뉴 바깥(로고 포함)을 눌러 닫힌 직후의 클릭은 다시 열지 않는다.
     public bool RecentlyHidden => Environment.TickCount64 - hiddenAt < 300;
@@ -1239,13 +1419,24 @@ internal sealed class LogoMenuPopup : Form
         if (!Visible) return;
         Hide();
         hiddenAt = Environment.TickCount64;
+        MemoryTrim.Request();
+        hovered = Rectangle.Empty;
+        settingsLevel = exitLevel = 0;
+        animationTimer.Stop();
     }
 
-    // 다른 곳을 클릭해 포커스를 잃으면 자동으로 닫는다.
-    protected override void OnDeactivate(EventArgs e)
+    private void AnimateStep()
     {
-        base.OnDeactivate(e);
-        HideMenu();
+        static float Approach(float value, float target)
+        {
+            float next = value + (target - value) * 0.25f;
+            return Math.Abs(target - next) < 0.01f ? target : next;
+        }
+        settingsLevel = Approach(settingsLevel, hovered == settingsArea ? 1 : 0);
+        exitLevel = Approach(exitLevel, hovered == exitArea ? 1 : 0);
+        if (settingsLevel == (hovered == settingsArea ? 1 : 0) && exitLevel == (hovered == exitArea ? 1 : 0))
+            animationTimer.Stop();
+        Invalidate();
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -1267,6 +1458,7 @@ internal sealed class LogoMenuPopup : Form
         Size = new Size(236, 140);
         KeyPreview = true;
         AccessibleName = "WinBar 메뉴";
+        animationTimer.Tick += (_, _) => AnimateStep();
     }
 
     // 포커스를 가져가지 않아 사용 중인 앱의 한/영 상태가 바뀌지 않는다.
@@ -1306,7 +1498,7 @@ internal sealed class LogoMenuPopup : Form
         if (next == hovered) return;
         hovered = next;
         Cursor = hovered.IsEmpty ? Cursors.Default : Cursors.Hand;
-        Invalidate();
+        animationTimer.Start();
     }
 
     protected override void OnMouseLeave(EventArgs e)
@@ -1314,7 +1506,7 @@ internal sealed class LogoMenuPopup : Form
         base.OnMouseLeave(e);
         hovered = Rectangle.Empty;
         Cursor = Cursors.Default;
-        Invalidate();
+        animationTimer.Start();
     }
 
     protected override void OnMouseClick(MouseEventArgs e)
@@ -1323,8 +1515,8 @@ internal sealed class LogoMenuPopup : Form
         if (e.Button != MouseButtons.Left) return;
         if (settingsArea.Contains(e.Location))
         {
-            HideMenu();
-            SettingsForm.ShowModal(screen, requestExit);
+            // 메뉴는 열어 둔 채 그 오른쪽에 설정 창을 붙여 연다.
+            SettingsForm.ShowBeside(Bounds);
         }
         else if (exitArea.Contains(e.Location))
         {
@@ -1346,34 +1538,45 @@ internal sealed class LogoMenuPopup : Form
         using (var separator = new Pen(Theme.Separator))
             e.Graphics.DrawLine(separator, 14, 42, Width - 14, 42);
 
-        DrawItem(e.Graphics, settingsArea, Icons.Settings, "설정", showChevron: true);
-        DrawItem(e.Graphics, exitArea, Icons.Power, "WinBar 종료", showChevron: false);
+        // 설정: 톱니바퀴가 돌아가고 › 가 오른쪽으로 밀린다. 종료: 전원 아이콘이 한 번 톡 커졌다가 살짝 아래로 눌린다.
+        float settings = Icons.Ease(settingsLevel), exit = Icons.Ease(exitLevel);
+        DrawItem(e.Graphics, settingsArea, settingsLevel, Theme.HoverAccent, L.T("설정"), showChevron: true, (graphics, area, color) =>
+            Icons.DrawMoved(graphics, Icons.Settings, area, color, 10, angle: 120 * settings));
+        DrawItem(e.Graphics, exitArea, exitLevel, Theme.HoverDanger, L.T("WinBar 종료"), showChevron: false, (graphics, area, color) =>
+            Icons.DrawMoved(graphics, Icons.Power, area, color, 10,
+                scale: 1 + 0.18f * (float)Math.Sin(Math.PI * exit) + 0.04f * exit, dy: 1.2f * exit));
     }
 
-    private void DrawItem(Graphics graphics, Rectangle area, string glyph, string label, bool showChevron)
+    private void DrawItem(Graphics graphics, Rectangle area, float level, Color accent, string label, bool showChevron,
+        Action<Graphics, Rectangle, Color> drawIcon)
     {
-        if (hovered == area)
+        float t = Icons.Ease(level);
+        if (level > 0)
         {
-            using var hover = new SolidBrush(Theme.Hover);
+            // 배경이 강조색으로 서서히 물든다.
+            using var hover = new SolidBrush(Theme.HoverTint(accent, level));
             using GraphicsPath itemPath = Theme.RoundedRectangle(area, 9);
             graphics.FillPath(hover, itemPath);
         }
-        TextRenderer.DrawText(graphics, glyph, iconFont,
-            new Rectangle(area.Left + 10, area.Top, 24, area.Height), Theme.Secondary,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        // 아이콘과 › 는 회색에서 강조색으로 바뀐다.
+        Color iconColor = Color.FromArgb(
+            (int)(Theme.Secondary.R + (accent.R - Theme.Secondary.R) * t),
+            (int)(Theme.Secondary.G + (accent.G - Theme.Secondary.G) * t),
+            (int)(Theme.Secondary.B + (accent.B - Theme.Secondary.B) * t));
+        drawIcon(graphics, new Rectangle(area.Left + 10, area.Top, 24, area.Height), iconColor);
+        int slide = (int)Math.Round(2 * t);
         TextRenderer.DrawText(graphics, label, itemFont,
-            new Rectangle(area.Left + 43, area.Top, 130, area.Height), Theme.Primary,
+            new Rectangle(area.Left + 43 + slide, area.Top, 130, area.Height), Theme.Primary,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
         if (showChevron)
-            TextRenderer.DrawText(graphics, Icons.Chevron, iconFont,
-                new Rectangle(area.Right - 30, area.Top, 20, area.Height), Theme.Secondary,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            Icons.DrawMoved(graphics, Icons.Chevron, new Rectangle(area.Right - 30, area.Top, 20, area.Height), iconColor, 8, dx: 3 * t);
     }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            animationTimer.Dispose();
             titleFont.Dispose();
             itemFont.Dispose();
             iconFont.Dispose();

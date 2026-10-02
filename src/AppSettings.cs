@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using Microsoft.Win32;
 
 namespace WinBar;
@@ -12,37 +12,43 @@ internal sealed class AppSettings
     public static string FilePath { get; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WinBar", "settings.ini");
 
-    public static AppSettings Current { get; } = Load();
+    public static AppSettings Current { get; } = Load(FilePath);
 
     public event Action? Changed;
 
+    // 메뉴바에 아이콘으로 표시할 항목(제어 센터와 날짜·시간은 항상 표시)
     public bool ShowPrivacy { get; set; } = true;
-    public bool ShowInputSource { get; set; } = true;
     public bool ShowWifi { get; set; } = true;
-    public bool ShowBluetooth { get; set; } = true;
-    public bool ShowSystemUsage { get; set; } = true;
     public bool ShowVolume { get; set; } = true;
-    public bool ShowBrightness { get; set; } = true;
     public bool ShowBattery { get; set; } = true;
-    public bool ShowBatteryPercent { get; set; } = true;
     public bool Use24HourClock { get; set; }
+    public bool LightMode { get; set; }
 
-    // 메뉴바 배경을 덮는 색의 불투명도(%). 낮을수록 뒤 배경화면이 더 비친다.
+    // 메뉴바 배경을 덮는 테마 색의 불투명도(%). 0은 배경 없음(아이콘·글자만), 100은 불투명이다.
     public int BarOpacity { get; set; } = 60;
+
+    // 메뉴바 오른쪽 아이콘들 사이의 좌우 간격(px)
+    public const int MinIconSpacing = 0;
+    public const int MaxIconSpacing = 24;
+    public int IconSpacing { get; set; } = 4;
+
+    // WinBar 표시 언어: ko(한국어) · zh(中文) · ja(日本語) · en(English)
+    public string Language { get; set; } = "ko";
 
     private static IEnumerable<PropertyInfo> Options() =>
         typeof(AppSettings).GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Where(property => property.PropertyType == typeof(bool) || property.PropertyType == typeof(int))
+            .Where(property => property.PropertyType == typeof(bool) || property.PropertyType == typeof(int) || property.PropertyType == typeof(string))
             .Where(property => property.CanWrite);
 
-    private static AppSettings Load()
+    // 파일이 손상되었거나 손으로 고친 값이 범위를 벗어나도 앱이 이상한 값을 쓰지 않게 읽은 뒤 범위로 맞춘다.
+    private static AppSettings Load(string path)
     {
         var settings = new AppSettings();
         try
         {
-            if (!File.Exists(FilePath)) return settings;
+            if (!File.Exists(path)) return settings;
             Dictionary<string, PropertyInfo> properties = Options().ToDictionary(property => property.Name);
-            foreach (string line in File.ReadAllLines(FilePath))
+            foreach (string line in File.ReadAllLines(path))
             {
                 int separator = line.IndexOf('=');
                 if (separator <= 0) continue;
@@ -53,9 +59,14 @@ internal sealed class AppSettings
                     property.SetValue(settings, flag);
                 else if (property.PropertyType == typeof(int) && int.TryParse(text, out int number))
                     property.SetValue(settings, number);
+                else if (property.PropertyType == typeof(string) && text.Length is > 0 and <= 16)
+                    property.SetValue(settings, text);
             }
         }
         catch (Exception) { }
+        settings.BarOpacity = Math.Clamp(settings.BarOpacity, 0, 100);
+        settings.IconSpacing = Math.Clamp(settings.IconSpacing, MinIconSpacing, MaxIconSpacing);
+        if (settings.Language is not ("ko" or "zh" or "ja" or "en")) settings.Language = "ko";
         return settings;
     }
 
