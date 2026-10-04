@@ -172,6 +172,149 @@ internal sealed class SystemMetrics : IDisposable
         finally { if (config is not null) Marshal.ReleaseComObject(config); }
     }
 
+    // ── Bluetooth 오디오 기기 연결 ─────────────────────────────────
+    // 등록(페어링)은 되어 있지만 연결이 끊긴 이어폰·헤드폰·스피커를 Windows에 다시 연결하라고 요청한다.
+    // Windows 설정의 "연결" 단추와 같은 드라이버 요청(KSPROPERTY_ONESHOT_RECONNECT)이며 관리자 권한이 필요 없다.
+    // 오디오가 아닌 기기(마우스·키보드 등)는 이 방법이 없다. 연결이 끝날 때까지 몇 초 걸릴 수 있어 UI 밖 스레드에서 부른다.
+    public static bool ConnectBluetoothAudio(string name)
+    {
+        bool requested = false;
+        ForEachBluetoothAudio(name, control =>
+        {
+            var property = new KsPropertyHeader { Set = BluetoothAudioPropertySet, Id = 0, Flags = 1 }; // ONESHOT_RECONNECT, GET
+            requested |= control.KsProperty(ref property, (uint)Marshal.SizeOf<KsPropertyHeader>(), IntPtr.Zero, 0, out _) == 0;
+        });
+        return requested;
+    }
+
+    // 등록된 기기 이름 중 Bluetooth 오디오 출력이 있어 위 방법으로 연결할 수 있는 이름
+    public static HashSet<string> FindBluetoothAudioNames(IEnumerable<string> names)
+    {
+        var found = new HashSet<string>();
+        string[] endpoints = ReadAllRenderEndpointNames();
+        foreach (string name in names)
+            if (endpoints.Any(endpoint => endpoint.Contains(name, StringComparison.OrdinalIgnoreCase))) found.Add(name);
+        return found;
+    }
+
+    private static readonly Guid BluetoothAudioPropertySet = new("7FA06C40-B8F6-4C7E-8556-E8C33A12E54D"); // KSPROPSETID_BtAudio
+
+    // 출력 장치(연결이 끊긴 것까지) 이름 목록
+    private static string[] ReadAllRenderEndpointNames()
+    {
+        var names = new List<string>();
+        object? enumeratorObject = null;
+        IMMDeviceCollection? collection = null;
+        try
+        {
+            enumeratorObject = new MMDeviceEnumeratorComObject();
+            var enumerator = (IMMDeviceEnumerator)enumeratorObject;
+            if (enumerator.EnumAudioEndpoints(0, 0xF, out collection) != 0 || collection is null) return [];
+            collection.GetCount(out uint count);
+            for (uint index = 0; index < count && index < 64; index++)
+            {
+                if (collection.Item(index, out IMMDevice device) != 0) continue;
+                try { if (ReadFriendlyName(device) is string endpointName) names.Add(endpointName); }
+                finally { Marshal.ReleaseComObject(device); }
+            }
+        }
+        catch (Exception) { }
+        finally
+        {
+            if (collection is not null) Marshal.ReleaseComObject(collection);
+            if (enumeratorObject is not null) Marshal.ReleaseComObject(enumeratorObject);
+        }
+        return [.. names];
+    }
+
+    // 이름이 맞는 출력 장치마다: 장치 → 연결점 → 연결된 드라이버 부분 → IKsControl 을 찾아 넘긴다.
+    private static void ForEachBluetoothAudio(string name, Action<IKsControl> use)
+    {
+        object? enumeratorObject = null;
+        IMMDeviceCollection? collection = null;
+        try
+        {
+            enumeratorObject = new MMDeviceEnumeratorComObject();
+            var enumerator = (IMMDeviceEnumerator)enumeratorObject;
+            if (enumerator.EnumAudioEndpoints(0, 0xF, out collection) != 0 || collection is null) return;
+            collection.GetCount(out uint count);
+            for (uint index = 0; index < count && index < 64; index++)
+            {
+                if (collection.Item(index, out IMMDevice device) != 0) continue;
+                object? topologyObject = null, control = null;
+                IConnector? connector = null, connectedTo = null;
+                try
+                {
+                    if (ReadFriendlyName(device) is not string endpointName || !endpointName.Contains(name, StringComparison.OrdinalIgnoreCase)) continue;
+                    Guid topologyId = typeof(IDeviceTopology).GUID;
+                    if (device.Activate(ref topologyId, 0x17, IntPtr.Zero, out topologyObject) != 0) continue; // CLSCTX_ALL
+                    var topology = (IDeviceTopology)topologyObject;
+                    if (topology.GetConnector(0, out connector) != 0) continue;
+                    if (connector.GetConnectedTo(out connectedTo) != 0) continue;
+                    Guid controlId = typeof(IKsControl).GUID;
+                    if (((IPart)connectedTo).Activate(1, ref controlId, out control) != 0) continue; // CLSCTX_INPROC_SERVER
+                    use((IKsControl)control);
+                }
+                catch (Exception) { }
+                finally
+                {
+                    foreach (object? item in new object?[] { control, connectedTo, connector, topologyObject })
+                        if (item is not null) Marshal.ReleaseComObject(item);
+                    Marshal.ReleaseComObject(device);
+                }
+            }
+        }
+        catch (Exception) { }
+        finally
+        {
+            if (collection is not null) Marshal.ReleaseComObject(collection);
+            if (enumeratorObject is not null) Marshal.ReleaseComObject(enumeratorObject);
+        }
+    }
+
+    [ComImport, Guid("2A07407E-6497-4A18-9787-32F79BD0D98F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IDeviceTopology
+    {
+        [PreserveSig] int GetConnectorCount(out uint count);
+        [PreserveSig] int GetConnector(uint index, out IConnector connector);
+    }
+
+    [ComImport, Guid("9C2C4058-23F5-41DE-877A-DF3AF236A09E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IConnector
+    {
+        [PreserveSig] int GetConnectorType(out int type); // COM은 순서로 부르므로 이름은 C# GetType과 겹치지 않게 바꿈
+        [PreserveSig] int GetDataFlow(out int flow);
+        [PreserveSig] int ConnectTo(IConnector connectTo);
+        [PreserveSig] int Disconnect();
+        [PreserveSig] int IsConnected([MarshalAs(UnmanagedType.Bool)] out bool connected);
+        [PreserveSig] int GetConnectedTo(out IConnector connectedTo);
+    }
+
+    [ComImport, Guid("AE2DE0E4-5BCA-4F2D-AA46-5D13F8FDB3A9"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IPart
+    {
+        [PreserveSig] int GetName([MarshalAs(UnmanagedType.LPWStr)] out string name);
+        [PreserveSig] int GetLocalId(out uint id);
+        [PreserveSig] int GetGlobalId([MarshalAs(UnmanagedType.LPWStr)] out string id);
+        [PreserveSig] int GetPartType(out int type);
+        [PreserveSig] int GetSubType(out Guid subType);
+        [PreserveSig] int GetControlInterfaceCount(out uint count);
+        [PreserveSig] int GetControlInterface(uint index, out IntPtr control);
+        [PreserveSig] int EnumPartsIncoming(out IntPtr parts);
+        [PreserveSig] int EnumPartsOutgoing(out IntPtr parts);
+        [PreserveSig] int GetTopologyObject(out IntPtr topology);
+        [PreserveSig] int Activate(uint classContext, ref Guid interfaceId, [MarshalAs(UnmanagedType.IUnknown)] out object instance);
+    }
+
+    [ComImport, Guid("28F54685-06FD-11D2-B27A-00A0C9223196"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IKsControl
+    {
+        [PreserveSig] int KsProperty(ref KsPropertyHeader property, uint propertyLength, IntPtr data, uint dataLength, out uint returned);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct KsPropertyHeader { public Guid Set; public uint Id; public uint Flags; }
+
     private static string? ReadFriendlyName(IMMDevice device)
     {
         IPropertyStore? store = null;

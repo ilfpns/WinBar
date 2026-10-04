@@ -353,6 +353,47 @@ internal static class Icons
     };
 }
 
+// 메뉴바의 달리는 고양이(macOS RunCat처럼). 그림 파일 없이 몸통·머리·귀·꼬리·다리를 직접 그린다.
+// 4장면: 쭉 뻗기 → 착지 → 웅크리기 → 박차기. 설계는 가로 24 × 세로 18 칸 기준(오른쪽을 보고 달림).
+internal static class RunCat
+{
+    public const int FrameCount = 4;
+
+    // 장면마다 (뒷발 끝, 앞발 끝, 몸 위아래 흔들림)
+    private static readonly (PointF Back, PointF Front, float Bob)[] Frames =
+    [
+        (new(2.6f, 15.4f), new(21.4f, 15.0f), -0.5f), // 쭉 뻗기
+        (new(5.4f, 14.2f), new(18.0f, 15.6f), 0f),    // 착지
+        (new(10.6f, 15.6f), new(12.6f, 15.6f), 0.6f), // 웅크리기
+        (new(4.4f, 15.6f), new(20.0f, 13.4f), 0f)     // 박차기
+    ];
+
+    public static void Draw(Graphics graphics, Rectangle area, int frame, Color color)
+    {
+        (PointF back, PointF front, float bob) = Frames[Math.Clamp(frame, 0, FrameCount - 1)];
+        float scale = Math.Min(graphics.DpiY / 96f, Math.Min(area.Width / 24f, area.Height / 18f));
+        GraphicsState state = graphics.Save();
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        graphics.TranslateTransform(area.Left + (area.Width - 24 * scale) / 2f, area.Top + (area.Height - 18 * scale) / 2f);
+        graphics.ScaleTransform(scale, scale);
+        using var brush = new SolidBrush(color);
+        using var leg = new Pen(color, 2.0f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+        using var tail = new Pen(color, 1.7f) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+
+        // 다리(몸 뒤에 먼저 그려 엉덩이·어깨에 붙어 보이게)
+        graphics.DrawLine(leg, 7.6f, 10.8f + bob, back.X, back.Y);
+        graphics.DrawLine(leg, 15.4f, 10.8f + bob, front.X, front.Y);
+        // 꼬리: 엉덩이에서 위로 휘어 올라감
+        graphics.DrawBezier(tail, new PointF(5.6f, 8.0f + bob), new PointF(2.6f, 7.6f + bob), new PointF(1.4f, 4.8f + bob), new PointF(2.6f, 2.4f + bob));
+        // 몸통·머리·귀
+        graphics.FillEllipse(brush, 4.8f, 6.2f + bob, 12.6f, 5.6f);
+        graphics.FillEllipse(brush, 15.0f, 3.4f + bob, 6.4f, 5.8f);
+        graphics.FillPolygon(brush, new PointF[] { new(15.6f, 4.8f + bob), new(16.2f, 1.2f + bob), new(18.2f, 3.6f + bob) });
+        graphics.FillPolygon(brush, new PointF[] { new(18.4f, 3.5f + bob), new(20.6f, 1.4f + bob), new(21.2f, 5.0f + bob) });
+        graphics.Restore(state);
+    }
+}
+
 internal sealed class WinBarContext : ApplicationContext
 {
     private const uint EventSystemForeground = 0x0003;
@@ -691,7 +732,7 @@ internal sealed class WinBarContext : ApplicationContext
 internal sealed class BarForm : Form
 {
     // 오른쪽에서부터: 날짜시간 · 제어 센터(스위치) · 소리 · 네트워크 · 배터리 · … · 카메라/마이크
-    private enum Item { None, Privacy, More, Battery, Network, Sound, Control, Clock }
+    private enum Item { None, Privacy, Cat, More, Battery, Network, Sound, Control, Clock }
 
     private const int BarHeight = 30;
 
@@ -728,6 +769,9 @@ internal sealed class BarForm : Form
     private readonly System.Windows.Forms.Timer clockTimer = new() { Interval = 1000 };
     // Wi-Fi 연결 중일 때만 아이콘을 깜빡인다.
     private readonly System.Windows.Forms.Timer blinkTimer = new() { Interval = 450 };
+    // 달리는 고양이(RunCat): CPU 사용량이 높을수록 장면을 빨리 넘긴다(초당 2~15장면). 고양이 칸만 다시 그린다.
+    private readonly System.Windows.Forms.Timer catTimer = new() { Interval = 500 };
+    private int catFrame;
     private bool blinkOn = true;
     // 마우스로만 연 모달은 마우스가 항목과 모달을 모두 벗어나면 닫는다(모달이 열린 동안만 동작).
     // 30ms마다 확인하고 벗어난 지 120ms가 지나면 닫는다 → 마우스를 떼고 늦어도 150ms 안에 닫힘(170ms 기준). 항목과 모달 사이 틈을 지나는 동안은 닫지 않는다.
@@ -792,6 +836,22 @@ internal sealed class BarForm : Form
             Invalidate();
         };
         clockTimer.Start();
+        catTimer.Tick += (_, _) => TickCat();
+        catTimer.Start();
+    }
+
+    private void TickCat()
+    {
+        // 꺼져 있거나 메뉴바가 숨어 있으면 다시 그리지 않고 1초마다 확인만 한다.
+        if (!AppSettings.Current.ShowRunCat || targetTop == hiddenTop || !areas.ContainsKey(Item.Cat))
+        {
+            catTimer.Interval = 1000;
+            return;
+        }
+        double cpu = Math.Clamp(snapshot.CpuPercent ?? 0, 0, 100);
+        catTimer.Interval = (int)Math.Round(1000 / (2 + cpu / 100 * 13)); // 0% → 500ms, 100% → 67ms
+        catFrame = (catFrame + 1) % RunCat.FrameCount;
+        InvalidateItem(Item.Cat);
     }
 
     protected override bool ShowWithoutActivation => true;
@@ -1099,6 +1159,7 @@ internal sealed class BarForm : Form
         Item.Clock => GlassPanel.Kind.Clock,
         Item.Privacy => GlassPanel.Kind.Privacy,
         Item.More => GlassPanel.Kind.More,
+        Item.Cat => GlassPanel.Kind.Cat,
         _ => null
     };
 
@@ -1167,6 +1228,7 @@ internal sealed class BarForm : Form
             keepOnTopTimer.Dispose();
             panelWatchTimer.Dispose();
             clockTimer.Dispose();
+            catTimer.Dispose();
             blinkTimer.Dispose();
             slideVersion++; // 진행 중인 애니메이션 스레드를 멈춘다.
             font.Dispose();
@@ -1191,6 +1253,7 @@ internal sealed class BarForm : Form
         batterySeen |= snapshot.BatteryPercent is not null;
         if (options.ShowBattery && batterySeen) Add(Item.Battery, 40);
         Add(Item.More, 30);
+        if (options.ShowRunCat) Add(Item.Cat, 32);
         if (options.ShowPrivacy && (status.CameraInUse || status.MicrophoneInUse))
             Add(Item.Privacy, status.CameraInUse && status.MicrophoneInUse ? 32 : 22);
     }
@@ -1212,6 +1275,8 @@ internal sealed class BarForm : Form
 
         foreach ((Item item, Rectangle area) in areas)
         {
+            // 일부만 다시 그릴 때(시계 1초, 고양이 장면)는 그 칸만 그린다.
+            if (!e.ClipRectangle.IntersectsWith(area)) continue;
             try { DrawItem(graphics, item, area); }
             catch (Exception) { }
         }
@@ -1247,6 +1312,9 @@ internal sealed class BarForm : Form
                 break;
             case Item.Control:
                 DrawControlCenterIcon(graphics, area, color);
+                break;
+            case Item.Cat:
+                RunCat.Draw(graphics, area, catFrame, color);
                 break;
             case Item.More:
                 Icons.DrawBold(graphics, "", area, color, 11);

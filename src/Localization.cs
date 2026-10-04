@@ -181,11 +181,18 @@ internal static class L
         ["메모리"] = ["Memory", "内存", "メモリ"],
         ["연결된 기기"] = ["Connected Devices", "已连接的设备", "接続中のデバイス"],
         ["연결된 기기 없음"] = ["No connected devices", "没有已连接的设备", "接続中のデバイスなし"],
+        ["연결"] = ["Connect", "连接", "接続"],
+        ["연결 실패"] = ["Couldn't connect", "连接失败", "接続できませんでした"],
         ["Bluetooth 없음"] = ["No Bluetooth", "没有蓝牙", "Bluetooth なし"],
         ["Bluetooth 꺼짐"] = ["Bluetooth off", "蓝牙已关闭", "Bluetooth オフ"],
         ["등록된 기기"] = ["My Devices", "已配对的设备", "登録済みデバイス"],
         ["등록된 기기 없음"] = ["No paired devices", "没有已配对的设备", "登録済みデバイスなし"],
         ["새 블루투스 기기 찾기…"] = ["Find New Bluetooth Device…", "查找新的蓝牙设备…", "新しいBluetoothデバイスを探す…"],
+
+        // 달리는 고양이
+        ["달리는 고양이"] = ["RunCat", "奔跑的猫", "走るネコ"],
+        ["달리는 고양이 (CPU 사용량)"] = ["RunCat (CPU usage)", "奔跑的猫（CPU 使用率）", "走るネコ（CPU使用率）"],
+        ["CPU {0}% · 초당 {1}걸음"] = ["CPU {0}% · {1} steps/sec", "CPU {0}% · 每秒{1}步", "CPU {0}% · 毎秒{1}歩"],
 
         // 개인 정보 표시
         ["개인 정보 표시"] = ["Privacy Indicators", "隐私指示", "プライバシー表示"],

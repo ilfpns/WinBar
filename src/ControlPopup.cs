@@ -9,7 +9,7 @@ namespace WinBar;
 // 포커스를 가져가지 않아 사용 중인 앱의 한/영 상태가 바뀌지 않는다.
 internal sealed class GlassPanel : Form
 {
-    internal enum Kind { Battery, Network, Sound, Control, Clock, Privacy, More, Bluetooth }
+    internal enum Kind { Battery, Network, Sound, Control, Clock, Privacy, More, Bluetooth, Cat }
 
     // 설정 창과 같은 macOS 메뉴 디자인 수치
     private const int PanelWidth = 320;
@@ -45,6 +45,11 @@ internal sealed class GlassPanel : Form
     private readonly System.Windows.Forms.Timer sideTimer = new() { Interval = 40 };
     private long sideLeftAt;
     private BluetoothDevice[] pairedDevices = [];
+    // 등록된 기기 연결: 연결할 수 있는 오디오 기기 이름, 연결 중인 기기, 실패한 기기
+    private HashSet<string> connectable = [];
+    private string? connectingName, connectFailed;
+    private long connectStart;
+    private readonly System.Windows.Forms.Timer connectTimer = new() { Interval = 1000 };
     private bool pairedExpanded;
     private float pairedLevel;
     // 날짜 달력에서 보고 있는 달(열 때마다 이번 달로)
@@ -63,7 +68,7 @@ internal sealed class GlassPanel : Form
     private string[] savedNetworks = [];
     private (long Received, long Sent)? lastTraffic;
     private long lastTrafficAt;
-    private int? downMbps, upMbps;
+    private double? downMbps, upMbps;
     private bool? radioOn;
     private bool radioBusy;
     private Rectangle sliderTrack, hovered;
@@ -104,6 +109,7 @@ internal sealed class GlassPanel : Form
             Invalidate();
         };
         sideTimer.Tick += (_, _) => WatchSide();
+        connectTimer.Tick += (_, _) => CheckConnect();
         expandTimer.Tick += (_, _) =>
         {
             static float Step(float value, float target)
@@ -118,10 +124,49 @@ internal sealed class GlassPanel : Form
         };
     }
 
+    // 등록된 기기를 누르면 연결: 요청은 UI 밖 스레드에서 보내고, 1초마다 다시 읽어 10초 안에 연결되면 완료, 아니면 "연결 실패"
+    private void ConnectDevice(string name)
+    {
+        connectingName = name;
+        connectFailed = null;
+        connectStart = Environment.TickCount64;
+        Pinned = true;
+        Task.Run(() => SystemMetrics.ConnectBluetoothAudio(name)).ContinueWith(request =>
+        {
+            if (request.Result || IsDisposed) return;
+            // 요청을 보낼 오디오 장치를 찾지 못함: 바로 실패로 표시
+            try { BeginInvoke(() => FinishConnect(connected: false)); } catch (Exception) { }
+        }, TaskScheduler.Default);
+        connectTimer.Start();
+        Invalidate();
+    }
+
+    private void CheckConnect()
+    {
+        if (connectingName is not string name) { connectTimer.Stop(); return; }
+        pairedDevices = sensors.GetPairedBluetoothDevices();
+        if (pairedDevices.Any(device => device.Name == name && device.Connected)) FinishConnect(connected: true);
+        else if (Environment.TickCount64 - connectStart > 10_000) FinishConnect(connected: false);
+        else Invalidate();
+    }
+
+    private void FinishConnect(bool connected)
+    {
+        if (!connected) connectFailed = connectingName;
+        connectingName = null;
+        connectTimer.Stop();
+        pairedDevices = sensors.GetPairedBluetoothDevices();
+        if (Visible) { Height = MeasureHeight(); Invalidate(); }
+    }
+
     private void TogglePairedDevices()
     {
         pairedExpanded = !pairedExpanded;
-        if (pairedExpanded) pairedDevices = sensors.GetPairedBluetoothDevices();
+        if (pairedExpanded)
+        {
+            pairedDevices = sensors.GetPairedBluetoothDevices();
+            connectable = SystemMetrics.FindBluetoothAudioNames(pairedDevices.Select(device => device.Name));
+        }
         Height = MeasureHeight();
         expandTimer.Start();
         Invalidate();
@@ -156,6 +201,8 @@ internal sealed class GlassPanel : Form
             pairedExpanded = false;
             pairedLevel = 0;
             pairedDevices = sensors.GetPairedBluetoothDevices();
+            connectable = SystemMetrics.FindBluetoothAudioNames(pairedDevices.Select(device => device.Name));
+            if (connectingName is null) connectFailed = null;
         }
         Height = MeasureHeight();
         Rectangle work = Screen.FromPoint(owner.Location).WorkingArea;
@@ -362,8 +409,8 @@ internal sealed class GlassPanel : Form
         if (now is { } current && lastTraffic is { } previous && at > lastTrafficAt)
         {
             double seconds = (at - lastTrafficAt) / 1000.0;
-            downMbps = (int)Math.Round(Math.Max(0, current.Received - previous.Received) * 8 / 1_000_000.0 / seconds);
-            upMbps = (int)Math.Round(Math.Max(0, current.Sent - previous.Sent) * 8 / 1_000_000.0 / seconds);
+            downMbps = Math.Max(0, current.Received - previous.Received) * 8 / 1_000_000.0 / seconds;
+            upMbps = Math.Max(0, current.Sent - previous.Sent) * 8 / 1_000_000.0 / seconds;
         }
         lastTraffic = now;
         lastTrafficAt = at;
@@ -448,6 +495,7 @@ internal sealed class GlassPanel : Form
             case Kind.Control: PaintControl(g, ref y); break;
             case Kind.Clock: PaintCalendar(g, ref y); break;
             case Kind.Bluetooth: PaintBluetooth(g, ref y); break;
+            case Kind.Cat: PaintCat(g, ref y); break;
             case Kind.Privacy:
                 Header(g, ref y, L.T("개인 정보 표시"), null);
                 if (status.CameraInUse) DotRow(g, ref y, Theme.CameraDot, L.T("카메라 사용 중"));
@@ -527,7 +575,7 @@ internal sealed class GlassPanel : Form
         y += 40;
 
         InfoRow(g, ref y, "", L.T("현재 속도"), !status.WifiConnected && !status.EthernetConnected ? "--" // 연결이 없으면 잴 것이 없다
-            : downMbps is int down && upMbps is int up ? $"{down + up} Mbps" : L.T("측정 중…"));
+            : downMbps is double down && upMbps is double up ? FormatMbps(down + up) : L.T("측정 중…"));
         if (status.EthernetConnected) InfoRow(g, ref y, Icons.Ethernet, L.T("유선 네트워크"), L.T("연결됨"));
         Separator(g, ref y);
 
@@ -677,6 +725,13 @@ internal sealed class GlassPanel : Form
 
         // 시스템 사용량: 아이콘 + 이름 + 얇은 막대 + 퍼센트
         SectionHeader(g, ref y, L.T("시스템 사용량"), null);
+        PaintUsage(g, ref y);
+        y += 4;
+    }
+
+    // 시스템 사용량 줄(CPU·GPU·메모리): 아이콘 + 이름 + 얇은 막대 + 퍼센트. 제어 센터와 달리는 고양이 모달이 같이 쓴다.
+    private void PaintUsage(Graphics g, ref int y)
+    {
         foreach ((string glyph, string label, double? value) in new[]
                  { (Icons.Cpu, "CPU", snapshot.CpuPercent), ("", "GPU", snapshot.GpuPercent), ("", L.T("메모리"), snapshot.RamPercent) })
         {
@@ -691,6 +746,15 @@ internal sealed class GlassPanel : Form
                 Theme.Secondary, StringAlignment.Far);
             y += 26;
         }
+    }
+
+    // 달리는 고양이 모달: 지금 CPU와 고양이 속도, 그 아래 시스템 사용량
+    private void PaintCat(Graphics g, ref int y)
+    {
+        double cpu = Math.Clamp(snapshot.CpuPercent ?? 0, 0, 100);
+        Header(g, ref y, L.T("달리는 고양이"), L.F("CPU {0}% · 초당 {1}걸음", Math.Round(cpu), Math.Round(2 + cpu / 100 * 13)));
+        SectionHeader(g, ref y, L.T("시스템 사용량"), null);
+        PaintUsage(g, ref y);
         y += 4;
     }
 
@@ -738,9 +802,24 @@ internal sealed class GlassPanel : Form
             }
             foreach (BluetoothDevice device in pairedDevices.Take(20))
             {
-                DrawText(g, device.Name, device.Connected ? boldFont : rowFont, new Rectangle(TextLeft, y + slide, Width - TextLeft - 110, 24), Color.FromArgb(alpha, Theme.Primary));
-                if (device.Connected) DrawDeviceState(g, new Rectangle(Width - 104, y + slide, 90, 24), device, alpha);
-                y += 24;
+                // 연결이 끊긴 오디오 기기는 누르면 연결한다(파란 강조 + "연결"). 다른 기기는 Windows가 스스로 연결하므로 표시만 한다.
+                var row = new Rectangle(Edge, y + slide, Width - Edge * 2, 28);
+                bool canConnect = !device.Connected && connectable.Contains(device.Name) && connectingName is null;
+                float level = canConnect ? HoverLevel(row) : 0;
+                if (canConnect)
+                {
+                    Highlight(g, row, level, accent: true);
+                    string name = device.Name;
+                    targets.Add((row, () => ConnectDevice(name)));
+                }
+                Color text = Mix(Color.FromArgb(alpha, Theme.Primary), Color.White, level);
+                DrawText(g, device.Name, device.Connected ? boldFont : rowFont, new Rectangle(TextLeft, row.Top, row.Width - TextLeft - 96, row.Height), text);
+                var state = new Rectangle(row.Right - 98, row.Top, 90, row.Height);
+                if (device.Connected) DrawDeviceState(g, state, device, alpha);
+                else if (connectingName == device.Name) DrawText(g, L.T("연결 중…"), smallFont, state, Color.FromArgb(alpha, Theme.Secondary), StringAlignment.Far);
+                else if (connectFailed == device.Name) DrawText(g, L.T("연결 실패"), smallFont, state, Color.FromArgb(alpha, Theme.HoverDanger), StringAlignment.Far);
+                else if (canConnect) DrawText(g, L.T("연결"), smallFont, state, Mix(Color.FromArgb(alpha, Theme.HoverAccent), Color.White, level), StringAlignment.Far);
+                y += 28;
             }
         }
         Separator(g, ref y);
@@ -901,8 +980,12 @@ internal sealed class GlassPanel : Form
         catch (Exception) { return false; }
     }
 
-    private static string FormatSize(long bytes) =>
-        bytes >= 1L << 40 ? $"{bytes / (double)(1L << 40):0.0}TB" : $"{bytes / (double)(1L << 30):0}GB";
+    // 처리 속도 표시: 정수로만 쓰면 웹 서핑 정도의 적은 사용량(1Mbps 미만)이 늘 "0 Mbps"로 보여서
+    // 1 미만은 소수 둘째 자리, 10 미만은 첫째 자리, 그 이상은 정수로 쓴다. 예) 0.41 / 3.2 / 59 Mbps
+    private static string FormatMbps(double mbps) =>
+        mbps < 1 ? $"{mbps:0.00} Mbps" : mbps < 10 ? $"{mbps:0.0} Mbps" : $"{mbps:0} Mbps";
+
+    private static string FormatSize(long bytes) =>        bytes >= 1L << 40 ? $"{bytes / (double)(1L << 40):0.0}TB" : $"{bytes / (double)(1L << 30):0}GB";
 
 
     [DllImport("user32.dll")] private static extern bool LockWorkStation();
@@ -1167,6 +1250,7 @@ internal sealed class GlassPanel : Form
             expandTimer.Dispose();
             hoverTimer.Dispose();
             switchTimer.Dispose();
+            connectTimer.Dispose();
             sideTimer.Dispose();
             side?.Dispose();
             titleFont.Dispose();

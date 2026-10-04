@@ -21,6 +21,8 @@ internal sealed class AppSettings
     public bool ShowWifi { get; set; } = true;
     public bool ShowVolume { get; set; } = true;
     public bool ShowBattery { get; set; } = true;
+    // 달리는 고양이(CPU 사용량에 따라 빨라짐)
+    public bool ShowRunCat { get; set; } = true;
     public bool Use24HourClock { get; set; }
     public bool LightMode { get; set; }
 

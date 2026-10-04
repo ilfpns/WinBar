@@ -125,7 +125,8 @@ internal sealed class SettingsForm : Form
                     Toggle("카메라·마이크 사용 표시", "", s => s.ShowPrivacy, (s, v) => s.ShowPrivacy = v),
                     Toggle("배터리", "", s => s.ShowBattery, (s, v) => s.ShowBattery = v),
                     Toggle("네트워크", "", s => s.ShowWifi, (s, v) => s.ShowWifi = v),
-                    Toggle("소리", "", s => s.ShowVolume, (s, v) => s.ShowVolume = v)
+                    Toggle("소리", "", s => s.ShowVolume, (s, v) => s.ShowVolume = v),
+                    Toggle("달리는 고양이 (CPU 사용량)", Icons.Cpu, s => s.ShowRunCat, (s, v) => s.ShowRunCat = v)
                 ], Note: "제어 센터·날짜·시간은 항상 표시"),
                 new("아이콘 간격", [],
                     new Slider("아이콘 사이 간격", "", AppSettings.MinIconSpacing, AppSettings.MaxIconSpacing, "px",
