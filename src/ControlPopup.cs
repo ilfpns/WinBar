@@ -9,7 +9,7 @@ namespace WinBar;
 // 포커스를 가져가지 않아 사용 중인 앱의 한/영 상태가 바뀌지 않는다.
 internal sealed class GlassPanel : Form
 {
-    internal enum Kind { Battery, Network, Sound, Control, Clock, Privacy, More, Bluetooth, Cat }
+    internal enum Kind { Battery, Network, Sound, Control, Clock, Privacy, More, Bluetooth, Cat, Media }
 
     // 설정 창과 같은 macOS 메뉴 디자인 수치
     private const int PanelWidth = 320;
@@ -50,6 +50,9 @@ internal sealed class GlassPanel : Form
     private string? connectingName, connectFailed;
     private long connectStart;
     private readonly System.Windows.Forms.Timer connectTimer = new() { Interval = 1000 };
+    // 지금 재생 중 모달이 열려 있는 동안만 진행 막대를 0.5초마다 다시 그린다.
+    private readonly System.Windows.Forms.Timer mediaTimer = new() { Interval = 500 };
+    private long seekHoldUntil;
     private bool pairedExpanded;
     private float pairedLevel;
     // 날짜 달력에서 보고 있는 달(열 때마다 이번 달로)
@@ -75,6 +78,14 @@ internal sealed class GlassPanel : Form
     private bool dragging;
     private double? dragValue;
     private bool glass;
+    // 나타날 때 메뉴바 아래에서 흘러나오는 애니메이션(위쪽 가장자리에서 아래로 펼쳐지며 내용이 함께 내려온다)
+    private const double RevealMs = 240;
+    private readonly Action revealFrame;
+    private bool revealing;
+    private Bitmap? revealImage;       // 펼치는 동안 쓸, 한 번 그려 둔 모달 그림
+    private readonly System.Diagnostics.Stopwatch revealClock = new();
+    private float reveal = 1;          // 0(안 보임) → 1(다 펼쳐짐)
+    private bool systemRounded;        // Windows 11처럼 시스템이 모서리를 둥글게 그리는지
     private long hiddenAt;
     // 네트워크 모달의 저장된 네트워크 펼침(0 접힘 → 1 펼침). 움직이는 동안에만 타이머가 돈다.
     private bool savedExpanded;
@@ -110,6 +121,12 @@ internal sealed class GlassPanel : Form
         };
         sideTimer.Tick += (_, _) => WatchSide();
         connectTimer.Tick += (_, _) => CheckConnect();
+        revealFrame = StepReveal;
+        mediaTimer.Tick += (_, _) =>
+        {
+            if (!Visible || Current != Kind.Media) { mediaTimer.Stop(); return; }
+            if (NowPlaying.Current is { Playing: true }) Invalidate();
+        };
         expandTimer.Tick += (_, _) =>
         {
             static float Step(float value, float target)
@@ -257,6 +274,7 @@ internal sealed class GlassPanel : Form
         // Windows 11은 창 모서리를 시스템이 둥글게 그린다. 지원하지 않으면 영역을 잘라 둥글게 만든다.
         int round = 2;
         bool rounded = DwmSetWindowAttribute(Handle, 33, ref round, sizeof(int)) == 0;
+        systemRounded = rounded;
         if (!rounded) Theme.ApplyRoundedRegion(this, 14);
         ApplyGlass();
     }
@@ -307,19 +325,79 @@ internal sealed class GlassPanel : Form
             }
             if (kind == Kind.More) LoadMore();
         }
+        if (kind == Kind.Cat) ReadTemperatures();
         trafficTimer.Enabled = kind == Kind.Network;
+        mediaTimer.Enabled = kind == Kind.Media;
 
         Height = MeasureHeight();
         // macOS처럼 항목 오른쪽 끝에 맞추되 화면 밖으로 나가지 않게 한다.
         Rectangle work = Screen.FromPoint(itemScreenBounds.Location).WorkingArea;
         Rectangle monitor = Screen.FromPoint(itemScreenBounds.Location).Bounds;
-        int x = Math.Clamp(itemScreenBounds.Right - Width, monitor.Left + 8, monitor.Right - Width - 8);
+        // 가운데 '지금 재생 중'은 항목 가운데 아래에, 나머지는 macOS처럼 항목 오른쪽 끝에 맞춘다.
+        int anchorX = kind == Kind.Media ? itemScreenBounds.Left + itemScreenBounds.Width / 2 + Width / 2 : itemScreenBounds.Right;
+        int x = Math.Clamp(anchorX - Width, monitor.Left + 8, monitor.Right - Width - 8);
         int y = itemScreenBounds.Bottom + 6;
         if (y + Height > work.Bottom - 8) y = Math.Max(monitor.Top + 8, work.Bottom - 8 - Height);
         Location = new Point(x, y);
+        if (reopen) StartReveal();
         if (!Visible) Show();
         Topmost.Raise(this);
         Invalidate();
+    }
+
+    // 펼침 시작: 처음에는 높이 0으로 잘라 두고, 시간 기준(0.24초, 빨리 나와서 천천히 멈춤)으로 아래로 펼친다.
+    // 화면 새로 고침마다 한 장면(FrameClock)이고, 내용은 처음 한 번만 그려 두고 옮겨 붙이기만 해 가볍다.
+    private void StartReveal()
+    {
+        reveal = 0;
+        revealClock.Restart();
+        DropRevealImage();
+        ApplyRevealRegion();
+        if (!revealing) { revealing = true; FrameClock.Add(revealFrame); }
+    }
+
+    private void StepReveal()
+    {
+        double p = Math.Clamp(revealClock.Elapsed.TotalMilliseconds / RevealMs, 0, 1);
+        reveal = (float)(1 - Math.Pow(1 - p, 3));
+        if (p >= 1 || !Visible || IsDisposed) StopReveal();
+        if (IsDisposed) return;
+        ApplyRevealRegion();
+        Invalidate();
+        Update();
+    }
+
+    private void StopReveal()
+    {
+        reveal = 1;
+        revealing = false;
+        FrameClock.Remove(revealFrame);
+        DropRevealImage();
+    }
+
+    private void DropRevealImage()
+    {
+        revealImage?.Dispose();
+        revealImage = null;
+    }
+
+    // 보이는 부분만 남기는 창 영역. 다 펼쳐지면 원래대로(시스템 둥근 모서리, 또는 직접 자른 둥근 영역) 돌린다.
+    private void ApplyRevealRegion()
+    {
+        if (!IsHandleCreated) return;
+        Region? previous = Region;
+        if (reveal >= 1)
+        {
+            if (systemRounded) Region = null;
+            else { Theme.ApplyRoundedRegion(this, 14); return; }
+        }
+        else
+        {
+            int shown = Math.Max(1, (int)Math.Round(Height * reveal));
+            using GraphicsPath path = Theme.RoundedRectangle(new Rectangle(0, 0, Width, shown), Math.Min(Radius, shown / 2));
+            Region = new Region(path);
+        }
+        previous?.Dispose();
     }
 
     public void UpdateData(SystemSnapshot nextSnapshot, StatusSnapshot nextStatus)
@@ -329,8 +407,9 @@ internal sealed class GlassPanel : Form
         if (!Visible) return;
         // 드래그를 끝낸 뒤 실제 값(사운드: 음량, 제어 센터: 밝기)이 따라오면 임시 값을 버린다.
         double? actualValue = Current == Kind.Control ? snapshot.BrightnessPercent : snapshot.VolumePercent;
-        if (!dragging && dragValue is double pending && actualValue is double actual && Math.Abs(actual - pending) < 1.5)
+        if (Current != Kind.Media && !dragging && dragValue is double pending && actualValue is double actual && Math.Abs(actual - pending) < 1.5)
             dragValue = null;
+        if (Current == Kind.Cat) ReadTemperatures();
         int height = MeasureHeight();
         if (Height != height) Height = height;
         Invalidate();
@@ -355,6 +434,7 @@ internal sealed class GlassPanel : Form
         sideTimer.Stop();
         side?.HidePanel();
         Hide();
+        StopReveal();
         MemoryTrim.Request();
         hiddenAt = Environment.TickCount64;
     }
@@ -418,6 +498,26 @@ internal sealed class GlassPanel : Form
     }
 
     // ── 높이 계산: 같은 그리기 코드를 작은 그림판에 한 번 돌려 끝 위치를 잰다 ──
+    // 시작 직후 한 번, 보이지 않는 그림에 '지금 재생 중' 모달을 실제 크기로 그려 둔다(그리기 코드 준비·글꼴 불러오기).
+    // 처음 마우스를 올렸을 때 이 준비가 한꺼번에 몰려 애니메이션이 0.2초 멈추던 것을 막는다.
+    public void WarmUp()
+    {
+        if (Visible || IsDisposed) return;
+        Kind saved = Current;
+        try
+        {
+            Current = Kind.Media;
+            int height = Math.Max(1, MeasureHeight());
+            using var image = new Bitmap(Math.Max(1, Width), height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            using Graphics g = Graphics.FromImage(image);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            PaintGlass(g);
+            PaintContent(g);
+        }
+        catch (Exception) { }
+        finally { Current = saved; }
+    }
+
     private int MeasureHeight()
     {
         using var scratch = new Bitmap(1, 1);
@@ -460,6 +560,23 @@ internal sealed class GlassPanel : Form
         base.OnPaint(e);
         Graphics g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
+        // 펼치는 동안 내용은 위(메뉴바 쪽)에서 미끄러져 내려온다. 처음 한 장면에만 내용을 그려 두고 이후에는 옮겨 붙인다.
+        if (reveal < 1 && Width > 0 && Height > 0)
+        {
+            if (revealImage is null || revealImage.Size != Size)
+            {
+                DropRevealImage();
+                revealImage = new Bitmap(Width, Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+                using Graphics layer = Graphics.FromImage(revealImage);
+                layer.SmoothingMode = SmoothingMode.AntiAlias;
+                layer.TextRenderingHint = g.TextRenderingHint;
+                layer.Clear(glass ? Color.Transparent : BackColor);
+                PaintGlass(layer);
+                PaintContent(layer);
+            }
+            g.DrawImageUnscaled(revealImage, 0, -(int)Math.Round(Height * (1 - reveal) * 0.35));
+            return;
+        }
         PaintGlass(g);
         PaintContent(g);
     }
@@ -496,6 +613,7 @@ internal sealed class GlassPanel : Form
             case Kind.Clock: PaintCalendar(g, ref y); break;
             case Kind.Bluetooth: PaintBluetooth(g, ref y); break;
             case Kind.Cat: PaintCat(g, ref y); break;
+            case Kind.Media: PaintMedia(g, ref y); break;
             case Kind.Privacy:
                 Header(g, ref y, L.T("개인 정보 표시"), null);
                 if (status.CameraInUse) DotRow(g, ref y, Theme.CameraDot, L.T("카메라 사용 중"));
@@ -741,21 +859,144 @@ internal sealed class GlassPanel : Form
             var bar = new Rectangle(TextLeft + 62, row.Top + row.Height / 2 - 3, row.Width - TextLeft - 62 - 46, 6);
             Fill(g, bar, Theme.IsLight ? Color.FromArgb(30, 0, 0, 0) : Color.FromArgb(40, 255, 255, 255), 3);
             if (value is double v && v > 0)
-                Fill(g, new Rectangle(bar.Left, bar.Top, Math.Max(6, (int)(bar.Width * Math.Clamp(v, 0, 100) / 100)), bar.Height), Theme.HoverAccent, 3);
+                Fill(g, new Rectangle(bar.Left, bar.Top, Math.Max(6, (int)(bar.Width * Math.Clamp(v, 0, 100) / 100)), bar.Height), Theme.UsageFill(), 3);
             DrawText(g, value is double shownValue ? $"{shownValue:0}%" : "--", smallFont, new Rectangle(bar.Right + 4, row.Top, row.Right - bar.Right - 10, row.Height),
                 Theme.Secondary, StringAlignment.Far);
             y += 26;
         }
     }
 
+    // 지금 재생 중 모달: 큰 앨범 그림 · 제목 · 가수 · 앨범, 진행 막대와 시간, 이전·재생/일시정지·다음
+    private void PaintMedia(Graphics g, ref int y)
+    {
+        if (NowPlaying.Current is not NowPlayingInfo media)
+        {
+            Header(g, ref y, L.T("지금 재생 중"), null);
+            InfoRow(g, ref y, "", L.T("재생 중인 곡 없음"), null);
+            return;
+        }
+
+        // 맨 위: 앱 로고 + 앱 이름(Spotify / YouTube …), 오른쪽에 재생 상태
+        MediaLogo.Draw(g, new Rectangle(14, 12, 20, 20), media, Theme.Secondary);
+        DrawText(g, media.App, titleFont, new Rectangle(42, 10, Width - 150, 24), Theme.Primary);
+        DrawText(g, L.T(media.Playing ? "재생 중" : "일시정지됨"), smallFont, new Rectangle(Width - 14 - 100, 10, 100, 24), Theme.Secondary, StringAlignment.Far);
+        y = 42;
+        Separator(g, ref y);
+
+        // 앨범 그림 + 제목(굵게) · 가수 · 앨범
+        var art = new Rectangle(Edge + 8, y + 4, 76, 76);
+        if (media.Art is Bitmap image)
+        {
+            GraphicsState state = g.Save();
+            using GraphicsPath clip = Theme.RoundedRectangle(art, 8);
+            g.SetClip(clip);
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.DrawImage(image, art);
+            g.Restore(state);
+        }
+        else
+        {
+            Fill(g, art, Theme.IsLight ? Color.FromArgb(26, 0, 0, 0) : Color.FromArgb(34, 255, 255, 255), 8);
+            Icons.DrawBold(g, "", art, Theme.Secondary, 18);
+        }
+        int textLeft = art.Right + 12, textWidth = Width - textLeft - 14;
+        DrawText(g, media.Title, boldFont, new Rectangle(textLeft, art.Top + 6, textWidth, 22), Theme.Primary);
+        DrawText(g, media.Artist, rowFont, new Rectangle(textLeft, art.Top + 29, textWidth, 20), Theme.Secondary);
+        DrawText(g, media.Album, smallFont, new Rectangle(textLeft, art.Top + 51, textWidth, 18), Theme.Secondary);
+        y += 90;
+
+        // 재생 위치 막대: 누르거나 끌면 그 위치로 이동(손을 뗄 때 이동 요청). 마우스를 올리면 손잡이가 커진다.
+        if (media.Duration > TimeSpan.Zero)
+        {
+            var area = new Rectangle(Edge, y, Width - Edge * 2, 22);
+            var bar = new Rectangle(Edge + 10, y + 8, Width - (Edge + 10) * 2, 5);
+            double actual = Math.Clamp(media.CurrentPosition.TotalSeconds / media.Duration.TotalSeconds, 0, 1);
+            bool holding = dragValue is double && (dragging || Environment.TickCount64 < seekHoldUntil);
+            double fraction = holding ? Math.Clamp(dragValue!.Value / 100, 0, 1) : actual;
+            float hover = Math.Max(HoverLevel(area), dragging ? 1 : 0);
+            Fill(g, bar, Theme.IsLight ? Color.FromArgb(30, 0, 0, 0) : Color.FromArgb(40, 255, 255, 255), 3);
+            int fill = (int)Math.Round(bar.Width * fraction);
+            if (fill > 0) Fill(g, new Rectangle(bar.Left, bar.Top, Math.Max(5, fill), bar.Height), Theme.Primary, 3);
+            if (media.CanSeek)
+            {
+                float radius = 4 + 3 * hover;
+                using var knob = new SolidBrush(Theme.Primary);
+                g.FillEllipse(knob, bar.Left + fill - radius, bar.Top + bar.Height / 2f - radius, radius * 2, radius * 2);
+                sliderTrack = bar;
+                targets.Add((area, () => { }));
+            }
+            TimeSpan shown = TimeSpan.FromSeconds(media.Duration.TotalSeconds * fraction);
+            DrawText(g, Clock(shown), smallFont, new Rectangle(bar.Left, bar.Bottom + 4, 70, 16), Theme.Secondary);
+            DrawText(g, Clock(media.Duration), smallFont, new Rectangle(bar.Right - 70, bar.Bottom + 4, 70, 16), Theme.Secondary, StringAlignment.Far);
+            y += 40;
+        }
+
+        // 이전 곡 · 재생/일시정지(가운데, 조금 크게) · 다음 곡
+        int center = Width / 2;
+        MediaButton(g, new Rectangle(center - 80, y + 4, 38, 38), "", media.CanPrevious, 10, NowPlaying.Previous);
+        MediaButton(g, new Rectangle(center - 23, y, 46, 46), media.Playing ? "" : "", media.CanToggle, 14, NowPlaying.TogglePlayPause);
+        MediaButton(g, new Rectangle(center + 42, y + 4, 38, 38), "", media.CanNext, 10, NowPlaying.Next);
+        y += 54;
+    }
+
+    private void MediaButton(Graphics g, Rectangle bounds, string glyph, bool enabled, float points, Action action)
+    {
+        float level = enabled ? HoverLevel(bounds) : 0;
+        if (level > 0)
+            using (var brush = new SolidBrush(Theme.HoverTint(Theme.HoverAccent, level * 1.6f)))
+                g.FillEllipse(brush, bounds);
+        Color color = enabled ? Mix(Theme.Primary, Theme.HoverAccent, level) : Color.FromArgb(90, Theme.Primary);
+        Icons.DrawMoved(g, glyph, bounds, color, points, scale: 1 + 0.1f * Icons.Ease(level));
+        if (enabled) targets.Add((bounds, () => { action(); Pinned = true; }));
+    }
+
+    private static string Clock(TimeSpan time) =>
+        time.TotalHours >= 1 ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}" : $"{time.Minutes}:{time.Seconds:00}";
+
     // 달리는 고양이 모달: 지금 CPU와 고양이 속도, 그 아래 시스템 사용량
     private void PaintCat(Graphics g, ref int y)
     {
         double cpu = Math.Clamp(snapshot.CpuPercent ?? 0, 0, 100);
-        Header(g, ref y, L.T("달리는 고양이"), L.F("CPU {0}% · 초당 {1}걸음", Math.Round(cpu), Math.Round(2 + cpu / 100 * 13)));
+        if (AppSettings.Current.RunCatStyle == "cat")
+            Header(g, ref y, L.T("달리는 고양이"), L.F("CPU {0}% · 초당 {1}걸음", Math.Round(cpu), Math.Round(2 + cpu / 100 * 13)));
+        else
+            // 불꽃 크기 40단계(메뉴바 불꽃과 같은 계산)
+            Header(g, ref y, L.T("타오르는 불꽃"), L.F("CPU {0}% · 불꽃 {1}/{2}단계", Math.Round(cpu), FlameIcon.LevelFor(cpu), FlameIcon.Levels));
         SectionHeader(g, ref y, L.T("시스템 사용량"), null);
         PaintUsage(g, ref y);
+        // 온도(읽을 수 있는 것만): 막대는 30~100°C 범위
+        if (cpuTemperature is not null || gpuTemperature is not null)
+        {
+            y += 4;
+            SectionHeader(g, ref y, L.T("온도"), null);
+            if (cpuTemperature is double cpuValue) PaintTemperature(g, ref y, Icons.Cpu, L.T("CPU (본체)"), cpuValue);
+            if (gpuTemperature is double gpuValue) PaintTemperature(g, ref y, "\ue7f4", "GPU", gpuValue);
+        }
         y += 4;
+    }
+
+    private double? cpuTemperature, gpuTemperature;
+
+    private void ReadTemperatures()
+    {
+        try { (cpuTemperature, gpuTemperature) = metrics.ReadTemperatures(); }
+        catch (Exception) { cpuTemperature = gpuTemperature = null; }
+    }
+
+    private void PaintTemperature(Graphics g, ref int y, string glyph, string label, double celsius)
+    {
+        var row = new Rectangle(Edge, y, Width - Edge * 2, 26);
+        Icons.DrawBold(g, glyph, new Rectangle(row.Left + 6, row.Top, 20, row.Height), Theme.Secondary, 8.5f);
+        DrawText(g, label, rowFont, new Rectangle(TextLeft, row.Top, 90, row.Height), Theme.Primary);
+        var bar = new Rectangle(TextLeft + 92, row.Top + row.Height / 2 - 3, row.Width - TextLeft - 92 - 52, 6);
+        Fill(g, bar, Theme.IsLight ? Color.FromArgb(30, 0, 0, 0) : Color.FromArgb(40, 255, 255, 255), 3);
+        Color color = Theme.TemperatureColor(celsius);
+        Fill(g, new Rectangle(bar.Left, bar.Top, Math.Max(6, (int)(bar.Width * Math.Clamp((celsius - 30) / 70, 0, 1))), bar.Height), color, 3);
+        // 숫자는 뜨거울 때(75°C 이상)만 색을 입힌다
+        bool hot = celsius >= 75 && !AppSettings.Current.MonochromeTemperature;
+        DrawText(g, $"{celsius:0}°C", smallFont, new Rectangle(bar.Right + 4, row.Top, row.Right - bar.Right - 10, row.Height),
+            hot ? color : Theme.Secondary, StringAlignment.Far);
+        y += 26;
     }
 
     // Bluetooth 세부 창(제어 센터 왼쪽): 연결된 기기, 등록된 기기(접었다 펴기), 새 기기 찾기
@@ -906,7 +1147,7 @@ internal sealed class GlassPanel : Form
             Fill(g, bar, Theme.IsLight ? Color.FromArgb(30, 0, 0, 0) : Color.FromArgb(40, 255, 255, 255), 3);
             double used = total > 0 ? (total - free) / (double)total : 0;
             // 거의 가득 차면(90% 이상) 빨강으로 알린다.
-            Fill(g, new Rectangle(bar.Left, bar.Top, Math.Max(6, (int)(bar.Width * used)), bar.Height), used >= 0.9 ? Theme.HoverDanger : Theme.HoverAccent, 3);
+            Fill(g, new Rectangle(bar.Left, bar.Top, Math.Max(6, (int)(bar.Width * used)), bar.Height), Theme.UsageFill(used >= 0.9), 3);
             targets.Add((row, () => OpenSettings("ms-settings:storagesense")));
             y += 40;
         }
@@ -1194,6 +1435,12 @@ internal sealed class GlassPanel : Form
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        // 재생 위치 막대를 놓으면 그 위치로 이동을 요청하고, 앱이 새 위치를 알려 줄 때까지(최대 1.5초) 놓은 위치를 보여 준다.
+        if (dragging && Current == Kind.Media && dragValue is double fraction && NowPlaying.Current is NowPlayingInfo media)
+        {
+            NowPlaying.Seek(TimeSpan.FromSeconds(media.Duration.TotalSeconds * fraction / 100));
+            seekHoldUntil = Environment.TickCount64 + 1500;
+        }
         dragging = false;
         Capture = false;
     }
@@ -1203,6 +1450,7 @@ internal sealed class GlassPanel : Form
     {
         double value = Math.Clamp((x - sliderTrack.Left) * 100.0 / sliderTrack.Width, 0, 100);
         dragValue = value;
+        if (Current == Kind.Media) { Invalidate(); return; } // 재생 위치는 손을 뗄 때 한 번만 이동 요청(OnMouseUp)
         if (Current == Kind.Control) metrics.SetBrightness(value);
         else metrics.SetVolume(value);
         Invalidate();
@@ -1251,6 +1499,9 @@ internal sealed class GlassPanel : Form
             hoverTimer.Dispose();
             switchTimer.Dispose();
             connectTimer.Dispose();
+            mediaTimer.Dispose();
+            FrameClock.Remove(revealFrame);
+            revealImage?.Dispose();
             sideTimer.Dispose();
             side?.Dispose();
             titleFont.Dispose();

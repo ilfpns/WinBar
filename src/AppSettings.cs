@@ -21,8 +21,17 @@ internal sealed class AppSettings
     public bool ShowWifi { get; set; } = true;
     public bool ShowVolume { get; set; } = true;
     public bool ShowBattery { get; set; } = true;
-    // 달리는 고양이(CPU 사용량에 따라 빨라짐)
+    // 메뉴바 가운데 지금 재생 중(곡 제목·가수)
+    public bool ShowNowPlaying { get; set; } = true;
+    // 움직이는 아이콘(CPU 사용량에 따라 빨라짐)과 모양: flame(타오르는 불꽃) · cat(달리는 고양이)
     public bool ShowRunCat { get; set; } = true;
+    public string RunCatStyle { get; set; } = "flame";
+    // 메뉴바·모달의 색 요소별 흑백 여부(기본은 모두 컬러): 지금 재생 중 앱 로고, 배터리, 카메라·마이크 점, 사용량 막대, 온도
+    public bool MonochromeLogos { get; set; }
+    public bool MonochromeBattery { get; set; }
+    public bool MonochromePrivacy { get; set; }
+    public bool MonochromeUsage { get; set; }
+    public bool MonochromeTemperature { get; set; }
     public bool Use24HourClock { get; set; }
     public bool LightMode { get; set; }
 
@@ -69,6 +78,7 @@ internal sealed class AppSettings
         settings.BarOpacity = Math.Clamp(settings.BarOpacity, 0, 100);
         settings.IconSpacing = Math.Clamp(settings.IconSpacing, MinIconSpacing, MaxIconSpacing);
         if (settings.Language is not ("ko" or "zh" or "ja" or "en")) settings.Language = "ko";
+        if (settings.RunCatStyle is not ("flame" or "cat")) settings.RunCatStyle = "flame";
         return settings;
     }
 

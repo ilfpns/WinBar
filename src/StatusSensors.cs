@@ -1,4 +1,4 @@
-using System.Net.NetworkInformation;
+﻿using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32;
@@ -17,6 +17,331 @@ internal sealed record StatusSnapshot(
     // Windows처럼 신호 품질을 1~5칸으로 나눈다(연결 안 됨은 0).
     public int WifiBars => !WifiConnected || WifiQuality is not int quality ? 0
         : quality >= 80 ? 5 : quality >= 60 ? 4 : quality >= 40 ? 3 : quality >= 20 ? 2 : 1;
+}
+
+// 재생 중인 곡 하나(Spotify·브라우저 등이 Windows 미디어 정보로 알려 주는 값). 앨범 그림은 96×96으로 줄여 둔다.
+// Id: 앱 ID(세션 구분), Icon: 그 앱의 Windows 아이콘(작업 표시줄과 같은 그림), YouTube: 브라우저 창 제목으로 YouTube를 알아낸 경우
+internal sealed record NowPlayingInfo(string Id, string Title, string Artist, string Album, string App, bool Playing,
+    bool CanPrevious, bool CanNext, bool CanToggle, TimeSpan Position, TimeSpan Duration, DateTimeOffset UpdatedAt, Bitmap? Art,
+    Bitmap? Icon = null, bool YouTube = false, bool CanSeek = false)
+{
+    // 재생 중이면 마지막으로 받은 위치에서 흐른 시간만큼 더한다(Windows는 위치를 가끔만 알려 줌).
+    public TimeSpan CurrentPosition => Playing && Duration > TimeSpan.Zero
+        ? TimeSpan.FromTicks(Math.Min(Duration.Ticks, (Position + (DateTimeOffset.Now - UpdatedAt)).Ticks))
+        : Position;
+}
+
+// 지금 재생 중 감시: Windows 미디어 세션(System Media Transport Controls)을 모두 읽는다. Spotify API·인터넷이 필요 없다.
+// Spotify와 YouTube가 동시에 있으면 둘 다(앱마다 하나씩) 알려 준다. Windows가 바뀜을 알려 줄 때만 다시 읽고(주기 조회 없음),
+// 재생 위치만 바뀐 경우는 화면을 다시 그리지 않는다(진행 막대는 모달이 직접 계산). Changed는 UI가 아닌 스레드에서 올 수 있다.
+internal static class NowPlaying
+{
+    private const int MaxSessions = 3;
+    private static Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager? manager;
+    private static readonly List<Windows.Media.Control.GlobalSystemMediaTransportControlsSession> sessions = [];
+    private static readonly Dictionary<string, (string Key, Bitmap? Art)> arts = [];   // 앱 ID → (곡, 앨범 그림)
+    private static int refreshing, pending;
+    private static string signature = "";
+    // 앨범 그림은 메뉴바·모달이 UI 스레드에서 그리므로, 다 쓴 그림은 UI 스레드에서 정리한다(그리는 도중 지워지지 않게).
+    private static SynchronizationContext? ui;
+
+    public static IReadOnlyList<NowPlayingInfo> All { get; private set; } = [];
+
+    // 메뉴바에서 마우스를 올린 로고의 앱. 모달·버튼은 이 앱에 적용된다(없으면 재생 중인 것 → 첫 번째).
+    public static string? SelectedId { get; set; }
+
+    public static NowPlayingInfo? Current =>
+        All.FirstOrDefault(info => info.Id == SelectedId) ?? All.FirstOrDefault(info => info.Playing) ?? All.FirstOrDefault();
+
+    // artChanged: 앨범 그림이 바뀌어 메모리를 정리할 만한 경우
+    public static event Action<bool>? Changed;
+
+    public static async void Start()
+    {
+        ui = SynchronizationContext.Current;
+        try
+        {
+            manager = await Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+            manager.SessionsChanged += (_, _) => Attach();
+            Attach();
+        }
+        catch (Exception) { manager = null; }
+    }
+
+    public static void Stop()
+    {
+        Detach();
+        lock (arts)
+        {
+            foreach ((_, Bitmap? art) in arts.Values) art?.Dispose();
+            arts.Clear();
+        }
+        All = [];
+    }
+
+    // 재생·일시정지·이전 곡·다음 곡·위치 이동(선택된 앱에 요청만 보낸다)
+    public static void TogglePlayPause() => Send(s => s.TryTogglePlayPauseAsync().AsTask());
+    public static void Previous() => Send(s => s.TrySkipPreviousAsync().AsTask());
+    public static void Next() => Send(s => s.TrySkipNextAsync().AsTask());
+    public static void Seek(TimeSpan position) => Send(s => s.TryChangePlaybackPositionAsync(Math.Max(0, position.Ticks)).AsTask());
+    // 브라우저 탭을 바꾸면 창 제목이 바뀌므로, 메뉴바 로고에 마우스를 올릴 때 다시 확인한다.
+    public static void Recheck() => _ = RefreshAsync();
+
+    private static async void Send(Func<Windows.Media.Control.GlobalSystemMediaTransportControlsSession, Task<bool>> request)
+    {
+        try
+        {
+            string? id = Current?.Id;
+            Windows.Media.Control.GlobalSystemMediaTransportControlsSession? target;
+            lock (sessions) target = sessions.FirstOrDefault(s => s.SourceAppUserModelId == id);
+            if (target is not null) await request(target);
+        }
+        catch (Exception) { }
+    }
+
+    private static void Attach()
+    {
+        Detach();
+        try
+        {
+            if (manager is null) return;
+            lock (sessions)
+            {
+                foreach (var session in manager.GetSessions().Take(MaxSessions))
+                {
+                    session.MediaPropertiesChanged += OnMediaChanged;
+                    session.PlaybackInfoChanged += OnPlaybackChanged;
+                    session.TimelinePropertiesChanged += OnTimelineChanged;
+                    sessions.Add(session);
+                }
+            }
+        }
+        catch (Exception) { }
+        _ = RefreshAsync();
+    }
+
+    private static void Detach()
+    {
+        lock (sessions)
+        {
+            foreach (var session in sessions)
+            {
+                try
+                {
+                    session.MediaPropertiesChanged -= OnMediaChanged;
+                    session.PlaybackInfoChanged -= OnPlaybackChanged;
+                    session.TimelinePropertiesChanged -= OnTimelineChanged;
+                }
+                catch (Exception) { }
+            }
+            sessions.Clear();
+        }
+    }
+
+    private static void OnMediaChanged(Windows.Media.Control.GlobalSystemMediaTransportControlsSession sender, Windows.Media.Control.MediaPropertiesChangedEventArgs args) => _ = RefreshAsync();
+    private static void OnPlaybackChanged(Windows.Media.Control.GlobalSystemMediaTransportControlsSession sender, Windows.Media.Control.PlaybackInfoChangedEventArgs args) => _ = RefreshAsync();
+    private static void OnTimelineChanged(Windows.Media.Control.GlobalSystemMediaTransportControlsSession sender, Windows.Media.Control.TimelinePropertiesChangedEventArgs args) => _ = RefreshAsync();
+
+    // 알림이 한꺼번에 여러 번 와도 짧게 모아 한 번만 읽는다. 읽는 도중 새 알림이 오면 끝난 뒤 한 번 더 읽는다.
+    // 읽기(세션·창 제목·아이콘·앨범 그림)는 UI 스레드 밖에서 한다 — 메뉴바에서 부르더라도 애니메이션이 멈추지 않게.
+    private static async Task RefreshAsync()
+    {
+        if (Interlocked.Exchange(ref refreshing, 1) == 1) { Interlocked.Exchange(ref pending, 1); return; }
+        try
+        {
+            do
+            {
+                Interlocked.Exchange(ref pending, 0);
+                await Task.Delay(120).ConfigureAwait(false);
+                await ReadAllAsync().ConfigureAwait(false);
+            } while (Interlocked.Exchange(ref pending, 0) == 1);
+        }
+        catch (Exception) { }
+        finally { Interlocked.Exchange(ref refreshing, 0); }
+    }
+
+    private static async Task ReadAllAsync()
+    {
+        Windows.Media.Control.GlobalSystemMediaTransportControlsSession[] snapshot;
+        lock (sessions) snapshot = [.. sessions];
+        var infos = new List<NowPlayingInfo>();
+        bool artChanged = false;
+        var alive = new HashSet<string>();
+        var retired = new List<Bitmap>();
+        foreach (var session in snapshot)
+        {
+            try
+            {
+                var properties = await session.TryGetMediaPropertiesAsync();
+                if (properties is null || string.IsNullOrWhiteSpace(properties.Title)) continue;
+                var playback = session.GetPlaybackInfo();
+                var timeline = session.GetTimelineProperties();
+                var controls = playback.Controls;
+                string id = session.SourceAppUserModelId;
+                if (!alive.Add(id)) continue; // 같은 앱의 세션이 둘이면 하나만
+                // 같은 곡이면 앨범 그림을 다시 읽지 않는다.
+                string key = properties.Title + "\n" + properties.AlbumTitle;
+                Bitmap? art;
+                bool known;
+                lock (arts) known = arts.TryGetValue(id, out var cached) && cached.Key == key;
+                if (known) lock (arts) art = arts[id].Art;
+                else
+                {
+                    art = await ReadArtAsync(properties.Thumbnail);
+                    lock (arts)
+                    {
+                        if (arts.TryGetValue(id, out var old) && old.Art is not null) retired.Add(old.Art);
+                        arts[id] = (key, art);
+                    }
+                    artChanged = true;
+                }
+                string? site = IsBrowser(id) ? FindYouTubeWindow(id) : null;
+                infos.Add(new NowPlayingInfo(id, properties.Title, properties.Artist ?? "", properties.AlbumTitle ?? "", site ?? AppName(id),
+                    playback.PlaybackStatus == Windows.Media.Control.GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing,
+                    controls.IsPreviousEnabled, controls.IsNextEnabled, controls.IsPlayPauseToggleEnabled,
+                    timeline.Position, timeline.EndTime - timeline.StartTime, timeline.LastUpdatedTime, art,
+                    AppIcon(id), site is not null, controls.IsPlaybackPositionEnabled));
+            }
+            catch (Exception) { }
+        }
+        // 사라진 앱의 앨범 그림은 정리
+        lock (arts)
+        {
+            foreach (string gone in arts.Keys.Where(id => !alive.Contains(id)).ToArray())
+            {
+                if (arts[gone].Art is Bitmap art) retired.Add(art);
+                arts.Remove(gone);
+                artChanged = true;
+            }
+        }
+        All = infos;
+        // 바뀐 목록을 내건 뒤에 옛 앨범 그림을 UI 스레드에서 정리(그 전까지 그리는 쪽이 쓸 수 있음)
+        if (retired.Count > 0)
+        {
+            if (ui is null) retired.ForEach(art => art.Dispose());
+            else ui.Post(_ => retired.ForEach(art => art.Dispose()), null);
+        }
+        // 보이는 내용(곡·가수·앱·재생 상태·앨범 그림)이 바뀐 경우에만 알린다. 위치만 바뀐 알림은 조용히 반영.
+        string next = string.Join("|", infos.Select(info => $"{info.Id}/{info.Title}/{info.Artist}/{info.App}/{info.Playing}/{info.YouTube}/{info.Art?.GetHashCode()}"));
+        if (next == signature && !artChanged) return;
+        signature = next;
+        Changed?.Invoke(artChanged);
+    }
+
+    private static async Task<Bitmap?> ReadArtAsync(Windows.Storage.Streams.IRandomAccessStreamReference? reference)
+    {
+        if (reference is null) return null;
+        try
+        {
+            using var stream = await reference.OpenReadAsync();
+            using Stream data = stream.AsStreamForRead();
+            using var image = Image.FromStream(data);
+            var small = new Bitmap(96, 96);
+            using Graphics graphics = Graphics.FromImage(small);
+            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphics.DrawImage(image, 0, 0, 96, 96);
+            return small;
+        }
+        catch (Exception) { return null; }
+    }
+    private static bool IsBrowser(string id)
+    {
+        string lower = id.ToLowerInvariant();
+        return lower.Contains("chrome") || lower.Contains("msedge") || lower.Contains("firefox") || lower.Contains("whale") || lower.Contains("opera") || lower.Contains("brave");
+    }
+
+    // 브라우저 창 제목에 YouTube가 있으면 "YouTube"(또는 "YouTube Music"). 창 제목은 일반 권한으로 읽을 수 있다.
+    private static string? FindYouTubeWindow(string id)
+    {
+        string? found = null;
+        try
+        {
+            EnumWindows((window, _) =>
+            {
+                if (!IsWindowVisible(window)) return true;
+                var text = new StringBuilder(512);
+                if (GetWindowText(window, text, text.Capacity) == 0) return true;
+                string title = text.ToString();
+                if (title.Contains("YouTube Music", StringComparison.OrdinalIgnoreCase)) { found = "YouTube Music"; return false; }
+                if (title.Contains("- YouTube", StringComparison.OrdinalIgnoreCase)) { found = "YouTube"; return false; }
+                return true;
+            }, IntPtr.Zero);
+        }
+        catch (Exception) { }
+        return found;
+    }
+
+    // 앱 아이콘: Windows 셸에 앱 ID로 물어 작업 표시줄과 같은 아이콘을 받는다(32×32, 투명 배경 유지). 앱마다 한 번만 읽는다.
+    private static readonly Dictionary<string, Bitmap?> icons = [];
+
+    private static Bitmap? AppIcon(string id)
+    {
+        lock (icons)
+        {
+            if (icons.TryGetValue(id, out Bitmap? cached)) return cached;
+            Bitmap? icon = null;
+            try
+            {
+                SHCreateItemFromParsingName(@"shell:AppsFolder\" + id, IntPtr.Zero, typeof(IShellItemImageFactory).GUID, out IShellItemImageFactory factory);
+                if (factory.GetImage(new NativeSize { Width = 32, Height = 32 }, 0x1 | 0x4, out IntPtr bitmap) == 0 && bitmap != IntPtr.Zero) // BIGGERSIZEOK | ICONONLY
+                    icon = ToAlphaBitmap(bitmap);
+                Marshal.ReleaseComObject(factory);
+            }
+            catch (Exception) { icon = null; }
+            icons[id] = icon;
+            return icon;
+        }
+    }
+
+    // 셸이 준 32비트 비트맵을 투명도를 살려 옮긴다(Image.FromHbitmap은 투명도를 버림).
+    private static Bitmap? ToAlphaBitmap(IntPtr handle)
+    {
+        try
+        {
+            if (GetObject(handle, Marshal.SizeOf<NativeBitmap>(), out NativeBitmap info) == 0 || info.Width <= 0 || info.Height <= 0) return null;
+            var bitmap = new Bitmap(info.Width, info.Height, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            var data = bitmap.LockBits(new Rectangle(0, 0, info.Width, info.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            var header = new BitmapInfoHeader { Size = 40, Width = info.Width, Height = -info.Height, Planes = 1, BitCount = 32 };
+            IntPtr screen = GetDC(IntPtr.Zero);
+            GetDIBits(screen, handle, 0, (uint)info.Height, data.Scan0, ref header, 0);
+            ReleaseDC(IntPtr.Zero, screen);
+            bitmap.UnlockBits(data);
+            return bitmap;
+        }
+        catch (Exception) { return null; }
+        finally { DeleteObject(handle); }
+    }
+
+    [ComImport, Guid("BCC18B79-BA16-442F-80C4-8A59C30C463B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IShellItemImageFactory { [PreserveSig] int GetImage(NativeSize size, int flags, out IntPtr bitmap); }
+    [StructLayout(LayoutKind.Sequential)] private struct NativeSize { public int Width, Height; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativeBitmap { public int Type, Width, Height, WidthBytes; public ushort Planes, BitsPixel; public IntPtr Bits; }
+    [StructLayout(LayoutKind.Sequential)] private struct BitmapInfoHeader { public int Size, Width, Height; public ushort Planes, BitCount; public int Compression, SizeImage, XPelsPerMeter, YPelsPerMeter, ClrUsed, ClrImportant; }
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+    private static extern void SHCreateItemFromParsingName(string path, IntPtr bindContext, [MarshalAs(UnmanagedType.LPStruct)] Guid interfaceId, out IShellItemImageFactory item);
+    [DllImport("gdi32.dll")] private static extern int GetObject(IntPtr handle, int size, out NativeBitmap value);
+    [DllImport("gdi32.dll")] private static extern int GetDIBits(IntPtr dc, IntPtr bitmap, uint start, uint lines, IntPtr bits, ref BitmapInfoHeader info, uint usage);
+    [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr handle);
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr window);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr window, IntPtr dc);
+    private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, StringBuilder text, int length);
+
+    // "SpotifyAB.SpotifyMusic_…!Spotify" → "Spotify", "chrome" → "Chrome"
+    private static string AppName(string id)
+    {
+        string name = id.Contains('!') ? id[(id.LastIndexOf('!') + 1)..] : Path.GetFileNameWithoutExtension(id);
+        return name.ToLowerInvariant() switch
+        {
+            "chrome" => "Chrome",
+            "msedge" => "Edge",
+            "firefox" => "Firefox",
+            "app" => "Windows",
+            _ => name.Length > 0 ? char.ToUpperInvariant(name[0]) + name[1..] : "앱"
+        };
+    }
 }
 
 // 등록된 Bluetooth 기기 하나(이름, 지금 연결되어 있는지, Windows가 알려 주는 배터리 잔량 %)

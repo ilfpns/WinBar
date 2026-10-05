@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace WinBar;
@@ -380,6 +380,104 @@ internal sealed class SystemMetrics : IDisposable
     }
 
     // 센서마다 따로 실패를 처리해, 한 값을 못 읽어도 나머지는 그대로 표시한다.
+    // 온도: 모달(시스템 사용량)이 열려 있을 때만 읽는다. 읽지 못하는 PC에서는 null(그 줄만 숨김).
+    // CPU는 메인보드가 알려 주는 본체(ACPI Thermal Zone) 온도라 코어 온도와 몇 도 다를 수 있다(코어 온도는 관리자 권한 필요).
+    // GPU는 작업 관리자와 같은 그래픽 드라이버 정보(WDDM 2.4 이상).
+    public (double? Cpu, double? Gpu) ReadTemperatures() => (Try(ReadThermalZone), Try(ReadGpuTemperature));
+
+    private IntPtr thermalQuery, thermalCounter;
+    private bool thermalTried, thermalPrecise;
+
+    private double? ReadThermalZone()
+    {
+        if (!thermalTried)
+        {
+            thermalTried = true;
+            // 정밀 값(0.1K 단위)을 먼저, 없으면 일반 값(K 단위)
+            foreach ((string path, bool precise) in new[]
+                     { (@"\Thermal Zone Information(*)\High Precision Temperature", true), (@"\Thermal Zone Information(*)\Temperature", false) })
+            {
+                if (PdhOpenQuery(null, UIntPtr.Zero, out IntPtr query) != ErrorSuccess) continue;
+                if (PdhAddEnglishCounter(query, path, UIntPtr.Zero, out IntPtr counter) == ErrorSuccess && PdhCollectQueryData(query) == ErrorSuccess)
+                {
+                    thermalQuery = query;
+                    thermalCounter = counter;
+                    thermalPrecise = precise;
+                    break;
+                }
+                PdhCloseQuery(query);
+            }
+        }
+        if (thermalQuery == IntPtr.Zero || PdhCollectQueryData(thermalQuery) != ErrorSuccess) return null;
+        uint bufferSize = 0, itemCount = 0;
+        if (PdhGetFormattedCounterArray(thermalCounter, PdhFormatDouble, ref bufferSize, ref itemCount, IntPtr.Zero) != PdhMoreData || bufferSize == 0) return null;
+        IntPtr buffer = Marshal.AllocHGlobal(checked((int)bufferSize));
+        try
+        {
+            if (PdhGetFormattedCounterArray(thermalCounter, PdhFormatDouble, ref bufferSize, ref itemCount, buffer) != ErrorSuccess) return null;
+            int itemSize = Marshal.SizeOf<PdhFormattedCounterValueItem>();
+            double? hottest = null;
+            for (int index = 0; index < itemCount; index++)
+            {
+                var item = Marshal.PtrToStructure<PdhFormattedCounterValueItem>(buffer + index * itemSize);
+                if (item.Value.Status > PdhStatusNewData || !double.IsFinite(item.Value.DoubleValue)) continue;
+                double celsius = (thermalPrecise ? item.Value.DoubleValue / 10 : item.Value.DoubleValue) - 273.15;
+                if (celsius is > 0 and < 150) hottest = Math.Max(hottest ?? celsius, celsius);
+            }
+            return hottest;
+        }
+        finally { Marshal.FreeHGlobal(buffer); }
+    }
+
+    // 그래픽 어댑터마다 성능 정보(온도는 0.1°C 단위)를 묻고 가장 높은 값. 연 어댑터 핸들은 매번 닫는다.
+    private static double? ReadGpuTemperature()
+    {
+        var request = new D3dEnumAdapters2();
+        if (D3DKMTEnumAdapters2(ref request) != 0 || request.NumAdapters == 0) return null;
+        int infoSize = Marshal.SizeOf<D3dAdapterInfo>(), perfSize = Marshal.SizeOf<D3dAdapterPerfData>();
+        request.Adapters = Marshal.AllocHGlobal(infoSize * (int)request.NumAdapters);
+        IntPtr perf = Marshal.AllocHGlobal(perfSize);
+        try
+        {
+            if (D3DKMTEnumAdapters2(ref request) != 0) return null;
+            double? hottest = null;
+            for (int index = 0; index < request.NumAdapters; index++)
+            {
+                var adapter = Marshal.PtrToStructure<D3dAdapterInfo>(request.Adapters + index * infoSize);
+                try
+                {
+                    Marshal.StructureToPtr(new D3dAdapterPerfData(), perf, false);
+                    var query = new D3dQueryAdapterInfo { Adapter = adapter.Adapter, Type = 62, PrivateDriverData = perf, PrivateDriverDataSize = (uint)perfSize }; // KMTQAITYPE_ADAPTERPERFDATA
+                    if (D3DKMTQueryAdapterInfo(ref query) == 0)
+                    {
+                        uint tenths = Marshal.PtrToStructure<D3dAdapterPerfData>(perf).Temperature;
+                        if (tenths is > 0 and < 1500) hottest = Math.Max(hottest ?? 0, tenths / 10.0);
+                    }
+                }
+                finally
+                {
+                    var close = new D3dCloseAdapter { Adapter = adapter.Adapter };
+                    D3DKMTCloseAdapter(ref close);
+                }
+            }
+            return hottest;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(perf);
+            Marshal.FreeHGlobal(request.Adapters);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)] private struct D3dEnumAdapters2 { public uint NumAdapters; public IntPtr Adapters; }
+    [StructLayout(LayoutKind.Sequential)] private struct D3dAdapterInfo { public uint Adapter; public uint LuidLow; public int LuidHigh; public uint NumOfSources; public int PrecisePresentRegionsPreferred; }
+    [StructLayout(LayoutKind.Sequential)] private struct D3dQueryAdapterInfo { public uint Adapter; public int Type; public IntPtr PrivateDriverData; public uint PrivateDriverDataSize; }
+    [StructLayout(LayoutKind.Sequential)] private struct D3dAdapterPerfData { public uint PhysicalAdapterIndex; public ulong MemoryFrequency, MaxMemoryFrequency, MaxMemoryFrequencyOC, MemoryBandwidth, PCIEBandwidth; public uint FanRPM, Power, Temperature; public byte PowerStateOverride; }
+    [StructLayout(LayoutKind.Sequential)] private struct D3dCloseAdapter { public uint Adapter; }
+    [DllImport("gdi32.dll")] private static extern int D3DKMTEnumAdapters2(ref D3dEnumAdapters2 request);
+    [DllImport("gdi32.dll")] private static extern int D3DKMTQueryAdapterInfo(ref D3dQueryAdapterInfo request);
+    [DllImport("gdi32.dll")] private static extern int D3DKMTCloseAdapter(ref D3dCloseAdapter request);
+
     private static T? Try<T>(Func<T?> read) where T : struct
     {
         try { return read(); } catch (Exception) { return null; }
@@ -743,6 +841,12 @@ internal sealed class SystemMetrics : IDisposable
             PdhCloseQuery(gpuQuery);
             gpuQuery = IntPtr.Zero;
             gpuCounter = IntPtr.Zero;
+        }
+        if (thermalQuery != IntPtr.Zero)
+        {
+            PdhCloseQuery(thermalQuery);
+            thermalQuery = IntPtr.Zero;
+            thermalCounter = IntPtr.Zero;
         }
     }
 

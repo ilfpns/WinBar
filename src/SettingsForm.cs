@@ -126,8 +126,26 @@ internal sealed class SettingsForm : Form
                     Toggle("배터리", "", s => s.ShowBattery, (s, v) => s.ShowBattery = v),
                     Toggle("네트워크", "", s => s.ShowWifi, (s, v) => s.ShowWifi = v),
                     Toggle("소리", "", s => s.ShowVolume, (s, v) => s.ShowVolume = v),
-                    Toggle("달리는 고양이 (CPU 사용량)", Icons.Cpu, s => s.ShowRunCat, (s, v) => s.ShowRunCat = v)
+                    Toggle("움직이는 아이콘 (CPU 사용량)", Icons.Cpu, s => s.ShowRunCat, (s, v) => s.ShowRunCat = v),
+                    Toggle("지금 재생 중 (메뉴바 가운데)", "", s => s.ShowNowPlaying, (s, v) => s.ShowNowPlaying = v)
                 ], Note: "제어 센터·날짜·시간은 항상 표시"),
+                // 움직이는 아이콘 모양 고르기(CPU 사용량에 따라 크기·속도가 바뀜)
+                new("움직이는 아이콘",
+                [
+                    new("타오르는 불꽃", "", () => settings.RunCatStyle == "flame", _ => { settings.RunCatStyle = "flame"; settings.Save(); },
+                        IsChoice: true, Badge: "불"),
+                    new("달리는 고양이", "", () => settings.RunCatStyle == "cat", _ => { settings.RunCatStyle = "cat"; settings.Save(); },
+                        IsChoice: true, Badge: "냥")
+                ]),
+                // 메뉴바·모달의 색 요소: 켜면 컬러, 끄면 흑백(글자 색)
+                new("컬러",
+                [
+                    Toggle("앱 로고 (지금 재생 중)", "\ue8d6", s => !s.MonochromeLogos, (s, v) => s.MonochromeLogos = !v),
+                    Toggle("배터리", "\ue83f", s => !s.MonochromeBattery, (s, v) => s.MonochromeBattery = !v),
+                    Toggle("카메라·마이크 표시", "\ue714", s => !s.MonochromePrivacy, (s, v) => s.MonochromePrivacy = !v),
+                    Toggle("사용량 막대", "\ue9d2", s => !s.MonochromeUsage, (s, v) => s.MonochromeUsage = !v),
+                    Toggle("온도", "\ue9ca", s => !s.MonochromeTemperature, (s, v) => s.MonochromeTemperature = !v)
+                ], Note: "끄면 흑백으로 표시"),
                 new("아이콘 간격", [],
                     new Slider("아이콘 사이 간격", "", AppSettings.MinIconSpacing, AppSettings.MaxIconSpacing, "px",
                         () => settings.IconSpacing,
