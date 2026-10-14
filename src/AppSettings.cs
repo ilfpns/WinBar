@@ -26,6 +26,10 @@ internal sealed class AppSettings
     // 움직이는 아이콘(CPU 사용량에 따라 빨라짐)과 모양: flame(타오르는 불꽃) · cat(달리는 고양이)
     public bool ShowRunCat { get; set; } = true;
     public string RunCatStyle { get; set; } = "flame";
+    // 불꽃 옆 Haru(하루 일정) 버튼과, Haru 웹에서 받은 오늘 진행도(천분율)와 그 날짜(yyyy-MM-dd)
+    public bool ShowHaru { get; set; } = true;
+    public int HaruProgress { get; set; }
+    public string HaruDay { get; set; } = "-";
     // 메뉴바·모달의 색 요소별 흑백 여부(기본은 모두 컬러): 지금 재생 중 앱 로고, 배터리, 카메라·마이크 점, 사용량 막대, 온도
     public bool MonochromeLogos { get; set; }
     public bool MonochromeBattery { get; set; }
@@ -76,6 +80,7 @@ internal sealed class AppSettings
         }
         catch (Exception) { }
         settings.BarOpacity = Math.Clamp(settings.BarOpacity, 0, 100);
+        settings.HaruProgress = Math.Clamp(settings.HaruProgress, 0, 1000);
         settings.IconSpacing = Math.Clamp(settings.IconSpacing, MinIconSpacing, MaxIconSpacing);
         if (settings.Language is not ("ko" or "zh" or "ja" or "en")) settings.Language = "ko";
         if (settings.RunCatStyle is not ("flame" or "cat")) settings.RunCatStyle = "flame";

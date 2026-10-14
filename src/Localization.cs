@@ -199,6 +199,7 @@ internal static class L
         // 달리는 고양이
         ["달리는 고양이"] = ["RunCat", "奔跑的猫", "走るネコ"],
         ["움직이는 아이콘 (CPU 사용량)"] = ["Animated Icon (CPU usage)", "动态图标（CPU 使用率）", "動くアイコン（CPU使用率）"],
+        ["Haru (하루 일정)"] = ["Haru (day planner)", "Haru（日程）", "Haru（一日の予定）"],
         ["움직이는 아이콘"] = ["Animated Icon", "动态图标", "動くアイコン"],
         ["타오르는 불꽃"] = ["Burning Flame", "燃烧的火焰", "燃える炎"],
         ["컬러"] = ["Color", "彩色", "カラー"],
