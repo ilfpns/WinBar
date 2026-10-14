@@ -243,7 +243,14 @@ export function mountNews(refs: NewsRefs): void {
     const places = data.places.filter((p) => items.some((i) => i.place === p.id) || p.id === picked);
     const counts = places.map((p) => count(p.id));
     const most = Math.max(1, ...counts);
-    return places.map((p, i) => ({ id: p.id, label: p.name, lat: p.lat, lon: p.lon, weight: Math.sqrt(counts[i]! / most), iso: p.iso ?? [] }));
+    // heatmap: each country's share of all the (filtered) headlines, on a soft curve so mid-sized ones still show
+    const totals = places.map((p) => items.filter((i) => i.place === p.id).length);
+    const top = Math.max(1, ...totals);
+    return places.map((p, i) => ({
+      id: p.id, label: p.name, lat: p.lat, lon: p.lon, iso: p.iso ?? [],
+      weight: Math.sqrt(counts[i]! / most),
+      heat: totals[i]! ? Math.max(0.05, Math.sqrt(totals[i]! / top)) : 0,
+    }));
   }
 
   function apply(next: NewsFile): void {
@@ -254,12 +261,32 @@ export function mountNews(refs: NewsRefs): void {
       const arrived = next.items.filter((i) => !known.has(i.link));
       for (const i of arrived) fresh.add(i.link);
       globe?.flash([...new Set(arrived.map((i) => i.place))]);
+      announce(arrived);
     }
     globe?.setMarkers(markers());
     renderWeek();
     renderScope();
     renderList();
     renderUpdated();
+  }
+
+  // fresh headlines float over the globe one after another (the newest few, while the News page is open)
+  const queue: NewsItem[] = [];
+  let announcing = 0;
+  function announce(arrived: NewsItem[]): void {
+    if (currentView() !== 'news') return;
+    queue.push(...[...arrived].sort((a, b) => b.time - a.time).slice(0, 5));
+    queue.splice(8);
+    if (!announcing) next();
+    function next(): void {
+      const it = queue.shift();
+      if (!it) {
+        announcing = 0;
+        return;
+      }
+      globe?.announce(it.place, it.title);
+      announcing = window.setTimeout(next, 1700);
+    }
   }
 
   let lastStamp = '';
@@ -301,6 +328,32 @@ export function mountNews(refs: NewsRefs): void {
       });
       globe.setMarkers(markers());
       if (picked) globe.select(picked);
+      // heatmap toggle (remembered per browser)
+      const HEAT_KEY = 'haru:news-heat';
+      const heatBtn = document.createElement('button');
+      heatBtn.type = 'button';
+      heatBtn.className = 'icon-btn globe-heat';
+      heatBtn.setAttribute('aria-label', 'Heatmap');
+      heatBtn.title = 'Heatmap: countries by amount of news';
+      heatBtn.append(icon('flame'));
+      const setHeat = (on: boolean) => {
+        globe!.setHeat(on);
+        heatBtn.setAttribute('aria-pressed', String(on));
+        try {
+          localStorage.setItem(HEAT_KEY, on ? '1' : '0');
+        } catch {
+          // storage unavailable: the choice lasts for this visit
+        }
+      };
+      heatBtn.addEventListener('click', () => setHeat(heatBtn.getAttribute('aria-pressed') !== 'true'));
+      refs.canvas.parentElement!.append(heatBtn);
+      let heatSaved = false;
+      try {
+        heatSaved = localStorage.getItem(HEAT_KEY) === '1';
+      } catch {
+        // default off
+      }
+      setHeat(heatSaved);
       globe.warm();
       // spin only while the page is on screen — including while it slides in or out
       const sync = () => globe!.setActive(currentView() === 'news');

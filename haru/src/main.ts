@@ -16,6 +16,7 @@ import { mountCalendar } from './calendar/calendar';
 import { mountNews } from './news/news';
 import { mountBackup } from './storage/backup';
 import { mountWinBarLink } from './ui/winbar';
+import { mountTemplates } from './timetable/templates-ui';
 
 hydrateIcons();
 mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news') });
@@ -48,6 +49,7 @@ mountOverview({
 });
 mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
 mountBulk(byId('bulk'));
+mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountWinBarLink();
 mountBackup({

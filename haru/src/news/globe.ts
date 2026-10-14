@@ -22,6 +22,8 @@ const POP_SPREAD_MS = 650;   // dots pop at random moments within this window, a
 const UNLIGHT_MS = 300;      // letting go of a country fades its dots back
 const ZOOM_IN = 2.4;         // double-click zoom
 const ZOOM_MS = 180;         // zoom easing time constant
+const ANNOUNCE_MS = 3200;    // a fresh headline floats over its country this long
+const HEAT_BUCKETS = 5;      // heatmap shades
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 /** 0 → 1 → 0 hump peaking at `peak` (the Today emblem's "pop"). */
@@ -32,8 +34,11 @@ export type LandDot = [lat: number, lon: number, country: string];
 
 export interface GeoPoint { lat: number; lon: number }
 
-/** A place with news: drawn as a pin, picked by clicking it. `weight` (0..1) sizes it; `iso` are the countries it lights up. */
-export interface Marker extends GeoPoint { id: string; label: string; weight: number; iso: string[] }
+/**
+ * A place with news: drawn as a pin, picked by clicking it. `weight` (0..1) sizes it; `iso` are the countries it lights up;
+ * `heat` (0..1) is its share of all the news, for the heatmap.
+ */
+export interface Marker extends GeoPoint { id: string; label: string; weight: number; iso: string[]; heat?: number }
 
 export interface Globe {
   /** Starts/stops the animation loop (run only while the News page is visible). */
@@ -49,6 +54,10 @@ export interface Globe {
   select(id: string | null): void;
   /** Pulses these pins (they just got news). */
   flash(ids: string[]): void;
+  /** Heatmap: countries tinted by how much news they have (pins stay). */
+  setHeat(on: boolean): void;
+  /** A fresh headline: a dot pops up from its country's pin and the title floats there for a moment. */
+  announce(id: string, title: string): void;
 }
 
 export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: LandDot[], home: GeoPoint): Globe {
@@ -73,6 +82,16 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
   let fading: Lit | null = null;
   /** Land dots currently drawn in the accent (skipped by the plain pass). */
   let litMask = new Uint8Array(n);
+  /** Heatmap: each land dot's share (0..1) of its country's news, 0 where none. */
+  let heatOn = false;
+  const heat = new Float32Array(n);
+  function computeHeat(): void {
+    const byIso = new Map<string, number>();
+    for (const m of markers) for (const c of m.iso) byIso.set(c, Math.max(byIso.get(c) ?? 0, m.heat ?? 0));
+    for (let i = 0; i < n; i++) heat[i] = byIso.get(cc[i]!) ?? 0;
+  }
+  /** Fresh headlines floating over their countries. */
+  const announcements: { m: Marker; text: string; start: number }[] = [];
   function light(m: Marker | null): void {
     const now = performance.now();
     if (lit) {
@@ -388,6 +407,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     const back = new Path2D();
     const front: Path2D[] = Array.from({ length: SHADES }, () => new Path2D());
     const lit = new Path2D();
+    const hot: Path2D[] = Array.from({ length: HEAT_BUCKETS }, () => new Path2D());
     const hx = pointer?.x ?? -1e9, hy = pointer?.y ?? -1e9;
     const reach = HOVER_PX * dpr;
 
@@ -407,8 +427,11 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       }
       const dx = sx - hx, dy = sy - hy;
       const near = Math.max(0, 1 - Math.sqrt(dx * dx + dy * dy) / reach);
-      const r = base * (0.6 + 0.55 * z2) * (1 + 0.9 * near * near);
-      const path = near > 0.25 ? lit : front[Math.min(SHADES - 1, Math.floor(z2 * SHADES))]!;
+      const h = heatOn ? heat[i]! : 0;
+      const r = base * (0.6 + 0.55 * z2) * (1 + 0.9 * near * near) * (h ? 1.15 : 1);
+      const path = near > 0.25 ? lit
+        : h ? hot[Math.min(HEAT_BUCKETS - 1, Math.floor(h * HEAT_BUCKETS))]!
+        : front[Math.min(SHADES - 1, Math.floor(z2 * SHADES))]!;
       path.moveTo(sx + r, sy);
       path.arc(sx, sy, r, 0, TAU);
     }
@@ -419,6 +442,14 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     for (let b = 0; b < SHADES; b++) {
       ctx.globalAlpha = 0.18 + 0.82 * ((b + 0.5) / SHADES) ** 1.3;
       ctx.fill(front[b]!);
+    }
+    if (heatOn) {
+      // more news, deeper green
+      ctx.fillStyle = colors.accent;
+      for (let b = 0; b < HEAT_BUCKETS; b++) {
+        ctx.globalAlpha = 0.22 + 0.78 * ((b + 1) / HEAT_BUCKETS) ** 1.2;
+        ctx.fill(hot[b]!);
+      }
     }
     ctx.globalAlpha = 1;
     ctx.fillStyle = colors.hi;
@@ -443,6 +474,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       ctx.globalAlpha = 1;
     }
     drawMarkers(now, base);
+    drawAnnouncements(now, base);
     ctx.restore();
     ctx.strokeStyle = colors.rim;
     ctx.lineWidth = dpr;
@@ -501,6 +533,44 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     ctx.globalAlpha = 1;
   }
 
+  /** Fresh headlines: a green dot rises from the pin, and the title floats above it, then both fade. */
+  function drawAnnouncements(now: number, base: number): void {
+    for (let k = announcements.length - 1; k >= 0; k--) if (now - announcements[k]!.start > ANNOUNCE_MS) announcements.splice(k, 1);
+    if (!announcements.length) return;
+    ctx.font = `500 ${11.5 * dpr}px ${css('--font-sans') || 'sans-serif'}`;
+    ctx.textBaseline = 'middle';
+    for (const a of announcements) {
+      const p = project(a.m);
+      if (p.z <= 0.05) continue;
+      const t = (now - a.start) / ANNOUNCE_MS;
+      // the dot: pops up out of the pin and drifts away
+      const rise = smooth(Math.min(1, t * 1.6));
+      ctx.globalAlpha = Math.max(0, 1 - t * 1.4);
+      ctx.fillStyle = colors.accent;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - rise * 26 * dpr, base * (1.4 + 1.6 * bump(Math.min(1, t * 2), 0.3)), 0, TAU);
+      ctx.fill();
+      // the title: fades in above the pin, holds, fades out
+      const alpha = t < 0.12 ? t / 0.12 : t > 0.8 ? (1 - t) / 0.2 : 1;
+      const text = a.text.length > 54 ? `${a.text.slice(0, 52).trimEnd()}…` : a.text;
+      const w = ctx.measureText(text).width;
+      const y = p.y - 34 * dpr - rise * 8 * dpr;
+      const x = Math.max(8 * dpr, Math.min(canvas.width - w - 20 * dpr, p.x - w / 2));
+      ctx.globalAlpha = alpha * 0.9;
+      ctx.fillStyle = 'rgba(10,10,10,0.88)';
+      ctx.beginPath();
+      ctx.roundRect(x - 8 * dpr, y - 11 * dpr, w + 16 * dpr, 22 * dpr, 6 * dpr);
+      ctx.fill();
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = dpr;
+      ctx.stroke();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = colors.hi;
+      ctx.fillText(text, x, y + 0.5 * dpr);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /** News pins: a ring sized by how much is new there; the hovered or picked one is filled and named. */
   function drawMarkers(now: number, base: number): void {
     ctx.font = `500 ${11 * dpr}px ${css('--font-mono') || 'monospace'}`;
@@ -549,6 +619,17 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     setMarkers(next) {
       markers = next;
       if (selected) selected = markers.find((m) => m.id === selected!.id) ?? null;
+      computeHeat();
+    },
+    setHeat(on) {
+      heatOn = on;
+      computeHeat();
+    },
+    announce(id, title) {
+      const m = markers.find((x) => x.id === id);
+      if (!m) return;
+      announcements.push({ m, text: title, start: performance.now() });
+      flashes.set(id, performance.now());
     },
     onPick(fn) {
       pick = fn;

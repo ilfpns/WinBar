@@ -3,6 +3,7 @@ import { type Block, isBlock } from '../timetable/model';
 import { setState, state, subscribe } from '../timetable/state';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { type ImageRecord, fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
+import { type Template, allTemplates, onTemplates, replaceTemplates } from '../timetable/templates';
 
 /**
  * Keeping data no matter what:
@@ -19,6 +20,8 @@ interface BackupFile {
   notes: NoteRecord[];
   /** Memo images; `data` is a data URL. Missing in backups made before images existed. */
   images?: { id: string; date: string; created: number; data: string }[];
+  /** Day templates. Missing in backups made before templates existed. */
+  templates?: Template[];
 }
 
 // File System Access API (Chromium); not in TypeScript's DOM lib yet
@@ -40,7 +43,7 @@ export interface BackupRefs {
 
 async function snapshot(): Promise<BackupFile> {
   const images = await Promise.all((imagesStore()?.all() ?? []).map(async (r) => ({ id: r.id, date: r.date, created: r.created, data: await toDataUrl(r.blob) })));
-  return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [], images };
+  return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [], images, templates: allTemplates() };
 }
 
 export function mountBackup(refs: BackupRefs): void {
@@ -74,6 +77,7 @@ export function mountBackup(refs: BackupRefs): void {
     .catch(() => {});
   onNotesChanged(() => scheduleFileSave());
   onImagesChanged(() => scheduleFileSave());
+  onTemplates(() => scheduleFileSave());
 
   // ---- 3a. Export / Import
   refs.exportBtn.addEventListener('click', async () => {
@@ -98,6 +102,7 @@ export function mountBackup(refs: BackupRefs): void {
       const notes = (Array.isArray(data.notes) ? data.notes : []).filter((n): n is NoteRecord => typeof n?.date === 'string' && typeof n.text === 'string');
       setState({ blocks, draft: null, selected: [] });
       notesStore()?.replace(notes);
+      if (Array.isArray(data.templates)) replaceTemplates(data.templates);
       // older backups have no images: leave the current ones alone then
       if (Array.isArray(data.images)) {
         const imgs: ImageRecord[] = [];
