@@ -193,7 +193,8 @@ export function mountCalendar(refs: CalendarRefs): void {
       li.querySelector('.meta')!.textContent = ev.off ? 'Day off' : KIND_LABEL[ev.kind];
       list.append(li);
     }
-    refs.day.replaceChildren(head, note, status, list);
+    // events first, then the memo pad, which takes the rest of the panel
+    refs.day.replaceChildren(head, list, note, status);
   }
 
   function render(direction: number): void {

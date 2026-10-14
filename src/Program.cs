@@ -545,7 +545,8 @@ internal static class HaruLink
         using var dim = new SolidBrush(Color.FromArgb(70, color));
         foreach ((PointF at, float turn, float r) in Dots)
             graphics.FillEllipse(turn < progress ? lit : dim, cx + at.X - r, cy + at.Y - r, r * 2, r * 2);
-        using var core = new SolidBrush(Core);
+        // 흑백 설정이면 가운데 점도 글자 색(설정 > 메뉴바 > 컬러)
+        using var core = new SolidBrush(AppSettings.Current.MonochromeHaru ? color : Core);
         graphics.FillEllipse(core, cx - 2.6f, cy - 2.6f, 5.2f, 5.2f);
         graphics.Restore(state);
     }

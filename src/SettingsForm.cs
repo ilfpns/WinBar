@@ -145,7 +145,8 @@ internal sealed class SettingsForm : Form
                     Toggle("배터리", "\ue83f", s => !s.MonochromeBattery, (s, v) => s.MonochromeBattery = !v),
                     Toggle("카메라·마이크 표시", "\ue714", s => !s.MonochromePrivacy, (s, v) => s.MonochromePrivacy = !v),
                     Toggle("사용량 막대", "\ue9d2", s => !s.MonochromeUsage, (s, v) => s.MonochromeUsage = !v),
-                    Toggle("온도", "\ue9ca", s => !s.MonochromeTemperature, (s, v) => s.MonochromeTemperature = !v)
+                    Toggle("온도", "\ue9ca", s => !s.MonochromeTemperature, (s, v) => s.MonochromeTemperature = !v),
+                    Toggle("Haru (하루 일정)", "\ue787", s => !s.MonochromeHaru, (s, v) => s.MonochromeHaru = !v)
                 ], Note: "끄면 흑백으로 표시"),
                 new("아이콘 간격", [],
                     new Slider("아이콘 사이 간격", "", AppSettings.MinIconSpacing, AppSettings.MaxIconSpacing, "px",

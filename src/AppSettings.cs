@@ -36,6 +36,8 @@ internal sealed class AppSettings
     public bool MonochromePrivacy { get; set; }
     public bool MonochromeUsage { get; set; }
     public bool MonochromeTemperature { get; set; }
+    // Haru 버튼(불꽃 옆 점 엠블럼)의 초록 가운데 점: 기본은 흑백(글자 색)
+    public bool MonochromeHaru { get; set; } = true;
     public bool Use24HourClock { get; set; }
     public bool LightMode { get; set; }
 

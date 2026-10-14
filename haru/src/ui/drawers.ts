@@ -22,9 +22,15 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   // background click: the dial's centre splits the screen — left half pulls the left drawer, right half the right
   const dial = dialWrap.querySelector<SVGSVGElement>('svg')!;
   document.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0 || currentView() !== 'today') return;
+    if (e.button !== 0) return;
     const t = e.target as Element;
-    if (t.closest('.drawer, .time-pop, button, input, a')) return;
+    if (t.closest('.drawer, .time-pop, button, input, textarea, a, .cal-day')) return;
+    if (currentView() === 'calendar') {
+      // calendar: empty space splits at the month grid's centre
+      const grid = document.querySelector('.cal-main')!.getBoundingClientRect();
+      toggleDrawer(e.clientX < grid.left + grid.width / 2 ? 'left' : 'right');
+      return;
+    }
     const box = dial.getBoundingClientRect();
     const cx = box.left + box.width / 2;
     const cy = box.top + box.height / 2;

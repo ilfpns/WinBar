@@ -179,23 +179,23 @@ body:not([data-view="calendar"]) .calendar-view { display: none; }
 .cal-evs [data-kind="school"] { border-color: var(--cat-work); color: var(--text); }
 .cal-evs .more { border: 0; padding: 0 0 0 8px; font: 400 11px var(--font-mono); color: var(--text-subtle); }
 
-.cal-day { align-self: start; display: grid; gap: 14px; padding: 16px; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well); }
+.cal-day { align-self: stretch; display: flex; flex-direction: column; gap: 14px; min-height: 0; padding: 16px; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well); }
 .cal-day-head { display: grid; gap: 6px; }
 .cal-day-num { font-size: 48px; line-height: 1; letter-spacing: var(--tracking-display); color: var(--text-strong); }
 .cal-day-head .meta { text-transform: none; }
 .cal-note {
-  width: 100%; min-height: 120px; field-sizing: content; resize: none; padding: 10px 12px;
+  flex: 1 1 auto; width: 100%; min-height: 180px; resize: none; padding: 10px 12px;
   border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .25); outline: none;
   font: 400 14px/1.6 var(--font-sans); color: var(--text-strong);
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 .cal-note::placeholder { color: var(--text-subtle); font: 400 12px/1.7 var(--font-mono); }
-.cal-note:placeholder-shown { min-height: 132px; }
 .cal-note-status { margin: -6px 0 0; min-height: 16px; font: 400 11px/16px var(--font-mono); color: var(--text-muted); }
 .cal-note-status:empty { display: none; }
 .cal-note-status.bad { color: var(--danger); }
 .cal-note:focus { border-color: var(--line-strong); }
 .cal-evs [data-kind="note"] { border-color: var(--text); color: var(--text-strong); }
+.cal-day-list:empty { display: none; }
 .cal-day-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .cal-day-list li { display: grid; grid-template-columns: 6px minmax(0, 1fr); align-items: center; column-gap: 10px; row-gap: 2px; padding: 8px 0; border-top: 1px solid var(--line); }
 .cal-day-list .t { font-size: 14px; color: var(--text-strong); }
@@ -205,6 +205,7 @@ body:not([data-view="calendar"]) .calendar-view { display: none; }
   .calendar-view { padding: 20px 36px; grid-template-rows: auto auto auto; align-content: start; }
   .cal-body { grid-template-columns: 1fr; }
   .cal-main { grid-template-rows: auto auto; }
+  .cal-note { min-height: 240px; }
 }
 @media (max-width: 640px) {
   .calendar-view { padding: max(16px, env(safe-area-inset-top)) 32px 16px; gap: 10px; }
