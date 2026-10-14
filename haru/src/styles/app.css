@@ -256,7 +256,6 @@ body.switching .globe-wrap { transition: none; }
   position: absolute; left: 0; right: 0; bottom: 4px; margin: 0; text-align: center; text-transform: none; letter-spacing: .06em;
   pointer-events: none; transition: color var(--dur-fast) var(--ease-out);
 }
-.globe-readout.pinned { color: var(--text-strong); }
 @media (max-width: 640px) {
   .news-view { padding: max(16px, env(safe-area-inset-top)) 32px 16px; }
   #globe { width: min(100%, calc(100svh - 140px)); }

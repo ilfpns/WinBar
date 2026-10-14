@@ -182,9 +182,8 @@ export function mountNews(refs: NewsRefs): void {
     .then((r) => r.json() as Promise<{ points: [number, number][] }>)
     .then(({ points }) => {
       globe = createGlobe(refs.canvas, points, { lat: 37.57, lon: 126.98 });
-      globe.onReadout((p, pinned) => {
+      globe.onReadout((p) => {
         refs.readout.textContent = p ? fmt(p) : '';
-        refs.readout.classList.toggle('pinned', pinned);
       });
       globe.onPick((id) => {
         if (id) choose(id);

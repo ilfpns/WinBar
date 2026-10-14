@@ -4,7 +4,7 @@
  * a faint see-through far side and a rim light.
  *
  * Interaction: drag to spin (with inertia), idle auto-rotation, dots swell under the pointer,
- * click to pin a spot. Strictly monochrome. Work per frame is a few milliseconds at most (dots are batched by shade).
+ * click a pin to pick that place. Strictly monochrome. Work per frame is a few milliseconds at most (dots are batched by shade).
  */
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
@@ -27,8 +27,8 @@ export interface Globe {
   setActive(on: boolean): void;
   /** Draws a few frames up front (page laid out but not shown) so the first visible frame is already hot. */
   warm(): void;
-  /** Called with the coordinates under the pointer (or the pinned spot), null when off the globe. */
-  onReadout(fn: (p: GeoPoint | null, pinned: boolean) => void): void;
+  /** Called with the coordinates under the pointer, null when off the globe. */
+  onReadout(fn: (p: GeoPoint | null) => void): void;
   setMarkers(markers: Marker[]): void;
   /** Called when a pin is clicked (its id), or when a click on the globe lands away from every pin (null). */
   onPick(fn: (id: string | null) => void): void;
@@ -86,8 +86,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   let pointer: { x: number; y: number } | null = null;
   let drag: { x: number; y: number; t: number } | null = null;
   let moved = 0;
-  let pinned: GeoPoint | null = null;
-  let readout: (p: GeoPoint | null, pinned: boolean) => void = () => {};
+  let readout: (p: GeoPoint | null) => void = () => {};
   let markers: Marker[] = [];
   let selected: Marker | null = null;
   let hoverPin: Marker | null = null;
@@ -201,15 +200,8 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   const release = (e: PointerEvent) => {
     if (!drag) return;
     if (moved < 6 * dpr) {
-      // a click (not a drag) on a pin picks that place; anywhere else pins the spot (off the globe unpins)
-      const hit = pinAt(local(e));
-      if (hit) {
-        pinned = null;
-        pick(hit.id);
-      } else {
-        pinned = unproject(local(e).x, local(e).y);
-        pick(null);
-      }
+      // a click (not a drag) on a pin picks that place; anywhere else lets go of it
+      pick(pinAt(local(e))?.id ?? null);
       vx = vy = 0;
     }
     drag = null;
@@ -239,7 +231,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       vx *= decay;
       vy *= decay;
       // after a pause, ease back into turning about Earth's own axis (held still while a spot or place is picked)
-      const target = !pinned && !selected && !aim && now - lastTouch > IDLE_MS ? AUTO_SPIN : 0;
+      const target = !selected && !aim && now - lastTouch > IDLE_MS ? AUTO_SPIN : 0;
       spin += (target - spin) * (1 - decay);
       roll(vx * dt, vy * dt);
       M = mul(M, rotY(spin * dt));
@@ -269,11 +261,10 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       canvas.style.cursor = pin ? 'pointer' : '';
     }
     const hover = pointer ? unproject(pointer.x, pointer.y) : null;
-    const shown = hover ?? pinned;
-    const key = shown ? `${shown.lat.toFixed(1)},${shown.lon.toFixed(1)},${!hover}` : '';
+    const key = hover ? `${hover.lat.toFixed(1)},${hover.lon.toFixed(1)}` : '';
     if (key !== lastReadout) {
       lastReadout = key;
-      readout(shown, !hover && !!pinned);
+      readout(hover);
     }
     if (active) raf = requestAnimationFrame(frame);
   }
@@ -353,18 +344,6 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       ctx.globalAlpha = 1;
     }
     drawMarkers(now, base);
-
-    // pinned spot: a ring
-    if (pinned) {
-      const p = project(pinned);
-      if (p.z > 0) {
-        ctx.strokeStyle = colors.hi;
-        ctx.lineWidth = 1.4 * dpr;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, base * 4.5, 0, TAU);
-        ctx.stroke();
-      }
-    }
   }
 
   /** News pins: a ring sized by how much is new there; the hovered or picked one is filled and named. */
@@ -421,7 +400,6 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     select(id) {
       selected = id ? markers.find((m) => m.id === id) ?? null : null;
       if (selected) {
-        pinned = null;
         aim = { lat: selected.lat, lon: selected.lon };
         vx = vy = 0;
       }
