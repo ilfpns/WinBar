@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # keep-alive below
 
 concurrency:
   group: haru-news
@@ -41,3 +42,10 @@ jobs:
           # keep gh-pages a single snapshot commit instead of growing by 144 commits a day
           git commit -q --amend -m "Deploy to GitHub Pages"
           git push -q -f origin gh-pages
+      # GitHub pauses scheduled workflows in a repo with no activity for 60 days;
+      # re-enabling the workflow through the API restarts that clock, so it keeps running indefinitely
+      - name: Keep the schedule alive
+        if: github.event_name == 'workflow_dispatch' || endsWith(format('{0}', github.run_number), '0')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/haru-news.yml/enable"
