@@ -74,9 +74,34 @@ export function mountEditor(form: HTMLFormElement): void {
 
   f.title.addEventListener('input', () => patchDraft({ title: f.title.value }));
 
+  let lastSave = 0;
+  const save = () => {
+    // one Enter can arrive twice with a Korean IME (once committing the syllable, once as a plain Enter)
+    if (performance.now() - lastSave < 300) return;
+    lastSave = performance.now();
+    err.textContent = commitDraft() ?? '';
+  };
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    err.textContent = commitDraft() ?? '';
+    save();
+  });
+  // Enter saves from anywhere in the editor (title, category chips, time fields, Done) — not only the title box
+  let afterComposition = false;
+  form.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+    // Enter on Cancel / Delete does what that button says
+    if ((e.target as Element).closest('[data-act]')) return;
+    e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) {
+      afterComposition = true; // save once the syllable being typed is committed
+      return;
+    }
+    save();
+  });
+  form.addEventListener('compositionend', () => {
+    if (!afterComposition) return;
+    afterComposition = false;
+    setTimeout(save, 0);
   });
 
   form.addEventListener('click', (e) => {

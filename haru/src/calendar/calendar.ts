@@ -150,7 +150,8 @@ export function mountCalendar(refs: CalendarRefs): void {
   function resizeFrom(from: number): void {
     ttAnim?.cancel();
     ttView.hidden = false;
-    const to = ttView.getBoundingClientRect().height;
+    // layout height (offsetHeight): the card's own fade-in scales it, which a bounding box would include
+    const to = ttView.offsetHeight;
     if (Math.abs(to - from) < 1 || reduced()) return;
     const start: Keyframe = from ? { height: `${from}px` } : { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: `-${GAP}px`, borderWidth: '0px' };
     ttAnim = ttView.animate([start, { height: `${to}px` }], { duration: 420, easing: ease });
@@ -158,7 +159,7 @@ export function mountCalendar(refs: CalendarRefs): void {
   function closeTimetable(): void {
     ttAnim?.cancel();
     if (ttView.hidden) return;
-    const from = ttView.getBoundingClientRect().height;
+    const from = ttView.offsetHeight;
     if (reduced()) {
       ttView.hidden = true;
       return;
@@ -178,7 +179,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       closeTimetable();
       return;
     }
-    const from = ttView.hidden ? 0 : ttView.getBoundingClientRect().height;
+    const from = ttView.hidden ? 0 : ttView.offsetHeight;
     const date = selected;
     ttFor = date;
     const isToday = date === dayKey();
