@@ -70,7 +70,11 @@ export function mountCalendar(refs: CalendarRefs): void {
   const notes = createNotes(() => renderGrid(0));
   const note = document.createElement('textarea');
   note.className = 'cal-note';
-  note.placeholder = QUICK_ADD_HINT;
+  note.placeholder = 'Note';
+  // the syntax hint stays visible under the pad (a placeholder would vanish as soon as you type)
+  const hint = document.createElement('pre');
+  hint.className = 'cal-note-hint';
+  hint.textContent = QUICK_ADD_HINT;
   note.rows = 5;
   note.spellcheck = false;
   note.setAttribute('aria-label', 'Note for the selected day');
@@ -107,8 +111,12 @@ export function mountCalendar(refs: CalendarRefs): void {
   note.addEventListener('input', () => notes.set(noteDate, note.value));
   note.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') note.blur();
-    // Enter on a `!` line schedules just that line; the caret stays where the line was
-    if (e.key !== 'Enter' || e.shiftKey || e.isComposing || note.selectionStart !== note.selectionEnd) return;
+  });
+  // Enter on a `!` line schedules just that line; the caret stays where the line was.
+  // Handled as the line break is about to be inserted, i.e. after any IME composition (Korean) has committed.
+  note.addEventListener('beforeinput', (e) => {
+    if ((e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph') || e.isComposing) return;
+    if (note.selectionStart !== note.selectionEnd) return;
     const value = note.value;
     const caret = note.selectionStart;
     const start = value.lastIndexOf('\n', caret - 1) + 1;
@@ -194,7 +202,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       list.append(li);
     }
     // events first, then the memo pad, which takes the rest of the panel
-    refs.day.replaceChildren(head, list, note, status);
+    refs.day.replaceChildren(head, list, note, status, hint);
   }
 
   function render(direction: number): void {

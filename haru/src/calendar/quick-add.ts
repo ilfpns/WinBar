@@ -15,8 +15,6 @@ const ALIASES: Record<string, Category> = {
 // short lines broken where the meaning breaks, so the hint never wraps mid-phrase in the panel
 const names = Object.values(CATEGORIES).map((c) => c.toLowerCase());
 export const QUICK_ADD_HINT = [
-  'Note',
-  '',
   '! 12:00~12:30 work Title',
   '  → moves to Today',
   '',
