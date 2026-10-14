@@ -4,7 +4,7 @@
  * a faint see-through far side and a rim light.
  *
  * Interaction: drag to spin (with inertia), idle auto-rotation, dots swell under the pointer,
- * click to pin a spot. Work per frame is a few milliseconds at most (dots are batched by shade).
+ * click to pin a spot. Strictly monochrome. Work per frame is a few milliseconds at most (dots are batched by shade).
  */
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
@@ -36,7 +36,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   });
 
   const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  let colors = { dot: css('--text-muted'), hi: css('--text-strong'), accent: css('--accent'), rim: css('--line-strong') };
+  let colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong') };
 
   // start facing home (Korea), tilted so it sits a little above centre
   let yaw = -home.lon * DEG;
@@ -57,7 +57,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     canvas.height = canvas.width;
     R = canvas.width * 0.42;
     cx = cy = canvas.width / 2;
-    colors = { dot: css('--text-muted'), hi: css('--text-strong'), accent: css('--accent'), rim: css('--line-strong') };
+    colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong') };
   };
   new ResizeObserver(fit).observe(canvas);
   fit();
@@ -223,15 +223,15 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     ctx.fillStyle = colors.hi;
     ctx.fill(lit);
 
-    // home marker: a steady dot with a slow pulse ring, only while it faces us
+    // home marker: a steady dot with a slow pulse ring, only while it faces us (monochrome like the rest)
     const h = project(home);
     if (h.z > 0) {
       const pulse = (now % 2400) / 2400;
-      ctx.fillStyle = colors.accent;
+      ctx.fillStyle = colors.hi;
       ctx.beginPath();
       ctx.arc(h.x, h.y, base * 1.9, 0, TAU);
       ctx.fill();
-      ctx.strokeStyle = colors.accent;
+      ctx.strokeStyle = colors.hi;
       ctx.lineWidth = 1.2 * dpr;
       ctx.globalAlpha = (1 - pulse) * 0.7 * h.z;
       ctx.beginPath();
