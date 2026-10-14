@@ -161,15 +161,28 @@ export function mountCalendar(refs: CalendarRefs): void {
     // a small read-only dial: the day's tasks around 24 h, done ones solid
     const svg = svgEl('svg', { class: 'cal-tt-dial', viewBox: '-110 -110 220 220', role: 'img', 'aria-label': 'Timetable' }) as SVGSVGElement;
     svg.append(svgEl('path', { class: 'tt-bg', d: sectorPath(0, DAY, 58, 100) }));
-    for (const b of blocks) {
-      svg.append(svgEl('path', { class: `tt-block${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur, 58, 100), style: `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)` }));
-    }
+    // each slice sweeps in clockwise, one after another (--i orders them around the clock)
+    [...blocks].sort((x, y) => x.start - y.start).forEach((b, i) => {
+      svg.append(svgEl('path', { class: `tt-block${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur, 58, 100), style: `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill);--i:${i}` }));
+    });
     const { done } = progressOf(blocks);
-    svg.append(centeredText('tt-pct', 0, 1, `${Math.round((done / DAY) * 100)}%`));
+    const pct = Math.round((done / DAY) * 100);
+    const pctText = centeredText('tt-pct', 0, 1, '0%');
+    svg.append(pctText);
+    // the percentage counts up while the slices come in
+    const t0 = performance.now();
+    const count = (now: number) => {
+      const t = Math.min(1, (now - t0) / 700);
+      pctText.textContent = `${Math.round(pct * (1 - (1 - t) ** 3))}%`;
+      if (t < 1 && pctText.isConnected) requestAnimationFrame(count);
+    };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) pctText.textContent = `${pct}%`;
+    else requestAnimationFrame(count);
     const list = document.createElement('ul');
     list.className = 'cal-tt-list';
-    for (const b of [...blocks].sort((x, y) => x.start - y.start)) {
+    for (const [i, b] of [...blocks].sort((x, y) => x.start - y.start).entries()) {
       const li = document.createElement('li');
+      li.style.setProperty('--i', String(i));
       li.classList.toggle('done', b.done);
       li.style.setProperty('--c', `var(--cat-${b.cat})`);
       li.innerHTML = '<span class="t"></span><span class="dot"></span><span class="n"></span><span class="d"></span>';

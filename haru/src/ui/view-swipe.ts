@@ -46,9 +46,16 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
     const el = target instanceof Element ? target : null;
     // inside drawers, editors, popovers and text fields the wheel belongs to them
     if (el?.closest('.drawer, .time-pop, textarea, input, select')) return false;
+    // an inner area that can still scroll that way (e.g. the calendar's day panel) scrolls first
+    const page = pages[currentView()];
+    for (let n = el; n && n !== page; n = n.parentElement) {
+      if (n.scrollHeight <= n.clientHeight + 1) continue;
+      const oy = getComputedStyle(n).overflowY;
+      if (oy !== 'auto' && oy !== 'scroll') continue;
+      if (dir > 0 ? n.scrollTop + n.clientHeight < n.scrollHeight - 1 : n.scrollTop > 0) return false;
+    }
     const i = VIEW_ORDER.indexOf(currentView()) + dir;
     if (i < 0 || i >= VIEW_ORDER.length) return false;
-    const page = pages[currentView()];
     // only once the current page is scrolled to its edge in that direction
     return dir > 0 ? page.scrollTop + page.clientHeight >= page.scrollHeight - 2 : page.scrollTop <= 0;
   };
