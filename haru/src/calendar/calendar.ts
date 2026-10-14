@@ -311,7 +311,11 @@ export function mountCalendar(refs: CalendarRefs): void {
     })
     .catch(() => {});
 
+  // arriving on the page only needs a redraw when the date moved on (e.g. past midnight)
+  let shownOn = iso(new Date());
   onView((view) => {
-    if (view === 'calendar') render(0);
+    if (view !== 'calendar' || iso(new Date()) === shownOn) return;
+    shownOn = iso(new Date());
+    render(0);
   });
 }

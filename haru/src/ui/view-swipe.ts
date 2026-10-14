@@ -1,11 +1,11 @@
 import { VIEW_ORDER, type View, currentView, goTo, onView } from './router';
 
-const TURN_MS = 380;           // one page turn
+const TURN_MS = 300;           // one page turn
 const EASE = 'cubic-bezier(.22, 1, .36, 1)';
 const WHEEL_TRIGGER = 40;      // accumulated wheel/trackpad px that turns the page
 const SWIPE_TRIGGER = 50;      // touch travel in px
-const NOTCH_GAP = 60;          // a big, isolated delta this long after the last one is a mouse-wheel notch
-const STREAM_GAP = 250;        // silence that ends a trackpad stream (its inertia) for sure
+const NOTCH_GAP = 110;         // a mouse-wheel notch this long after the last turn turns again
+const STREAM_GAP = 120;        // silence that ends a trackpad stream (its inertia) for sure
 
 /**
  * Today, Calendar and News are stacked pages. A gesture past a small threshold turns exactly one
@@ -60,6 +60,7 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
   let quiet = 0;
   let lastAbs = 0;
   let lastT = 0;
+  let turnedAt = -Infinity;
   addEventListener('wheel', (e) => {
     const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY;
     if (!d) return;
@@ -70,7 +71,9 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
     if (locked) {
       // after a turn, the trackpad's inertia keeps sending a fading stream of deltas: ignore that.
       // The next mouse-wheel notch, deltas that suddenly grow again, or a real pause start a new gesture.
-      const notch = abs >= 50 && gap > NOTCH_GAP;
+      // a mouse wheel sends whole, equal steps (trackpad inertia sends a smooth, shrinking stream):
+      // every notch counts, even while spinning the wheel fast — no dead time between turns
+      const notch = abs >= 50 && Number.isInteger(abs) && (abs >= lastAbs || gap > NOTCH_GAP) && now - turnedAt > NOTCH_GAP;
       const fresh = notch || abs > lastAbs * 1.4 + 4 || gap > STREAM_GAP;
       lastAbs = abs;
       lastT = now;
@@ -103,6 +106,7 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
     if (Math.abs(acc) >= WHEEL_TRIGGER) {
       locked = true;
       acc = 0;
+      turnedAt = now;
       turn(dir);
     }
   }, { passive: true });
