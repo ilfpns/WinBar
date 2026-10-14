@@ -18,6 +18,7 @@ import { mountBackup } from './storage/backup';
 import { mountWinBarLink } from './ui/winbar';
 import { mountTemplates } from './timetable/templates-ui';
 import { trackHistory } from './timetable/history';
+import { mountTodayViews } from './timetable/today-views';
 import { mountAccount } from './cloud/account';
 
 hydrateIcons();
@@ -51,6 +52,7 @@ mountOverview({
 mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
 mountBulk(byId('bulk'));
 trackHistory();
+mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'));
 mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountWinBarLink();

@@ -168,7 +168,8 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     const body = document.body;
     // off screen, or sliding with its page (the last frame is held): nothing to paint
     // (it still paints once up front, so it never slides in blank)
-    if (!canvas.offsetWidth || (painted && (body.dataset.view !== 'today' || body.classList.contains('switching')))) {
+    // (also idle while Today shows a chart instead of the dial)
+    if (!canvas.offsetWidth || (painted && (body.dataset.view !== 'today' || body.classList.contains('switching') || canvas.parentElement?.classList.contains('alt')))) {
       requestAnimationFrame(frame);
       return;
     }

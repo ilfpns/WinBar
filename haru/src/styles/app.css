@@ -75,6 +75,22 @@ img, svg, a { -webkit-user-drag: none; }
   will-change: transform;
 }
 
+/* Today's other views: a chart takes the dial's box; the dial fades out underneath */
+.dial-wrap > #dial, .dial-wrap > #orb-canvas, .dial-wrap > #orb-layer { transition: opacity .3s var(--ease-out); }
+.dial-wrap.alt > #dial, .dial-wrap.alt > #orb-canvas, .dial-wrap.alt > #orb-layer { opacity: 0; visibility: hidden; pointer-events: none; }
+.today-chart { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.today-chart .cal-tt-dial { width: 100%; height: 100%; }
+.today-chart-empty { margin: 0; font-size: 15px; color: var(--text-subtle); }
+.today-views {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 5; display: flex; gap: 2px; padding: 3px;
+  border: 1px solid var(--panel-border); border-radius: 8px; background: color-mix(in srgb, var(--popover) 85%, transparent);
+}
+.today-view { display: grid; place-items: center; width: 32px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--text-subtle); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.today-view .ic { width: 15px; height: 15px; }
+.today-view:hover { color: var(--text-strong); }
+.today-view[aria-pressed="true"] { background: var(--gray-btn-hover); color: var(--text-strong); }
+
 /* the centre emblem sits in its own svg layer so its idle motion never repaints the whole dial */
 /* the emblem's dots: a small canvas over the hole (280 of the dial's 1040 units), painted per frame */
 #orb-canvas { position: absolute; left: 36.5385%; top: 36.5385%; width: 26.923%; height: 26.923%; pointer-events: none; }
@@ -270,13 +286,13 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 /* slices: callouts outside the thin ring */
 .cal-tt-dial .tt-leader { fill: none; stroke: color-mix(in srgb, var(--c) 60%, var(--text-subtle)); stroke-width: .8; }
 .cal-tt-dial .tt-leader-dot { fill: var(--c); }
-.cal-tt-dial .tt-co-name { font: 500 9.5px var(--font-sans); fill: var(--text-strong); }
-.cal-tt-dial .tt-co-pct { font: 400 8px var(--font-mono); fill: var(--text-muted); }
+.cal-tt-dial .tt-co-name { font: 500 var(--name, 9.5px) var(--font-sans); fill: var(--text-strong); }
+.cal-tt-dial .tt-co-pct { font: 400 var(--detail, 8px) var(--font-mono); fill: var(--text-muted); }
 .cal-tt-dial .tt-callout.done .tt-co-name { fill: var(--text-muted); }
 .cal-tt-dial .tt-callout, .cal-tt-dial .tt-legend { animation: tt-open .45s var(--ease-out) both; animation-delay: calc(380ms + var(--i, 0) * 60ms); }
 /* rings: one per category, planned share faint, done part solid */
-.cal-tt-rings .tt-ring-track { fill: none; stroke: var(--surface-solid); stroke-width: 7; }
-.cal-tt-rings .tt-ring { fill: none; stroke-width: 7; stroke-linecap: round; stroke-dasharray: var(--f) 1; animation: ring-draw .9s cubic-bezier(.2, .9, .25, 1) both; animation-delay: calc(80ms + var(--i, 0) * 90ms); }
+.cal-tt-rings .tt-ring-track { fill: none; stroke: var(--surface-solid); stroke-width: var(--ring, 7px); }
+.cal-tt-rings .tt-ring { fill: none; stroke-width: var(--ring, 7px); stroke-linecap: round; stroke-dasharray: var(--f) 1; animation: ring-draw .9s cubic-bezier(.2, .9, .25, 1) both; animation-delay: calc(80ms + var(--i, 0) * 90ms); }
 .cal-tt-rings .tt-ring.plan { stroke: color-mix(in srgb, var(--c) 35%, transparent); }
 /* the category colours are deep: the done part is lifted a little so it reads as the solid one */
 .cal-tt-rings .tt-ring.done { stroke: color-mix(in srgb, var(--c) 78%, white); animation-delay: calc(320ms + var(--i, 0) * 90ms); }
