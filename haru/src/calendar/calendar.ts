@@ -1,4 +1,7 @@
 import { currentView, onView } from '../ui/router';
+import { createNotes } from './notes';
+import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
+import { addBlock, state } from '../timetable/state';
 
 /** One entry from public/data/calendar.json (built by scripts/fetch-calendar.mjs). */
 interface CalEvent {
@@ -63,6 +66,74 @@ export function mountCalendar(refs: CalendarRefs): void {
 
   const eventsOn = (date: string) => (byDate.get(date) ?? []).filter((e) => shown.has(e.kind));
 
+  // the day panel doubles as a memo pad for that date; memos show up in the grid
+  const notes = createNotes(() => renderGrid(0));
+  const note = document.createElement('textarea');
+  note.className = 'cal-note';
+  note.placeholder = QUICK_ADD_HINT;
+  note.rows = 5;
+  note.spellcheck = false;
+  note.setAttribute('aria-label', 'Note for the selected day');
+  let noteDate = '';
+  const status = document.createElement('p');
+  status.className = 'cal-note-status';
+  status.setAttribute('role', 'status');
+  let statusTimer = 0;
+  const say = (text: string, bad = false) => {
+    status.textContent = text;
+    status.classList.toggle('bad', bad);
+    clearTimeout(statusTimer);
+    statusTimer = window.setTimeout(() => (status.textContent = ''), bad ? 4000 : 2200);
+  };
+
+  /** Moves every valid `! 12:00~12:30 work title` line into Today's timetable; leaves the rest. */
+  function moveScheduledLines(): void {
+    const lines = note.value.split(/\r?\n/);
+    const kept: string[] = [];
+    let moved = 0;
+    for (const line of lines) {
+      const parsed = parseQuickAdd(line, state.lastCat);
+      if (parsed === null) { kept.push(line); continue; }
+      const err = typeof parsed === 'string' ? parsed : addBlock(parsed);
+      if (err) { kept.push(line); say(err, true); continue; }
+      moved++;
+      if (typeof parsed !== 'string') say(`Added to Today  ${describe(parsed)}`);
+    }
+    if (!moved) return;
+    note.value = kept.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
+    notes.set(noteDate, note.value);
+  }
+
+  note.addEventListener('input', () => notes.set(noteDate, note.value));
+  note.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') note.blur();
+    // Enter on a `!` line schedules just that line; the caret stays where the line was
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing || note.selectionStart !== note.selectionEnd) return;
+    const value = note.value;
+    const caret = note.selectionStart;
+    const start = value.lastIndexOf('\n', caret - 1) + 1;
+    const newline = value.indexOf('\n', caret);
+    const end = newline === -1 ? value.length : newline;
+    const parsed = parseQuickAdd(value.slice(start, end), state.lastCat);
+    if (parsed === null) return;
+    e.preventDefault();
+    const err = typeof parsed === 'string' ? parsed : addBlock(parsed);
+    if (err) {
+      say(err, true);
+      return;
+    }
+    if (typeof parsed !== 'string') say(`Added to Today  ${describe(parsed)}`);
+    note.value = value.slice(0, start) + value.slice(newline === -1 ? end : end + 1);
+    note.setSelectionRange(start, start);
+    notes.set(noteDate, note.value);
+  });
+  note.addEventListener('blur', moveScheduledLines);
+  // memos load asynchronously (IndexedDB): fill the open day's pad once they arrive, unless already typing
+  void notes.ready.then(() => {
+    if (document.activeElement !== note) note.value = notes.get(noteDate);
+  });
+  const firstLine = (text: string) => text.trim().split(/\r?\n/)[0]!.trim();
+
   function go(delta: number): void {
     month = new Date(month.getFullYear(), month.getMonth() + delta, 1);
     render(delta);
@@ -107,6 +178,11 @@ export function mountCalendar(refs: CalendarRefs): void {
     head.innerHTML = `<span class="cal-day-num"></span><span class="meta"></span>`;
     head.querySelector('.cal-day-num')!.textContent = String(d.getDate());
     head.querySelector('.meta')!.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    // keep the textarea itself (and the caret) — only swap its contents when the day changes
+    if (noteDate !== selected) {
+      noteDate = selected;
+      note.value = notes.get(selected);
+    }
     const list = document.createElement('ul');
     list.className = 'cal-day-list';
     for (const ev of eventsOn(selected)) {
@@ -117,10 +193,15 @@ export function mountCalendar(refs: CalendarRefs): void {
       li.querySelector('.meta')!.textContent = ev.off ? 'Day off' : KIND_LABEL[ev.kind];
       list.append(li);
     }
-    refs.day.replaceChildren(head, list);
+    refs.day.replaceChildren(head, note, status, list);
   }
 
   function render(direction: number): void {
+    renderGrid(direction);
+    renderDay();
+  }
+
+  function renderGrid(direction: number): void {
     refs.month.textContent = month.toLocaleDateString('en-US', { month: 'long' });
     refs.year.textContent = String(month.getFullYear());
     const today = iso(new Date());
@@ -130,6 +211,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
       const date = iso(d);
       const list = eventsOn(date);
+      const memo = firstLine(notes.get(date));
       const cell = document.createElement('button');
       cell.type = 'button';
       cell.className = 'cal-cell';
@@ -148,16 +230,23 @@ export function mountCalendar(refs: CalendarRefs): void {
       num.textContent = String(d.getDate());
       const ul = document.createElement('ul');
       ul.className = 'cal-evs';
-      for (const ev of list.slice(0, MAX_IN_CELL)) {
+      if (memo) {
+        const li = document.createElement('li');
+        li.dataset.kind = 'note';
+        li.textContent = memo;
+        ul.append(li);
+      }
+      const room = memo ? MAX_IN_CELL - 1 : MAX_IN_CELL;
+      for (const ev of list.slice(0, room)) {
         const li = document.createElement('li');
         li.dataset.kind = ev.kind;
         li.textContent = ev.title;
         ul.append(li);
       }
-      if (list.length > MAX_IN_CELL) {
+      if (list.length > room) {
         const more = document.createElement('li');
         more.className = 'more';
-        more.textContent = `+${list.length - MAX_IN_CELL}`;
+        more.textContent = `+${list.length - room}`;
         ul.append(more);
       }
       cell.append(num, ul);
@@ -171,7 +260,6 @@ export function mountCalendar(refs: CalendarRefs): void {
         { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' },
       );
     }
-    renderDay();
   }
 
   render(0);

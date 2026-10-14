@@ -183,6 +183,19 @@ body:not([data-view="calendar"]) .calendar-view { display: none; }
 .cal-day-head { display: grid; gap: 6px; }
 .cal-day-num { font-size: 48px; line-height: 1; letter-spacing: var(--tracking-display); color: var(--text-strong); }
 .cal-day-head .meta { text-transform: none; }
+.cal-note {
+  width: 100%; min-height: 120px; field-sizing: content; resize: none; padding: 10px 12px;
+  border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .25); outline: none;
+  font: 400 14px/1.6 var(--font-sans); color: var(--text-strong);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.cal-note::placeholder { color: var(--text-subtle); font: 400 12px/1.7 var(--font-mono); }
+.cal-note:placeholder-shown { min-height: 132px; }
+.cal-note-status { margin: -6px 0 0; min-height: 16px; font: 400 11px/16px var(--font-mono); color: var(--text-muted); }
+.cal-note-status:empty { display: none; }
+.cal-note-status.bad { color: var(--danger); }
+.cal-note:focus { border-color: var(--line-strong); }
+.cal-evs [data-kind="note"] { border-color: var(--text); color: var(--text-strong); }
 .cal-day-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .cal-day-list li { display: grid; grid-template-columns: 6px minmax(0, 1fr); align-items: center; column-gap: 10px; row-gap: 2px; padding: 8px 0; border-top: 1px solid var(--line); }
 .cal-day-list .t { font-size: 14px; color: var(--text-strong); }
@@ -203,6 +216,7 @@ body:not([data-view="calendar"]) .calendar-view { display: none; }
   .cal-evs li { width: 5px; height: 5px; padding: 0; border: 0; border-radius: 50%; background: var(--line-strong); font-size: 0; }
   .cal-evs [data-kind="holiday"] { background: var(--cal-red); }
   .cal-evs [data-kind="school"] { background: var(--cat-work); }
+  .cal-evs [data-kind="note"] { background: var(--text-strong); }
   .cal-evs .more { display: none; }
   .cal-week div { padding: 0; text-align: center; }
 }

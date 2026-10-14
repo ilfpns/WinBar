@@ -106,6 +106,16 @@ export function closeDraft(): void {
   setState({ draft: null });
 }
 
+/** Adds a ready-made task (e.g. from a memo line). Returns an error message if it can't be placed. */
+export function addBlock(d: Draft): string | null {
+  if (d.dur <= 0 || d.dur >= DAY) return 'Start and end are the same';
+  if (overlaps(state.blocks, d)) return 'Overlaps another task';
+  const block: Block = { ...d, id: newId(), title: d.title.trim() };
+  setState({ blocks: [...state.blocks, block], lastCat: block.cat });
+  savedListeners.forEach((fn) => fn(block));
+  return null;
+}
+
 /** Saves the current draft. Returns an error message instead when it can't be saved. */
 export function commitDraft(): string | null {
   const d = state.draft;
