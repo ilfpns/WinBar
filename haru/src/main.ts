@@ -57,7 +57,14 @@ mountBackup({
   importBtn: byId('backup-import'),
   file: byId('backup-file'),
 });
-mountNews(byId<HTMLCanvasElement>('globe'), byId('globe-readout'));
+mountNews({
+  canvas: byId<HTMLCanvasElement>('globe'),
+  readout: byId('globe-readout'),
+  updated: byId('news-updated'),
+  live: byId('news-live'),
+  scope: byId('news-scope'),
+  list: byId('news-list'),
+});
 mountCalendar({
   month: byId('cal-month'),
   year: byId('cal-year'),

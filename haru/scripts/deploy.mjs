@@ -5,6 +5,7 @@ const run = (cmd, opts = {}) => execSync(cmd, { stdio: 'inherit', ...opts });
 const remote = execSync('git remote get-url origin').toString().trim();
 
 run('npm run calendar');
+run('npm run news');
 run('npm run build', { env: { ...process.env, HARU_BASE: '/WinBar/' } });
 const cwd = 'dist';
 run('git init -q -b gh-pages', { cwd });

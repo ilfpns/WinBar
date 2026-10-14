@@ -262,6 +262,36 @@ body.switching .globe-wrap { transition: none; }
   #globe { width: min(100%, calc(100svh - 140px)); }
 }
 
+/* ---------- news drawer: live headlines */
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-subtle); flex: none; transition: background-color var(--dur-base) var(--ease-out); }
+.live-dot.on { background: var(--accent); animation: live-pulse 2.4s var(--ease-out) infinite; }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
+.news-updated { margin-left: auto; text-transform: none; }
+.news-scope { display: flex; align-items: center; gap: 6px; padding: 0 2px; min-height: 28px; }
+.news-scope .chip { width: auto; }
+.news-scope .chip .ic { width: 12px; height: 12px; }
+.news-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.news-list a {
+  display: grid; gap: 4px; padding: 10px; border-radius: var(--radius-sm); color: inherit; text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.news-list a:hover { background: var(--surface-2); }
+.news-list a:hover .news-title { color: var(--text-strong); }
+.news-meta { display: flex; gap: 8px; text-transform: none; min-width: 0; }
+.news-meta .src { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.news-meta .ago { margin-left: auto; flex: none; }
+.news-place { flex: none; color: var(--text-muted); }
+.news-title {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+  font-size: 14px; line-height: 1.45; color: var(--text); transition: color var(--dur-fast) var(--ease-out);
+}
+/* a headline that arrived while the page was open */
+.news-list li.fresh a { box-shadow: inset 2px 0 0 var(--accent); }
+.news-list li.fresh .ago { color: var(--accent); }
+@keyframes news-in { from { opacity: 0; transform: translate3d(0, -6px, 0); } }
+.news-list li.fresh { animation: news-in .5s var(--ease-out) both; }
+.news-empty { padding: 16px 10px; color: var(--text-subtle); font-size: 13px; }
+
 /* ---------- drawers: panel + a tab; tucked off-screen so only the tab peeks out */
 :root {
   --panel-left-w: 272px;

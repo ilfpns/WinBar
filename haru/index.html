@@ -177,12 +177,20 @@
     </div>
   </aside>
 
-  <!-- News page's right drawer: opens empty for now; the feed will live here -->
+  <!-- News page's right drawer: the live headlines (all places, or the one picked on the globe) -->
   <aside class="drawer drawer-right drawer-news" id="drawer-news" hidden>
     <button type="button" class="drawer-tab" data-drawer="right" aria-controls="panel-news" aria-expanded="false" aria-label="Toggle news" title="News  ]">
       <i data-icon="chevron-left"></i><span class="tab-label">News</span>
     </button>
-    <div class="panel panel-right" id="panel-news" aria-label="News"></div>
+    <div class="panel panel-right" id="panel-news" aria-label="News">
+      <div class="panel-head">
+        <span class="panel-title">News</span>
+        <span class="live-dot" id="news-live" title="Live"></span>
+        <span class="meta news-updated" id="news-updated"></span>
+      </div>
+      <div class="news-scope" id="news-scope"></div>
+      <ol class="news-list" id="news-list"></ol>
+    </div>
   </aside>
 
   <script type="module" src="/src/main.ts"></script>

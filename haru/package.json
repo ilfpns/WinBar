@@ -10,7 +10,8 @@
     "typecheck": "tsc",
     "deploy": "node scripts/deploy.mjs",
     "calendar": "node scripts/fetch-calendar.mjs",
-    "globe": "node scripts/build-globe.mjs"
+    "globe": "node scripts/build-globe.mjs",
+    "news": "node scripts/fetch-news.mjs"
   },
   "devDependencies": {
     "d3-geo": "^3.1.1",

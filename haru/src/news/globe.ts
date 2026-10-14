@@ -13,8 +13,14 @@ const IDLE_MS = 1600;        // pause before auto-spin resumes after a drag
 const FRICTION_MS = 450;     // inertia half-life-ish
 const HOVER_PX = 46;
 const SHADES = 10;           // alpha buckets → one fill per bucket
+const PIN_HIT_PX = 16;       // how close a click must land to a pin
+const FLASH_MS = 2600;       // a pin that just got news pulses this long
+const AIM_MS = 260;          // turning a picked place to the front: time constant
 
 export interface GeoPoint { lat: number; lon: number }
+
+/** A place with news: drawn as a pin, picked by clicking it. `weight` (0..1) sizes it. */
+export interface Marker extends GeoPoint { id: string; label: string; weight: number }
 
 export interface Globe {
   /** Starts/stops the animation loop (run only while the News page is visible). */
@@ -23,6 +29,13 @@ export interface Globe {
   warm(): void;
   /** Called with the coordinates under the pointer (or the pinned spot), null when off the globe. */
   onReadout(fn: (p: GeoPoint | null, pinned: boolean) => void): void;
+  setMarkers(markers: Marker[]): void;
+  /** Called when a pin is clicked (its id), or when a click on the globe lands away from every pin (null). */
+  onPick(fn: (id: string | null) => void): void;
+  /** Highlights a pin and turns the globe to bring it to the front; null lets go. */
+  select(id: string | null): void;
+  /** Pulses these pins (they just got news). */
+  flash(ids: string[]): void;
 }
 
 export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, number][], home: GeoPoint): Globe {
@@ -75,6 +88,13 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   let moved = 0;
   let pinned: GeoPoint | null = null;
   let readout: (p: GeoPoint | null, pinned: boolean) => void = () => {};
+  let markers: Marker[] = [];
+  let selected: Marker | null = null;
+  let hoverPin: Marker | null = null;
+  const flashes = new Map<string, number>();
+  let pick: (id: string | null) => void = () => {};
+  /** A place being turned to the front (after it was picked). */
+  let aim: GeoPoint | null = null;
 
   let dpr = 1, size = 0, R = 0, cx = 0, cy = 0;
   const fit = () => {
@@ -126,6 +146,32 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   /** Is a canvas point on the sphere (the only part that drags/pins)? */
   const onSphere = (p: { x: number; y: number }) => Math.hypot(p.x - cx, p.y - cy) <= R;
 
+  /** The front-facing pin nearest to a canvas point, within reach. */
+  function pinAt(p: { x: number; y: number }): Marker | null {
+    let best: Marker | null = null;
+    let bestD = PIN_HIT_PX * dpr;
+    for (const m of markers) {
+      const s = project(m);
+      if (s.z <= 0.05) continue;
+      const d = Math.hypot(s.x - p.x, s.y - p.y);
+      if (d < bestD) {
+        bestD = d;
+        best = m;
+      }
+    }
+    return best;
+  }
+
+  /** Rodrigues rotation (row-major) of `angle` about the unit `axis`. */
+  const rotAxis = (ax: number, ay: number, az: number, angle: number) => {
+    const c = Math.cos(angle), s = Math.sin(angle), t = 1 - c;
+    return [
+      t * ax * ax + c, t * ax * ay - s * az, t * ax * az + s * ay,
+      t * ax * ay + s * az, t * ay * ay + c, t * ay * az - s * ax,
+      t * ax * az - s * ay, t * ay * az + s * ax, t * az * az + c,
+    ];
+  };
+
   canvas.addEventListener('pointerdown', (e) => {
     const p = local(e);
     if (!onSphere(p)) return; // corners of the canvas behave like the page background
@@ -133,6 +179,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     drag = { x: p.x, y: p.y, t: performance.now() };
     moved = 0;
     vx = vy = 0;
+    aim = null; // grabbing the globe takes over from any turn in progress
   });
   canvas.addEventListener('pointermove', (e) => {
     const p = local(e);
@@ -154,8 +201,15 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   const release = (e: PointerEvent) => {
     if (!drag) return;
     if (moved < 6 * dpr) {
-      // a click (not a drag) pins that spot; clicking off the globe unpins
-      pinned = unproject(local(e).x, local(e).y);
+      // a click (not a drag) on a pin picks that place; anywhere else pins the spot (off the globe unpins)
+      const hit = pinAt(local(e));
+      if (hit) {
+        pinned = null;
+        pick(hit.id);
+      } else {
+        pinned = unproject(local(e).x, local(e).y);
+        pick(null);
+      }
       vx = vy = 0;
     }
     drag = null;
@@ -184,16 +238,36 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       const decay = Math.exp((-dt * 1000) / FRICTION_MS);
       vx *= decay;
       vy *= decay;
-      // after a pause, ease back into turning about Earth's own axis (held still while a spot is pinned)
-      const target = !pinned && now - lastTouch > IDLE_MS ? AUTO_SPIN : 0;
+      // after a pause, ease back into turning about Earth's own axis (held still while a spot or place is picked)
+      const target = !pinned && !selected && !aim && now - lastTouch > IDLE_MS ? AUTO_SPIN : 0;
       spin += (target - spin) * (1 - decay);
       roll(vx * dt, vy * dt);
       M = mul(M, rotY(spin * dt));
+      if (aim) {
+        // turn the shortest way until the picked place faces the viewer
+        const φ = aim.lat * DEG, λ = aim.lon * DEG;
+        const x = Math.cos(φ) * Math.sin(λ), y = Math.sin(φ), z = Math.cos(φ) * Math.cos(λ);
+        const v = [M[0]! * x + M[1]! * y + M[2]! * z, M[3]! * x + M[4]! * y + M[5]! * z, M[6]! * x + M[7]! * y + M[8]! * z];
+        const angle = Math.acos(Math.max(-1, Math.min(1, v[2]!)));
+        if (angle < 0.002) aim = null;
+        else {
+          // axis = v × viewer (0, 0, 1); straight behind, any axis in the screen plane will do
+          let ax = v[1]!, ay = -v[0]!;
+          const len = Math.hypot(ax, ay);
+          if (len < 1e-6) { ax = 0; ay = 1; } else { ax /= len; ay /= len; }
+          M = mul(rotAxis(ax, ay, 0, angle * (1 - Math.exp((-dt * 1000) / AIM_MS))), M);
+        }
+      }
       tidy();
     }
     // while pages slide the canvas holds its last frame: no re-raster/upload of a moving layer
     if (!document.body.classList.contains('switching')) draw(now);
 
+    const pin = pointer && !drag ? pinAt(pointer) : null;
+    if (pin !== hoverPin) {
+      hoverPin = pin;
+      canvas.style.cursor = pin ? 'pointer' : '';
+    }
     const hover = pointer ? unproject(pointer.x, pointer.y) : null;
     const shown = hover ?? pinned;
     const key = shown ? `${shown.lat.toFixed(1)},${shown.lon.toFixed(1)},${!hover}` : '';
@@ -278,6 +352,8 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
+    drawMarkers(now, base);
+
     // pinned spot: a ring
     if (pinned) {
       const p = project(pinned);
@@ -291,7 +367,69 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     }
   }
 
+  /** News pins: a ring sized by how much is new there; the hovered or picked one is filled and named. */
+  function drawMarkers(now: number, base: number): void {
+    ctx.font = `500 ${11 * dpr}px ${css('--font-mono') || 'monospace'}`;
+    ctx.textBaseline = 'middle';
+    for (const m of markers) {
+      const p = project(m);
+      if (p.z <= 0) continue;
+      const fade = Math.min(1, p.z * 2.5); // pins near the rim fade out as they turn away
+      const on = m === selected || m === hoverPin;
+      const r = base * (2.2 + 1.6 * m.weight) * (on ? 1.25 : 1);
+      ctx.globalAlpha = fade;
+      ctx.strokeStyle = colors.hi;
+      ctx.lineWidth = 1.3 * dpr;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, TAU);
+      ctx.stroke();
+      ctx.fillStyle = colors.hi;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, on ? r * 0.62 : base * 0.9, 0, TAU);
+      ctx.fill();
+      // fresh news: a ring rippling outward for a few seconds
+      const since = now - (flashes.get(m.id) ?? -Infinity);
+      if (since < FLASH_MS) {
+        const t = (since % 1300) / 1300;
+        ctx.globalAlpha = fade * (1 - t) * 0.8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r + base * 7 * t, 0, TAU);
+        ctx.stroke();
+      }
+      if (on) {
+        ctx.globalAlpha = fade;
+        const tx = p.x + r + 6 * dpr;
+        const w = ctx.measureText(m.label).width;
+        // a dark plate keeps the name readable over the dots
+        ctx.fillStyle = 'rgba(10,10,10,0.82)';
+        ctx.fillRect(tx - 4 * dpr, p.y - 9 * dpr, w + 8 * dpr, 18 * dpr);
+        ctx.fillStyle = colors.hi;
+        ctx.fillText(m.label, tx, p.y + 0.5 * dpr);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   return {
+    setMarkers(next) {
+      markers = next;
+      if (selected) selected = markers.find((m) => m.id === selected!.id) ?? null;
+    },
+    onPick(fn) {
+      pick = fn;
+    },
+    select(id) {
+      selected = id ? markers.find((m) => m.id === id) ?? null : null;
+      if (selected) {
+        pinned = null;
+        aim = { lat: selected.lat, lon: selected.lon };
+        vx = vy = 0;
+      }
+    },
+    flash(ids) {
+      const now = performance.now();
+      for (const id of ids) flashes.set(id, now);
+    },
     setActive(on) {
       if (on === active) return;
       active = on;
