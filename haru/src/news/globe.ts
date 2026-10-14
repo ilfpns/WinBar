@@ -19,6 +19,8 @@ export interface GeoPoint { lat: number; lon: number }
 export interface Globe {
   /** Starts/stops the animation loop (run only while the News page is visible). */
   setActive(on: boolean): void;
+  /** Draws a few frames up front (page laid out but not shown) so the first visible frame is already hot. */
+  warm(): void;
   /** Called with the coordinates under the pointer (or the pinned spot), null when off the globe. */
   onReadout(fn: (p: GeoPoint | null, pinned: boolean) => void): void;
 }
@@ -78,8 +80,12 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   const fit = () => {
     dpr = Math.min(devicePixelRatio || 1, 2.5);
     size = canvas.offsetWidth;
-    canvas.width = Math.max(1, Math.round(size * dpr));
-    canvas.height = canvas.width;
+    const w = Math.max(1, Math.round(size * dpr));
+    // assigning width clears and re-allocates the bitmap: only do it when the size actually changed
+    if (canvas.width !== w) {
+      canvas.width = w;
+      canvas.height = w;
+    }
     R = canvas.width * 0.42;
     cx = cy = canvas.width / 2;
     colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong') };
@@ -184,7 +190,8 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       M = mul(M, rotY(spin * dt));
       tidy();
     }
-    draw(now);
+    // while pages slide the canvas holds its last frame: no re-raster/upload of a moving layer
+    if (!document.body.classList.contains('switching')) draw(now);
 
     const hover = pointer ? unproject(pointer.x, pointer.y) : null;
     const shown = hover ?? pinned;
@@ -290,6 +297,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       if (on) {
         fit();
         last = performance.now();
+        draw(last); // up to date the moment it starts sliding in
         raf = requestAnimationFrame(frame);
       } else {
         cancelAnimationFrame(raf);
@@ -297,6 +305,10 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     },
     onReadout(fn) {
       readout = fn;
+    },
+    warm() {
+      fit();
+      for (let i = 0; i < 4; i++) draw(performance.now());
     },
   };
 }

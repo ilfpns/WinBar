@@ -160,11 +160,15 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   fit();
 
   let last = performance.now();
+  let painted = false;
   function frame(now: number): void {
     const dt = Math.min(64, now - last);
     last = now;
-    // nothing to paint while the dial is off screen (calendar view)
-    if (!canvas.offsetWidth) {
+    // nothing to paint while the dial is off screen (another page is showing)
+    const body = document.body;
+    // off screen, or sliding with its page (the last frame is held): nothing to paint
+    // (it still paints once up front, so it never slides in blank)
+    if (!canvas.offsetWidth || (painted && (body.dataset.view !== 'today' || body.classList.contains('switching')))) {
       requestAnimationFrame(frame);
       return;
     }
@@ -213,6 +217,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       ctx.arc(dot.x * (1 + push), dot.y * (1 + push), Math.max(0.3, r), 0, Math.PI * 2);
       ctx.fill();
     }
+    painted = true;
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

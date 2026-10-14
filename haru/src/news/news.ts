@@ -16,11 +16,13 @@ export function mountNews(canvas: HTMLCanvasElement, readout: HTMLElement): void
         readout.textContent = p ? fmt(p) : '';
         readout.classList.toggle('pinned', pinned);
       });
-      // spin only while the page is on screen (including while it slides in)
-      const sync = () => globe.setActive(currentView() === 'news' || document.body.classList.contains('switching'));
-      onView(() => {
+      globe.warm();
+      // spin only while the page is on screen — including while it slides in or out
+      const sync = () => globe.setActive(currentView() === 'news');
+      onView((view, prev) => {
+        if (view !== 'news' && prev !== 'news') return;
         globe.setActive(true);
-        setTimeout(sync, 700);
+        setTimeout(sync, 450);
       });
       sync();
     })

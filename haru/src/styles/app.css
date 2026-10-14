@@ -112,9 +112,14 @@ img, svg, a { -webkit-user-drag: none; }
 
 /* ---------- views: Today (the dial) and Calendar share the page */
 /* pages: only the current one (and, mid-turn, the one sliding away) is on screen */
-.page:not(.current):not(.leaving) { display: none; }
+/* off-screen pages stay laid out (just invisible), so switching never re-measures or re-allocates them */
+.page:not(.current):not(.leaving) { visibility: hidden; pointer-events: none; }
 /* during a page turn both pages are on screen; the leaving one stays below the drawers */
-body.switching .page { will-change: transform; }
+/* each page keeps its own compositor layer, so a turn never starts by building one */
+.page { will-change: transform; }
+/* while pages slide, a backdrop blur would be recomputed over the whole moving page every frame:
+   swap it for a near-identical solid fill for those 0.38 s */
+body.switching :is(.panel, .drawer-tab) { backdrop-filter: none; background: #1a1a1a; }
 .leaving { pointer-events: none; }
 
 .icon-btn {

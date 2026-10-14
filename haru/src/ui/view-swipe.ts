@@ -4,7 +4,8 @@ const TURN_MS = 380;           // one page turn
 const EASE = 'cubic-bezier(.22, 1, .36, 1)';
 const WHEEL_TRIGGER = 40;      // accumulated wheel/trackpad px that turns the page
 const SWIPE_TRIGGER = 50;      // touch travel in px
-const INERTIA_MS = 160;        // after a turn, wheel input is ignored until it pauses this long
+const NOTCH_GAP = 60;          // a big, isolated delta this long after the last one is a mouse-wheel notch
+const STREAM_GAP = 250;        // silence that ends a trackpad stream (its inertia) for sure
 
 /**
  * Today, Calendar and News are stacked pages. A gesture past a small threshold turns exactly one
@@ -57,15 +58,41 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
   let acc = 0;
   let locked = false;
   let quiet = 0;
+  let lastAbs = 0;
+  let lastT = 0;
   addEventListener('wheel', (e) => {
     const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY;
     if (!d) return;
+    // when the input happened (not when we got to it — a busy frame mustn't look like a pause)
+    const now = e.timeStamp;
+    const abs = Math.abs(d);
+    const gap = now - lastT;
+    if (locked) {
+      // after a turn, the trackpad's inertia keeps sending a fading stream of deltas: ignore that.
+      // The next mouse-wheel notch, deltas that suddenly grow again, or a real pause start a new gesture.
+      const notch = abs >= 50 && gap > NOTCH_GAP;
+      const fresh = notch || abs > lastAbs * 1.4 + 4 || gap > STREAM_GAP;
+      lastAbs = abs;
+      lastT = now;
+      if (!fresh) {
+        // still the tail: keep the lock alive until the stream really goes quiet
+        clearTimeout(quiet);
+        quiet = window.setTimeout(() => {
+          locked = false;
+          acc = 0;
+        }, STREAM_GAP);
+        return;
+      }
+      locked = false;
+      acc = 0;
+    }
+    lastAbs = abs;
+    lastT = now;
     clearTimeout(quiet);
     quiet = window.setTimeout(() => {
       locked = false;
       acc = 0;
-    }, INERTIA_MS);
-    if (locked) return; // the rest of a gesture that already turned (trackpad inertia)
+    }, STREAM_GAP);
     const dir = d > 0 ? 1 : -1;
     if (!canTurn(e.target, dir)) {
       acc = 0;
