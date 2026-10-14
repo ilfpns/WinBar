@@ -4,3 +4,5 @@ obj/
 *.user
 *.suo
 dist/
+haru/node_modules/
+haru/dist/

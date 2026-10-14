@@ -1,0 +1,1370 @@
+{
+ "calendar": {
+  "status": 200,
+  "count": 2,
+  "items": [
+   {
+    "name": "Show And Tell",
+    "slug": "/projects/show-and-tell",
+    "url": "https://showandtellpresents.com",
+    "alt": "Show And Tell — Entertainment, Culture website design"
+   },
+   {
+    "name": "Joi — Daily Planner & Organizer",
+    "slug": "/projects/joi",
+    "url": "https://joi.software",
+    "alt": "Joi — Daily Planner & Organizer — App, Productivity website design"
+   }
+  ]
+ },
+ "tasks": {
+  "status": 200,
+  "count": 14,
+  "items": [
+   {
+    "name": "Uncle Rudy",
+    "slug": "/projects/uncle-rudy",
+    "url": "https://unclerudy.app",
+    "alt": "Uncle Rudy — Tasks, Productivity website design"
+   },
+   {
+    "name": "Rows",
+    "slug": "/projects/rows",
+    "url": "https://rows.gg",
+    "alt": "Rows — Productivity, Tasks website design"
+   },
+   {
+    "name": "Cash App",
+    "slug": "/projects/cash-app",
+    "url": "https://cash.app",
+    "alt": "Cash App — Finance, Fintech website design"
+   },
+   {
+    "name": "Hustla",
+    "slug": "/projects/hustla",
+    "url": "https://hustla.app",
+    "alt": "Hustla — Productivity, Tasks website design"
+   },
+   {
+    "name": "SuperHi Plus",
+    "slug": "/projects/superhi-plus",
+    "url": "https://superhi.plus",
+    "alt": "SuperHi Plus — Community, Culture website design"
+   },
+   {
+    "name": "Pattrn",
+    "slug": "/projects/pattrn",
+    "url": "https://pattrn.io",
+    "alt": "Pattrn — Habits, Productivity website design"
+   },
+   {
+    "name": "Daybox",
+    "slug": "/projects/daybox",
+    "url": "https://usedaybox.com",
+    "alt": "Daybox — Productivity, Habits website design"
+   },
+   {
+    "name": "Hourly",
+    "slug": "/projects/hourly",
+    "url": "https://hourly-app.com",
+    "alt": "Hourly — iOS, App website design"
+   },
+   {
+    "name": "Daily Four",
+    "slug": "/projects/daily-four",
+    "url": "https://dailyfour.app",
+    "alt": "Daily Four — Productivity, Tasks website design"
+   },
+   {
+    "name": "Huly",
+    "slug": "/projects/huly",
+    "url": "https://huly.io",
+    "alt": "Huly — Productivity, Workflow website design"
+   },
+   {
+    "name": "Aim",
+    "slug": "/projects/aim",
+    "url": "https://timestwelve.xyz/aim",
+    "alt": "Aim — Productivity, Tasks website design"
+   },
+   {
+    "name": "Todoist",
+    "slug": "/projects/todoist",
+    "url": "https://www.todoist.com",
+    "alt": "Todoist — Productivity, Tasks website design"
+   },
+   {
+    "name": "Joi — Daily Planner & Organizer",
+    "slug": "/projects/joi",
+    "url": "https://joi.software",
+    "alt": "Joi — Daily Planner & Organizer — App, Productivity website design"
+   }
+  ]
+ },
+ "productivity": {
+  "status": 200,
+  "count": 25,
+  "items": [
+   {
+    "name": "SuperHi Plus",
+    "slug": "/projects/superhi-plus",
+    "url": "https://superhi.plus",
+    "alt": "SuperHi Plus — Community, Culture website design"
+   },
+   {
+    "name": "Gamma.app",
+    "slug": "/projects/gamma-app",
+    "url": "https://gamma.app",
+    "alt": "Gamma.app — Productivity, Web website design"
+   },
+   {
+    "name": "Karst Goods",
+    "slug": "/projects/karst-goods",
+    "url": "https://karstgoods.com",
+    "alt": "Karst Goods — Sustainability, Outdoor website design"
+   },
+   {
+    "name": "Manifest",
+    "slug": "/projects/manifest",
+    "url": "https://www.manifest.app",
+    "alt": "Manifest — Productivity, Launcher website design"
+   },
+   {
+    "name": "fromT",
+    "slug": "/projects/fromt",
+    "url": "https://fromt.app",
+    "alt": "fromT — Fonts, Typography website design"
+   },
+   {
+    "name": "illoca",
+    "slug": "/projects/illoca",
+    "url": "https://illoca.unseen.co",
+    "alt": "illoca — 3D, Tech website design"
+   },
+   {
+    "name": "TakeProfit",
+    "slug": "/projects/takeprofit",
+    "url": "https://takeprofit.com",
+    "alt": "TakeProfit — Finance, Tech website design"
+   },
+   {
+    "name": "Hims App",
+    "slug": "/projects/hims-app",
+    "url": "https://app.forhims.com",
+    "alt": "Hims App — Health, App website design"
+   },
+   {
+    "name": "The InnerWebs",
+    "slug": "/projects/the-innerwebs",
+    "url": "https://theinnerwebs.com",
+    "alt": "The InnerWebs — Productivity, Workflow website design"
+   },
+   {
+    "name": "Uncle Rudy",
+    "slug": "/projects/uncle-rudy",
+    "url": "https://unclerudy.app",
+    "alt": "Uncle Rudy — Tasks, Productivity website design"
+   },
+   {
+    "name": "Pull Systems",
+    "slug": "/projects/pull-systems",
+    "url": "https://www.pull.systems",
+    "alt": "Pull Systems — Tech, Developer website design"
+   },
+   {
+    "name": "Rows",
+    "slug": "/projects/rows",
+    "url": "https://rows.gg",
+    "alt": "Rows — Productivity, Tasks website design"
+   },
+   {
+    "name": "Mimo",
+    "slug": "/projects/mimo",
+    "url": "https://mimohq.com",
+    "alt": "Mimo — Finance, Productivity website design"
+   },
+   {
+    "name": "Config",
+    "slug": "/projects/config",
+    "url": "https://config.com",
+    "alt": "Config — Tech, Workflow website design"
+   },
+   {
+    "name": "Copilot Money",
+    "slug": "/projects/copilot-money",
+    "url": "https://www.copilot.money",
+    "alt": "Copilot Money — Finance, Productivity website design"
+   },
+   {
+    "name": "The Browser Company",
+    "slug": "/projects/the-browser-company",
+    "url": "https://www.thebrowser.company",
+    "alt": "The Browser Company — Tech, Startup website design"
+   },
+   {
+    "name": "Superlist",
+    "slug": "/projects/superlist",
+    "url": "https://superlist.com",
+    "alt": "Superlist — SaaS, Motion website design"
+   },
+   {
+    "name": "Campsite",
+    "slug": "/projects/campsite",
+    "url": "https://www.campsite.com",
+    "alt": "Campsite — Productivity, Workflow website design"
+   },
+   {
+    "name": "Notion",
+    "slug": "/projects/notion",
+    "url": "https://www.notion.com",
+    "alt": "Notion — Productivity, Workflow website design"
+   },
+   {
+    "name": "Digital Design Days X",
+    "slug": "/projects/digital-design-days-x",
+    "url": "https://palermo.ddd.live",
+    "alt": "Digital Design Days X — Award, Motion website design"
+   },
+   {
+    "name": "Commute / Metronome",
+    "slug": "/projects/commute-metronome",
+    "url": "https://commute.dataveyes.com",
+    "alt": "Commute / Metronome — Productivity, Music website design"
+   },
+   {
+    "name": "Cash App",
+    "slug": "/projects/cash-app",
+    "url": "https://cash.app",
+    "alt": "Cash App — Finance, Fintech website design"
+   },
+   {
+    "name": "Dropbox Brand",
+    "slug": "/projects/dropbox-brand",
+    "url": "https://brand.dropbox.com",
+    "alt": "Dropbox Brand — Branding, Tech website design"
+   },
+   {
+    "name": "Composio",
+    "slug": "/projects/composio",
+    "url": "https://composio.dev",
+    "alt": "Composio — SaaS, Dev website design"
+   }
+  ]
+ },
+ "keyboard-first": {
+  "status": 200,
+  "count": 9,
+  "items": [
+   {
+    "name": "SuperHi Plus",
+    "slug": "/projects/superhi-plus",
+    "url": "https://superhi.plus",
+    "alt": "SuperHi Plus — Community, Culture website design"
+   },
+   {
+    "name": "Rows",
+    "slug": "/projects/rows",
+    "url": "https://rows.gg",
+    "alt": "Rows — Productivity, Tasks website design"
+   },
+   {
+    "name": "Portal — The Fastest Way Into Your Apps",
+    "slug": "/projects/useportal",
+    "url": "https://useportal.net",
+    "alt": "Portal — The Fastest Way Into Your Apps — Productivity, Minimal website design"
+   },
+   {
+    "name": "Raycast",
+    "slug": "/projects/raycast",
+    "url": "https://www.raycast.com",
+    "alt": "Raycast — Productivity, Launcher website design"
+   },
+   {
+    "name": "Fernand",
+    "slug": "/projects/fernand",
+    "url": "https://getfernand.com",
+    "alt": "Fernand — Keyboard First, Productivity website design"
+   },
+   {
+    "name": "Warp",
+    "slug": "/projects/warp",
+    "url": "https://www.warp.dev",
+    "alt": "Warp — Tech, Productivity website design"
+   },
+   {
+    "name": "Tatem",
+    "slug": "/projects/tatem",
+    "url": "https://tatem.com",
+    "alt": "Tatem — Productivity, Workflow website design"
+   },
+   {
+    "name": "Lazy",
+    "slug": "/projects/lazy",
+    "url": "https://lazy.so",
+    "alt": "Lazy — Productivity, Workflow website design"
+   }
+  ]
+ },
+ "workflow": {
+  "status": 200,
+  "count": 25,
+  "items": [
+   {
+    "name": "Cofounder",
+    "slug": "/projects/cofounder",
+    "url": "https://cofounder.co",
+    "alt": "Cofounder — Tech, Productivity website design"
+   },
+   {
+    "name": "SuperHi Plus",
+    "slug": "/projects/superhi-plus",
+    "url": "https://superhi.plus",
+    "alt": "SuperHi Plus — Community, Culture website design"
+   },
+   {
+    "name": "Manifest",
+    "slug": "/projects/manifest",
+    "url": "https://www.manifest.app",
+    "alt": "Manifest — Productivity, Launcher website design"
+   },
+   {
+    "name": "Prime Security",
+    "slug": "/projects/prime-security",
+    "url": "https://primesec.ai",
+    "alt": "Prime Security — Tech, Workflow website design"
+   },
+   {
+    "name": "fromT",
+    "slug": "/projects/fromt",
+    "url": "https://fromt.app",
+    "alt": "fromT — Fonts, Typography website design"
+   },
+   {
+    "name": "illoca",
+    "slug": "/projects/illoca",
+    "url": "https://illoca.unseen.co",
+    "alt": "illoca — 3D, Tech website design"
+   },
+   {
+    "name": "The InnerWebs",
+    "slug": "/projects/the-innerwebs",
+    "url": "https://theinnerwebs.com",
+    "alt": "The InnerWebs — Productivity, Workflow website design"
+   },
+   {
+    "name": "Butter Video",
+    "slug": "/projects/butter-video",
+    "url": "https://butter.video",
+    "alt": "Butter Video — Tech, SaaS website design"
+   },
+   {
+    "name": "Cerebrium",
+    "slug": "/projects/cerebrium",
+    "url": "https://cerebrium.ai",
+    "alt": "Cerebrium — Cloud, Dev website design"
+   },
+   {
+    "name": "Pull Systems",
+    "slug": "/projects/pull-systems",
+    "url": "https://www.pull.systems",
+    "alt": "Pull Systems — Tech, Developer website design"
+   },
+   {
+    "name": "Rows",
+    "slug": "/projects/rows",
+    "url": "https://rows.gg",
+    "alt": "Rows — Productivity, Tasks website design"
+   },
+   {
+    "name": "Mimo",
+    "slug": "/projects/mimo",
+    "url": "https://mimohq.com",
+    "alt": "Mimo — Finance, Productivity website design"
+   },
+   {
+    "name": "Config",
+    "slug": "/projects/config",
+    "url": "https://config.com",
+    "alt": "Config — Tech, Workflow website design"
+   },
+   {
+    "name": "Campsite",
+    "slug": "/projects/campsite",
+    "url": "https://www.campsite.com",
+    "alt": "Campsite — Productivity, Workflow website design"
+   },
+   {
+    "name": "Notion",
+    "slug": "/projects/notion",
+    "url": "https://www.notion.com",
+    "alt": "Notion — Productivity, Workflow website design"
+   },
+   {
+    "name": "United Carriers",
+    "slug": "/projects/united-carriers",
+    "url": "https://unitedcarriers.com",
+    "alt": "United Carriers — Corporate, Clean website design"
+   },
+   {
+    "name": "Parallel",
+    "slug": "/projects/parallel",
+    "url": "https://parallel.ai",
+    "alt": "Parallel — Tech, Dev website design"
+   },
+   {
+    "name": "Cash App",
+    "slug": "/projects/cash-app",
+    "url": "https://cash.app",
+    "alt": "Cash App — Finance, Fintech website design"
+   },
+   {
+    "name": "Dropbox Brand",
+    "slug": "/projects/dropbox-brand",
+    "url": "https://brand.dropbox.com",
+    "alt": "Dropbox Brand — Branding, Tech website design"
+   },
+   {
+    "name": "Composio",
+    "slug": "/projects/composio",
+    "url": "https://composio.dev",
+    "alt": "Composio — SaaS, Dev website design"
+   },
+   {
+    "name": "Parabola",
+    "slug": "/projects/parabola",
+    "url": "https://www.parabola.com",
+    "alt": "Parabola — Workflow, App website design"
+   },
+   {
+    "name": "Slashit",
+    "slug": "/projects/slashit",
+    "url": "https://slashit.app",
+    "alt": "Slashit — Productivity, Workflow website design"
+   },
+   {
+    "name": "Love + Money",
+    "slug": "/projects/love-money",
+    "url": "https://loveandmoney.com",
+    "alt": "Love + Money — Storytelling, Clean website design"
+   },
+   {
+    "name": "Uni",
+    "slug": "/projects/uni",
+    "url": "https://getuni.co",
+    "alt": "Uni — Productivity, Workflow website design"
+   }
+  ]
+ },
+ "clean": {
+  "status": 200,
+  "count": 25,
+  "items": [
+   {
+    "name": "Singular Forms",
+    "slug": "/projects/singular-forms",
+    "url": "https://www.singularforms.com",
+    "alt": "Singular Forms — Designer, Photographer website design"
+   },
+   {
+    "name": "Evgenii Astapov",
+    "slug": "/projects/evgenii-astapov",
+    "url": "https://astapable.com",
+    "alt": "Evgenii Astapov — Designer, Tech website design"
+   },
+   {
+    "name": "Vova Stegantsov",
+    "slug": "/projects/vova-stegantsov",
+    "url": "https://unfinished.design",
+    "alt": "Vova Stegantsov — Designer, Portfolio website design"
+   },
+   {
+    "name": "Likova Space",
+    "slug": "/projects/likova-space",
+    "url": "https://likova.space",
+    "alt": "Likova Space — Real Estate, Corporate website design"
+   },
+   {
+    "name": "Elodie Fabbri",
+    "slug": "/projects/elodie-fabbri",
+    "url": "https://elodiefabbri.com",
+    "alt": "Elodie Fabbri — Art, Fashion website design"
+   },
+   {
+    "name": "Beth-Emily",
+    "slug": "/projects/beth-emily",
+    "url": "https://www.beth-emily.com",
+    "alt": "Beth-Emily — Branding, Designer website design"
+   },
+   {
+    "name": "Dylan Brouwer",
+    "slug": "/projects/dylan-brouwer",
+    "url": "https://www.dylanbrouwer.design",
+    "alt": "Dylan Brouwer — Designer, Developer website design"
+   },
+   {
+    "name": "Bloom",
+    "slug": "/projects/bloom",
+    "url": "https://bloomparis.tv",
+    "alt": "Bloom — Portfolio, Minimal website design"
+   },
+   {
+    "name": "ANTI",
+    "slug": "/projects/anti",
+    "url": "https://anti.as",
+    "alt": "ANTI — Agency, Studio website design"
+   },
+   {
+    "name": "Brikken+Co",
+    "slug": "/projects/brikken-co",
+    "url": "https://brikken.co",
+    "alt": "Brikken+Co — Agency, Studio website design"
+   },
+   {
+    "name": "CREGG Paris",
+    "slug": "/projects/cregg-paris",
+    "url": "https://www.cregg-paris.com",
+    "alt": "CREGG Paris — Agency, Studio website design"
+   },
+   {
+    "name": "ART+TECH Report",
+    "slug": "/projects/art-tech-report",
+    "url": "https://www.arttechreport.com",
+    "alt": "ART+TECH Report — Art, Tech website design"
+   },
+   {
+    "name": "Polecat Agency",
+    "slug": "/projects/polecat-agency",
+    "url": "https://www.polecat.agency",
+    "alt": "Polecat Agency — Agency, Startup website design"
+   },
+   {
+    "name": "ARM Architecture",
+    "slug": "/projects/arm-architecture",
+    "url": "https://armarchitecture.com.au",
+    "alt": "ARM Architecture — Agency, Corporate website design"
+   },
+   {
+    "name": "Emmpo",
+    "slug": "/projects/emmpo",
+    "url": "https://emmpo.com",
+    "alt": "Emmpo — Agency, Studio website design"
+   },
+   {
+    "name": "Nod Marketing",
+    "slug": "/projects/nod-marketing",
+    "url": "https://nodmarketing.se",
+    "alt": "Nod Marketing — Agency, Award website design"
+   },
+   {
+    "name": "Bécane",
+    "slug": "/projects/bcane",
+    "url": "https://www.becaneparis.com",
+    "alt": "Bécane — Fashion, E-commerce website design"
+   },
+   {
+    "name": "Trawelt",
+    "slug": "/projects/trawelt",
+    "url": "https://trawelt.com",
+    "alt": "Trawelt — Minimal, Animation website design"
+   },
+   {
+    "name": "SuperHi Plus",
+    "slug": "/projects/superhi-plus",
+    "url": "https://superhi.plus",
+    "alt": "SuperHi Plus — Community, Culture website design"
+   },
+   {
+    "name": "SVG Doodles",
+    "slug": "/projects/svg-doodles",
+    "url": "https://svgdoodles.com",
+    "alt": "SVG Doodles — Illustration, Playful website design"
+   },
+   {
+    "name": "Igor Mahr",
+    "slug": "/projects/igor-mahr",
+    "url": "https://igma.im",
+    "alt": "Igor Mahr — Developer, Designer website design"
+   },
+   {
+    "name": "Elena Borisova",
+    "slug": "/projects/elena-borisova",
+    "url": "https://elenaborisova.life",
+    "alt": "Elena Borisova — Health, Personal website design"
+   },
+   {
+    "name": "Cosmos",
+    "slug": "/projects/cosmos",
+    "url": "https://www.cosmos.so",
+    "alt": "Cosmos — SaaS, Minimal website design"
+   },
+   {
+    "name": "Mintlify",
+    "slug": "/projects/mintlify",
+    "url": "https://www.mintlify.com",
+    "alt": "Mintlify — SaaS, Minimal website design"
+   }
+  ]
+ },
+ "minimal": {
+  "status": 200,
+  "count": 25,
+  "items": [
+   {
+    "name": "Singular Forms",
+    "slug": "/projects/singular-forms",
+    "url": "https://www.singularforms.com",
+    "alt": "Singular Forms — Designer, Photographer website design"
+   },
+   {
+    "name": "Evgenii Astapov",
+    "slug": "/projects/evgenii-astapov",
+    "url": "https://astapable.com",
+    "alt": "Evgenii Astapov — Designer, Tech website design"
+   },
+   {
+    "name": "OHM Studio",
+    "slug": "/projects/ohm-studio",
+    "url": "https://ohm.studio",
+    "alt": "OHM Studio — E-commerce, Product website design"
+   },
+   {
+    "name": "Studio Size",
+    "slug": "/projects/studio-size",
+    "url": "https://studio-size.com",
+    "alt": "Studio Size — Agency, Typography website design"
+   },
+   {
+    "name": "Bloom",
+    "slug": "/projects/bloom",
+    "url": "https://bloomparis.tv",
+    "alt": "Bloom — Portfolio, Minimal website design"
+   },
+   {
+    "name": "Brikken+Co",
+    "slug": "/projects/brikken-co",
+    "url": "https://brikken.co",
+    "alt": "Brikken+Co — Agency, Studio website design"
+   },
+   {
+    "name": "Emmpo",
+    "slug": "/projects/emmpo",
+    "url": "https://emmpo.com",
+    "alt": "Emmpo — Agency, Studio website design"
+   },
+   {
+    "name": "Bécane",
+    "slug": "/projects/bcane",
+    "url": "https://www.becaneparis.com",
+    "alt": "Bécane — Fashion, E-commerce website design"
+   },
+   {
+    "name": "Trawelt",
+    "slug": "/projects/trawelt",
+    "url": "https://trawelt.com",
+    "alt": "Trawelt — Minimal, Animation website design"
+   },
+   {
+    "name": "FRANKY'S",
+    "slug": "/projects/franky-s",
+    "url": "https://www.frankys-hats.com",
+    "alt": "FRANKY'S — Fashion, Branding website design"
+   },
+   {
+    "name": "Spotify.Design",
+    "slug": "/projects/spotify-design",
+    "url": "https://spotify.design",
+    "alt": "Spotify.Design — Colorful, Portfolio website design"
+   },
+   {
+    "name": "SVG Doodles",
+    "slug": "/projects/svg-doodles",
+    "url": "https://svgdoodles.com",
+    "alt": "SVG Doodles — Illustration, Playful website design"
+   },
+   {
+    "name": "Huncwot",
+    "slug": "/projects/huncwot",
+    "url": "https://huncwot.com",
+    "alt": "Huncwot — Agency, Interactive website design"
+   },
+   {
+    "name": "Shapes Gallery",
+    "slug": "/projects/shapes-gallery",
+    "url": "https://www.shapes.gallery",
+    "alt": "Shapes Gallery — Illustration, Minimal website design"
+   },
+   {
+    "name": "Huge Inc.",
+    "slug": "/projects/huge-inc",
+    "url": "https://www.hugeinc.com",
+    "alt": "Huge Inc. — Agency, Studio website design"
+   },
+   {
+    "name": "Vercel",
+    "slug": "/projects/vercel",
+    "url": "https://vercel.com",
+    "alt": "Vercel — SaaS, Minimal website design"
+   },
+   {
+    "name": "Cosmos",
+    "slug": "/projects/cosmos",
+    "url": "https://www.cosmos.so",
+    "alt": "Cosmos — SaaS, Minimal website design"
+   },
+   {
+    "name": "Mintlify",
+    "slug": "/projects/mintlify",
+    "url": "https://www.mintlify.com",
+    "alt": "Mintlify — SaaS, Minimal website design"
+   },
+   {
+    "name": "Eduard Bodak — Portfolio",
+    "slug": "/projects/eduard-bodak-portfolio",
+    "url": "https://eduardbodak.com",
+    "alt": "Eduard Bodak — Portfolio — Portfolio, Minimal website design"
+   },
+   {
+    "name": "Nothin'",
+    "slug": "/projects/nothin",
+    "url": "https://noth.in",
+    "alt": "Nothin' — Agency, Studio website design"
+   },
+   {
+    "name": "Nothing",
+    "slug": "/projects/nothing",
+    "url": "https://nothing.tech",
+    "alt": "Nothing — E-commerce, Minimal website design"
+   },
+   {
+    "name": "Mammut Expedition Baikal",
+    "slug": "/projects/mammut-expedition-baikal",
+    "url": "https://eiger-extreme.mammut.com/en",
+    "alt": "Mammut Expedition Baikal — E-commerce, Outdoor website design"
+   },
+   {
+    "name": "Clue Perfumery",
+    "slug": "/projects/clue-perfumery",
+    "url": "https://www.clueperfumery.com",
+    "alt": "Clue Perfumery — Fashion, Branding website design"
+   },
+   {
+    "name": "NEVERHACK",
+    "slug": "/projects/neverhack",
+    "url": "https://www.neverhack.com",
+    "alt": "NEVERHACK — 3D, Motion website design"
+   }
+  ]
+ },
+ "typography": {
+  "status": 200,
+  "count": 25,
+  "items": [
+   {
+    "name": "Nodeck",
+    "slug": "/projects/nodeck",
+    "url": "https://nodeck.online",
+    "alt": "Nodeck — Animation, Motion website design"
+   },
+   {
+    "name": "Evgenii Astapov",
+    "slug": "/projects/evgenii-astapov",
+    "url": "https://astapable.com",
+    "alt": "Evgenii Astapov — Designer, Tech website design"
+   },
+   {
+    "name": "Singular Forms",
+    "slug": "/projects/singular-forms",
+    "url": "https://www.singularforms.com",
+    "alt": "Singular Forms — Designer, Photographer website design"
+   },
+   {
+    "name": "Vova Stegantsov",
+    "slug": "/projects/vova-stegantsov",
+    "url": "https://unfinished.design",
+    "alt": "Vova Stegantsov — Designer, Portfolio website design"
+   },
+   {
+    "name": "Studio Size",
+    "slug": "/projects/studio-size",
+    "url": "https://studio-size.com",
+    "alt": "Studio Size — Agency, Typography website design"
+   },
+   {
+    "name": "Elodie Fabbri",
+    "slug": "/projects/elodie-fabbri",
+    "url": "https://elodiefabbri.com",
+    "alt": "Elodie Fabbri — Art, Fashion website design"
+   },
+   {
+    "name": "ANTI",
+    "slug": "/projects/anti",
+    "url": "https://anti.as",
+    "alt": "ANTI — Agency, Studio website design"
+   },
+   {
+    "name": "Brikken+Co",
+    "slug": "/projects/brikken-co",
+    "url": "https://brikken.co",
+    "alt": "Brikken+Co — Agency, Studio website design"
+   },
+   {
+    "name": "ART+TECH Report",
+    "slug": "/projects/art-tech-report",
+    "url": "https://www.arttechreport.com",
+    "alt": "ART+TECH Report — Art, Tech website design"
+   },
+   {
+    "name": "ARM Architecture",
+    "slug": "/projects/arm-architecture",
+    "url": "https://armarchitecture.com.au",
+    "alt": "ARM Architecture — Agency, Corporate website design"
+   },
+   {
+    "name": "Emmpo",
+    "slug": "/projects/emmpo",
+    "url": "https://emmpo.com",
+    "alt": "Emmpo — Agency, Studio website design"
+   },
+   {
+    "name": "Trawelt",
+    "slug": "/projects/trawelt",
+    "url": "https://trawelt.com",
+    "alt": "Trawelt — Minimal, Animation website design"
+   },
+   {
+    "name": "PROTIP Marketing",
+    "slug": "/projects/protip-marketing",
+    "url": "https://protipmarketing.com/en",
+    "alt": "PROTIP Marketing — Agency, Portfolio website design"
+   },
+   {
+    "name": "Ben Longden Design",
+    "slug": "/projects/ben-longden-design",
+    "url": "https://benlongdendesign.co.uk",
+    "alt": "Ben Longden Design — Designer, Web website design"
+   },
+   {
+    "name": "Cult Holdings Co.",
+    "slug": "/projects/cult-holdings-co",
+    "url": "https://cultholdings.co",
+    "alt": "Cult Holdings Co. — Agency, Studio website design"
+   },
+   {
+    "name": "Nothin'",
+    "slug": "/projects/nothin",
+    "url": "https://noth.in",
+    "alt": "Nothin' — Agency, Studio website design"
+   },
+   {
+    "name": "Nothing",
+    "slug": "/projects/nothing",
+    "url": "https://nothing.tech",
+    "alt": "Nothing — E-commerce, Minimal website design"
+   },
+   {
+    "name": "Driftime",
+    "slug": "/projects/driftime",
+    "url": "https://driftime.com",
+    "alt": "Driftime — Agency, Studio website design"
+   },
+   {
+    "name": "Locomotive®",
+    "slug": "/projects/locomotive",
+    "url": "https://locomotive.ca",
+    "alt": "Locomotive® — Agency, Award website design"
+   },
+   {
+    "name": "Mathis Biabiany",
+    "slug": "/projects/mathis-biabiany",
+    "url": "https://mathis-biabiany.fr",
+    "alt": "Mathis Biabiany — Animation, Three.js website design"
+   },
+   {
+    "name": "Ciao Energy",
+    "slug": "/projects/ciao-energy",
+    "url": "https://ciaoenergy.com",
+    "alt": "Ciao Energy — Food, Landing Page website design"
+   },
+   {
+    "name": "fromT",
+    "slug": "/projects/fromt",
+    "url": "https://fromt.app",
+    "alt": "fromT — Fonts, Typography website design"
+   },
+   {
+    "name": "Alex Alspaugh",
+    "slug": "/projects/alex-alspaugh",
+    "url": "https://www.alexalspaugh.com",
+    "alt": "Alex Alspaugh — Designer, Portfolio website design"
+   },
+   {
+    "name": "Research Design Agency",
+    "slug": "/projects/research-design-agency",
+    "url": "https://researchdesignagency.com",
+    "alt": "Research Design Agency — Agency, Studio website design"
+   }
+  ]
+ },
+ "elegant": {
+  "status": 200,
+  "count": 25,
+  "items": [
+   {
+    "name": "Singular Forms",
+    "slug": "/projects/singular-forms",
+    "url": "https://www.singularforms.com",
+    "alt": "Singular Forms — Designer, Photographer website design"
+   },
+   {
+    "name": "Elodie Fabbri",
+    "slug": "/projects/elodie-fabbri",
+    "url": "https://elodiefabbri.com",
+    "alt": "Elodie Fabbri — Art, Fashion website design"
+   },
+   {
+    "name": "Bécane",
+    "slug": "/projects/bcane",
+    "url": "https://www.becaneparis.com",
+    "alt": "Bécane — Fashion, E-commerce website design"
+   },
+   {
+    "name": "Mathis Biabiany",
+    "slug": "/projects/mathis-biabiany",
+    "url": "https://mathis-biabiany.fr",
+    "alt": "Mathis Biabiany — Animation, Three.js website design"
+   },
+   {
+    "name": "Clue Perfumery",
+    "slug": "/projects/clue-perfumery",
+    "url": "https://www.clueperfumery.com",
+    "alt": "Clue Perfumery — Fashion, Branding website design"
+   },
+   {
+    "name": "Sobha Privy Collection",
+    "slug": "/projects/sobha-privy-collection",
+    "url": "https://sobha-privy-collection.com",
+    "alt": "Sobha Privy Collection — Real Estate, Dark UI website design"
+   },
+   {
+    "name": "Kononenko Group",
+    "slug": "/projects/kononenko-group",
+    "url": "https://kononenkogroup.com",
+    "alt": "Kononenko Group — Real Estate, Designer website design"
+   },
+   {
+    "name": "Mandy Graham",
+    "slug": "/projects/mandy-graham",
+    "url": "https://www.mandygraham.com",
+    "alt": "Mandy Graham — Designer, Portfolio website design"
+   },
+   {
+    "name": "Airvoir",
+    "slug": "/projects/airvoir",
+    "url": "https://www.airvoir.com",
+    "alt": "Airvoir — Travel, Corporate website design"
+   },
+   {
+    "name": "Vero",
+    "slug": "/projects/vero",
+    "url": "https://verostudio.com",
+    "alt": "Vero — Art, Culture website design"
+   },
+   {
+    "name": "PALAZZO MONTI",
+    "slug": "/projects/palazzo-monti",
+    "url": "https://palazzomonti.org",
+    "alt": "PALAZZO MONTI — Art, Culture website design"
+   },
+   {
+    "name": "Miu Miu",
+    "slug": "/projects/miu-miu",
+    "url": "https://immersivebags.miumiu.com",
+    "alt": "Miu Miu — Fashion, Immersive website design"
+   },
+   {
+    "name": "Weekend Max Mara Pasticcino Bag Master",
+    "slug": "/projects/weekend-max-mara-pasticcino-bag-master",
+    "url": "https://weekend-mm-2026-pasticcino-bag-master.monogrid.io/en",
+    "alt": "Weekend Max Mara Pasticcino Bag Master — Fashion, Immersive website design"
+   },
+   {
+    "name": "DDNA",
+    "slug": "/projects/ddna",
+    "url": "https://d-d-n-a.com",
+    "alt": "DDNA — Fashion, Branding website design"
+   },
+   {
+    "name": "Nia Creative",
+    "slug": "/projects/nia-creative",
+    "url": "https://niacreative.co",
+    "alt": "Nia Creative — Agency, Studio website design"
+   },
+   {
+    "name": "Atlas Card",
+    "slug": "/projects/atlas-card",
+    "url": "https://atlascard.com",
+    "alt": "Atlas Card — Finance, Travel website design"
+   },
+   {
+    "name": "Glein",
+    "slug": "/projects/glein",
+    "url": "https://glein.wien",
+    "alt": "Glein — Art, Studio website design"
+   },
+   {
+    "name": "Zara Webb",
+    "slug": "/projects/zara-webb",
+    "url": "https://zperinatal.com",
+    "alt": "Zara Webb — Health, Education website design"
+   },
+   {
+    "name": "Rennsport",
+    "slug": "/projects/rennsport",
+    "url": "https://911rennsport.co.uk",
+    "alt": "Rennsport — Classic, Dark website design"
+   },
+   {
+    "name": "ERA Residence",
+    "slug": "/projects/era-residence",
+    "url": "https://era-residence.com",
+    "alt": "ERA Residence — Real Estate, Elegant website design"
+   },
+   {
+    "name": "Marry&Bride",
+    "slug": "/projects/marry-and-bride",
+    "url": "https://marryandbride.com",
+    "alt": "Marry&Bride — Fashion, E-commerce website design"
+   },
+   {
+    "name": "Davis Row",
+    "slug": "/projects/davis-row",
+    "url": "https://www.davisrow.com",
+    "alt": "Davis Row — Travel, Branding website design"
+   },
+   {
+    "name": "Klimt Wine",
+    "slug": "/projects/klimt-wine",
+    "url": "https://klimtwine.com/en",
+    "alt": "Klimt Wine — Art, Food website design"
+   },
+   {
+    "name": "Roko Gabrilo",
+    "slug": "/projects/roko-gabrilo",
+    "url": "https://roko-g.work",
+    "alt": "Roko Gabrilo — Designer, Developer website design"
+   }
+  ]
+ },
+ "dark": {
+  "status": 200,
+  "count": 25,
+  "items": [
+   {
+    "name": "Emmpo",
+    "slug": "/projects/emmpo",
+    "url": "https://emmpo.com",
+    "alt": "Emmpo — Agency, Studio website design"
+   },
+   {
+    "name": "Cult Holdings Co.",
+    "slug": "/projects/cult-holdings-co",
+    "url": "https://cultholdings.co",
+    "alt": "Cult Holdings Co. — Agency, Studio website design"
+   },
+   {
+    "name": "Nothin'",
+    "slug": "/projects/nothin",
+    "url": "https://noth.in",
+    "alt": "Nothin' — Agency, Studio website design"
+   },
+   {
+    "name": "Cutout Citizens",
+    "slug": "/projects/cutout-citizens",
+    "url": "https://oumahi.art",
+    "alt": "Cutout Citizens — Art, Dark website design"
+   },
+   {
+    "name": "Prime Security",
+    "slug": "/projects/prime-security",
+    "url": "https://primesec.ai",
+    "alt": "Prime Security — Tech, Workflow website design"
+   },
+   {
+    "name": "Mathis Biabiany",
+    "slug": "/projects/mathis-biabiany",
+    "url": "https://mathis-biabiany.fr",
+    "alt": "Mathis Biabiany — Animation, Three.js website design"
+   },
+   {
+    "name": "illoca",
+    "slug": "/projects/illoca",
+    "url": "https://illoca.unseen.co",
+    "alt": "illoca — 3D, Tech website design"
+   },
+   {
+    "name": "/zeroz",
+    "slug": "/projects/zeroz",
+    "url": "https://otsuka-air.jp",
+    "alt": "/zeroz — Health, Food website design"
+   },
+   {
+    "name": "Everest",
+    "slug": "/projects/everest",
+    "url": "https://everest.suraj.work",
+    "alt": "Everest — Animation, Three.js website design"
+   },
+   {
+    "name": "FOOROR",
+    "slug": "/projects/fooror",
+    "url": "https://fooror.com/en",
+    "alt": "FOOROR — Agency, Branding website design"
+   },
+   {
+    "name": "Mohsin Meer",
+    "slug": "/projects/mohsin-meer",
+    "url": "https://meermohsin.me",
+    "alt": "Mohsin Meer — Designer, Developer website design"
+   },
+   {
+    "name": "Agora",
+    "slug": "/projects/agora",
+    "url": "https://www.agora.xyz",
+    "alt": "Agora — Web3, Finance website design"
+   },
+   {
+    "name": "Forms",
+    "slug": "/projects/forms",
+    "url": "https://forms.world",
+    "alt": "Forms — Studio, Agency website design"
+   },
+   {
+    "name": "Happy Ring",
+    "slug": "/projects/happy-ring",
+    "url": "https://happyring.fiftyseven.co",
+    "alt": "Happy Ring — Health, Tech website design"
+   },
+   {
+    "name": "The Watch by 60fps",
+    "slug": "/projects/the-watch-by-60fps",
+    "url": "https://thewatch.60fps.fr",
+    "alt": "The Watch by 60fps — Three.js, WebGL website design"
+   },
+   {
+    "name": "Vigilante",
+    "slug": "/projects/vigilante",
+    "url": "https://vigilante.group",
+    "alt": "Vigilante — Agency, Studio website design"
+   },
+   {
+    "name": "Rennsport",
+    "slug": "/projects/rennsport",
+    "url": "https://911rennsport.co.uk",
+    "alt": "Rennsport — Classic, Dark website design"
+   },
+   {
+    "name": "CINEDEPT",
+    "slug": "/projects/cinedept",
+    "url": "https://www.cinedept.com",
+    "alt": "CINEDEPT — Agency, Studio website design"
+   },
+   {
+    "name": "Muradov",
+    "slug": "/projects/muradov",
+    "url": "https://www.muradov.design",
+    "alt": "Muradov — Animation, Motion website design"
+   },
+   {
+    "name": "TASTE",
+    "slug": "/projects/taste",
+    "url": "https://www.tasteinmotion.com",
+    "alt": "TASTE — Animation, Motion website design"
+   },
+   {
+    "name": "Paul Kalkbrenner",
+    "slug": "/projects/paul-kalkbrenner",
+    "url": "https://paulkalkbrenner.net",
+    "alt": "Paul Kalkbrenner — Music, Entertainment website design"
+   },
+   {
+    "name": "Neoconda",
+    "slug": "/projects/neoconda",
+    "url": "https://neoconda.com",
+    "alt": "Neoconda — Agency, Studio website design"
+   },
+   {
+    "name": "Cerebrium",
+    "slug": "/projects/cerebrium",
+    "url": "https://cerebrium.ai",
+    "alt": "Cerebrium — Cloud, Dev website design"
+   },
+   {
+    "name": "PRODUX",
+    "slug": "/projects/produx",
+    "url": "https://produx.design",
+    "alt": "PRODUX — Agency, Studio website design"
+   }
+  ]
+ },
+ "habits": {
+  "status": 200,
+  "count": 17,
+  "items": [
+   {
+    "name": "SuperHi Plus",
+    "slug": "/projects/superhi-plus",
+    "url": "https://superhi.plus",
+    "alt": "SuperHi Plus — Community, Culture website design"
+   },
+   {
+    "name": "The InnerWebs",
+    "slug": "/projects/the-innerwebs",
+    "url": "https://theinnerwebs.com",
+    "alt": "The InnerWebs — Productivity, Workflow website design"
+   },
+   {
+    "name": "Life Time",
+    "slug": "/projects/life-time",
+    "url": "https://www.lifetime.life",
+    "alt": "Life Time — Health, Real Estate website design"
+   },
+   {
+    "name": "Blok.so",
+    "slug": "/projects/blok-so",
+    "url": "https://blok.so",
+    "alt": "Blok.so — Habits, Productivity website design"
+   },
+   {
+    "name": "Parasite 2.0",
+    "slug": "/projects/parasite-2-0",
+    "url": "http://parasiteparasite.com",
+    "alt": "Parasite 2.0 — Agency, Studio website design"
+   },
+   {
+    "name": "Then",
+    "slug": "/projects/then-mindful-time-tracker",
+    "url": "https://timestwelve.xyz/then",
+    "alt": "Then — Productivity, Health website design"
+   },
+   {
+    "name": "Presence.supply",
+    "slug": "/projects/presence-supply",
+    "url": "https://presence.supply",
+    "alt": "Presence.supply — Health, Habits website design"
+   },
+   {
+    "name": "Pattrn",
+    "slug": "/projects/pattrn",
+    "url": "https://pattrn.io",
+    "alt": "Pattrn — Habits, Productivity website design"
+   },
+   {
+    "name": "Oku",
+    "slug": "/projects/oku",
+    "url": "https://oku.club",
+    "alt": "Oku — App, Productivity website design"
+   },
+   {
+    "name": "Daybox",
+    "slug": "/projects/daybox",
+    "url": "https://usedaybox.com",
+    "alt": "Daybox — Productivity, Habits website design"
+   },
+   {
+    "name": "Tiempo",
+    "slug": "/projects/tiempo",
+    "url": "https://www.tiempo.fitness",
+    "alt": "Tiempo — Health, Productivity website design"
+   },
+   {
+    "name": "Fable Pets",
+    "slug": "/projects/fable-pets",
+    "url": "https://fablepets.com",
+    "alt": "Fable Pets — Product, Outdoor website design"
+   },
+   {
+    "name": "Aim",
+    "slug": "/projects/aim",
+    "url": "https://timestwelve.xyz/aim",
+    "alt": "Aim — Productivity, Tasks website design"
+   },
+   {
+    "name": "How Many Plants",
+    "slug": "/projects/how-many-plants",
+    "url": "https://howmanyplants.com",
+    "alt": "How Many Plants — Sustainability, Community website design"
+   },
+   {
+    "name": "Deltaboard",
+    "slug": "/projects/deltaboard",
+    "url": "https://www.delta-board.com/en-global",
+    "alt": "Deltaboard — Health, Habits website design"
+   },
+   {
+    "name": "Joi — Daily Planner & Organizer",
+    "slug": "/projects/joi",
+    "url": "https://joi.software",
+    "alt": "Joi — Daily Planner & Organizer — App, Productivity website design"
+   }
+  ]
+ },
+ "launcher": {
+  "status": 200,
+  "count": 10,
+  "items": [
+   {
+    "name": "Mymind",
+    "slug": "/projects/mymind",
+    "url": "https://mymind.com",
+    "alt": "Mymind — Productivity, Workflow website design"
+   },
+   {
+    "name": "Portal — The Fastest Way Into Your Apps",
+    "slug": "/projects/useportal",
+    "url": "https://useportal.net",
+    "alt": "Portal — The Fastest Way Into Your Apps — Productivity, Minimal website design"
+   },
+   {
+    "name": "Raycast",
+    "slug": "/projects/raycast",
+    "url": "https://www.raycast.com",
+    "alt": "Raycast — Productivity, Launcher website design"
+   },
+   {
+    "name": "SuperHi Plus",
+    "slug": "/projects/superhi-plus",
+    "url": "https://superhi.plus",
+    "alt": "SuperHi Plus — Community, Culture website design"
+   },
+   {
+    "name": "Cool Stuff",
+    "slug": "/projects/cool-stuff",
+    "url": "https://coolstuff.app",
+    "alt": "Cool Stuff — Productivity, Launcher website design"
+   },
+   {
+    "name": "Manifest",
+    "slug": "/projects/manifest",
+    "url": "https://www.manifest.app",
+    "alt": "Manifest — Productivity, Launcher website design"
+   },
+   {
+    "name": "Lazy",
+    "slug": "/projects/lazy",
+    "url": "https://lazy.so",
+    "alt": "Lazy — Productivity, Workflow website design"
+   },
+   {
+    "name": "Essential",
+    "slug": "/projects/essential",
+    "url": "https://www.essential.com",
+    "alt": "Essential — Tech, Productivity website design"
+   },
+   {
+    "name": "bueno.fyi",
+    "slug": "/projects/buenofyi",
+    "url": "https://bueno.fyi",
+    "alt": "bueno.fyi — Personal, Launcher website design"
+   }
+  ]
+ }
+}

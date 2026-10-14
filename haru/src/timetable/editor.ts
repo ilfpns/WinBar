@@ -1,0 +1,90 @@
+import { mod } from './time';
+import { CATEGORIES, CATEGORY_KEYS, type Category } from './model';
+import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, state, subscribe } from './state';
+import { timeField } from '../ui/time-field';
+
+interface EditorFields extends HTMLFormControlsCollection {
+  title: HTMLInputElement;
+}
+
+function req<T extends Element>(root: ParentNode, selector: string): T {
+  const node = root.querySelector<T>(selector);
+  if (!node) throw new Error(`missing ${selector}`);
+  return node;
+}
+
+export function mountEditor(form: HTMLFormElement): void {
+  const f = form.elements as EditorFields;
+  const head = req<HTMLElement>(form, '#ed-head');
+  const err = req<HTMLElement>(form, '#err');
+  const del = req<HTMLButtonElement>(form, '#del');
+  const chips = req<HTMLElement>(form, '#chips');
+  const doneBtn = req<HTMLButtonElement>(form, '#ed-done');
+  doneBtn.addEventListener('click', () => patchDraft({ done: !state.draft?.done }));
+
+  // custom 24h pickers: native <select>/<input type=time> follow OS styling and the 12h locale
+  const setTimes = (start: number, end: number) => {
+    err.textContent = '';
+    patchDraft({ start, dur: mod(end - start) });
+  };
+  const startField = timeField(req(form, '[data-field="start"]'), (m) => {
+    const d = state.draft;
+    if (d) setTimes(m, d.start + d.dur);
+  });
+  const endField = timeField(req(form, '[data-field="end"]'), (m) => {
+    const d = state.draft;
+    if (d) setTimes(d.start, m);
+  });
+
+  chips.replaceChildren(...CATEGORY_KEYS.map((k) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.setAttribute('role', 'radio');
+    b.dataset.cat = k;
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    dot.style.setProperty('--c', `var(--cat-${k})`);
+    b.append(dot, CATEGORIES[k]);
+    b.addEventListener('click', () => patchDraft({ cat: k as Category }));
+    return b;
+  }));
+
+  let filledKey = -1;
+
+  function render(): void {
+    const d = state.draft;
+    form.hidden = !d;
+    if (!d) return;
+    if (filledKey !== state.draftKey) {
+      // a newly opened draft: refill everything and focus the title
+      filledKey = state.draftKey;
+      head.textContent = d.id ? 'Edit task' : 'New task';
+      del.hidden = !d.id;
+      f.title.value = d.title;
+      err.textContent = '';
+      queueMicrotask(() => f.title.focus());
+    }
+    form.style.setProperty('--c', `var(--cat-${d.cat})`);
+    doneBtn.setAttribute('aria-pressed', String(d.done));
+    startField.set(d.start);
+    endField.set(mod(d.start + d.dur));
+    chips.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.cat === d.cat)));
+  }
+
+  f.title.addEventListener('input', () => patchDraft({ title: f.title.value }));
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    err.textContent = commitDraft() ?? '';
+  });
+
+  form.addEventListener('click', (e) => {
+    const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
+    if (act === 'cancel') closeDraft();
+    if (act === 'delete') deleteDraftBlock();
+  });
+
+  subscribe(render);
+  render();
+}

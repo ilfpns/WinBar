@@ -509,7 +509,7 @@ internal static class RunCat
 internal static class HaruLink
 {
     public const string Scheme = "winbar";
-    private const string Url = "https://ilfpns.github.io/haru/?winbar=1";
+    private const string Url = "https://ilfpns.github.io/WinBar/?winbar=1";
     private const string PipeName = "WinBar.Haru";
     private static readonly Color Core = Color.FromArgb(79, 191, 122);
 
