@@ -57,10 +57,13 @@ export function mountAccount(refs: AccountRefs): void {
   const status = document.createElement('span');
   status.className = 'meta acct-sync';
   refs.section.querySelector('.section-head')!.append(status);
+  // the bottom row of the drawer: Sign out (or Sign in) at its right end
   const signOut = document.createElement('button');
   signOut.type = 'button';
-  signOut.className = 'btn-text';
-  signOut.textContent = 'Sign out';
+  signOut.className = 'btn-text acct-foot';
+  signOut.append(icon('log-out'), 'Sign out');
+  refs.section.closest('.panel')?.querySelector('.panel-foot')?.append(signOut);
+  signOut.hidden = true;
   const invites = document.createElement('div');
   invites.className = 'acct-invites';
   invites.hidden = true;
@@ -87,6 +90,7 @@ export function mountAccount(refs: AccountRefs): void {
       stopSync = null;
       invites.hidden = true;
       if (!user) {
+        signOut.hidden = true;
         who.replaceChildren();
         status.textContent = '';
         showGate('Sign in with an invited Google account.', true);
@@ -145,7 +149,8 @@ export function mountAccount(refs: AccountRefs): void {
     text.innerHTML = '<span class="acct-name"></span><span class="acct-mail meta"></span>';
     text.querySelector('.acct-name')!.textContent = name;
     text.querySelector('.acct-mail')!.textContent = email;
-    who.replaceChildren(avatar, text, signOut);
+    who.replaceChildren(avatar, text);
+    signOut.hidden = false;
   }
 
   /** Owner only: invite Google accounts by email, and remove them. */

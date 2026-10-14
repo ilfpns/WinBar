@@ -1,4 +1,7 @@
 * { box-sizing: border-box; }
+/* no scrollbars anywhere in the app: everything still scrolls (wheel, touch, keys), the bars are just never drawn */
+*, *::before, *::after { scrollbar-width: none !important; }
+::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 html, body { margin: 0; }
 body {
   min-height: 100svh;
@@ -149,7 +152,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-nav { display: flex; align-items: center; gap: 6px; }
 /* statistics dialog */
 .stats {
-  width: min(680px, calc(100vw - 32px)); max-height: min(86svh, 760px); padding: 20px; overflow-y: auto; scrollbar-width: thin;
+  width: min(680px, calc(100vw - 32px)); max-height: min(86svh, 760px); padding: 20px; overflow-y: auto;
   border: 1px solid var(--panel-border); border-radius: 10px; background: var(--popover); color: var(--text);
   animation: stats-in .32s var(--drawer-ease) both;
 }
@@ -235,7 +238,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 
 .cal-day { align-self: stretch; display: flex; flex-direction: column; gap: 14px; min-height: 0; padding: 16px;
   /* opening the day's timetable never pushes the page: the memo gives up room, and the panel scrolls inside if it must */
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well); }
+  overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well); }
 .cal-day-head { position: relative; display: grid; gap: 6px; }
 .cal-tt-btn { position: absolute; top: 0; right: 0; }
 .cal-tt-btn .ic { width: 15px; height: 15px; }
@@ -243,7 +246,6 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 /* that day's timetable: a small dial and its tasks */
 .cal-tt { display: grid; gap: 10px; padding: 10px; overflow: hidden; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .25); }
 .cal-tt[hidden] { display: none; }
-.cal-day::-webkit-scrollbar { display: none; }
 .cal-day > * { flex-shrink: 0; }
 .cal-day > .cal-note { flex-shrink: 1; }
 .cal-day:has(.cal-tt:not([hidden])) .cal-note { min-height: 96px; }
@@ -504,7 +506,7 @@ body.resizing .panel > * { animation: none; }
 .panel {
   align-self: stretch; height: 100%;
   display: flex; flex-direction: column; gap: 14px; padding: 10px;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+  overflow-y: auto; overscroll-behavior: contain;
   background: var(--panel);
   backdrop-filter: blur(var(--blur-glass));
   border: 1px solid var(--panel-border); border-radius: var(--radius-sm);
@@ -616,7 +618,7 @@ body.resizing .panel > * { animation: none; }
 .tpl-status { display: inline-flex; align-items: center; gap: 4px; text-transform: none; }
 .tpl-undo { padding: 2px 6px; font-size: 11px; color: var(--accent); }
 /* account */
-.acct-who { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 4px 4px 4px 6px; }
+.acct-who { display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 10px; padding: 4px 4px 4px 6px; }
 .acct-avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: var(--gray-btn); font-weight: 500; color: var(--text-strong); }
 .acct-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .acct-text { display: grid; min-width: 0; }
@@ -646,7 +648,10 @@ body.gated > :not(.gate) { visibility: hidden; }
 .backup-row #backup-auto[aria-pressed="true"] { color: var(--text-strong); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .backup-status { text-transform: none; }
 .backup-status.bad { color: var(--danger); }
-.panel-foot { display: flex; gap: 2px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); }
+.panel-foot { display: flex; align-items: center; gap: 2px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); }
+/* sign in / out sits at the right end of the drawer's bottom row */
+.acct-foot { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.acct-foot .ic { width: 14px; height: 14px; }
 
 /* right panel */
 .panel-head { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 2px 0 8px; }
