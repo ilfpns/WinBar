@@ -5,9 +5,11 @@ import { icon } from '../ui/icons';
 
 /** data/news.json, refreshed every 10 minutes by scripts/fetch-news.mjs (GitHub Actions). */
 type Topic = 'ai' | 'agi' | 'robotics' | 'chips' | 'embedded' | 'sw' | 'hw';
-interface NewsItem { title: string; source: string; link: string; time: number; topics: Topic[]; place: string; lang: string }
+interface NewsItem { title: string; source: string; link: string; time: number; topics: Topic[]; place: string; lang: string; kw?: string[] }
 interface Place extends GeoPoint { id: string; name: string; iso?: string[] }
-interface NewsFile { updated: string; places: Place[]; items: NewsItem[] }
+interface Story { title: string; link: string; source: string; time: number; outlets: number }
+interface Week { from: string; to: string; hot: [string, number][]; top: Story | null }
+interface NewsFile { updated: string; places: Place[]; week?: Week; items: NewsItem[] }
 
 const POLL_MS = 60_000;     // look for a fresh file this often while the page is open
 const FRESH_MS = 6 * 3600_000;
@@ -36,6 +38,7 @@ export interface NewsRefs {
   updated: HTMLElement;
   live: HTMLElement;
   scope: HTMLElement;
+  week: HTMLElement;
   topics: HTMLElement;
   list: HTMLElement;
 }
@@ -45,6 +48,8 @@ export function mountNews(refs: NewsRefs): void {
   let data: NewsFile | null = null;
   let picked: string | null = null;
   let topic: Topic | null = null;
+  /** A hot keyword picked in "This week": the list shows only headlines about it. */
+  let keyword: string | null = null;
   /** Headlines that arrived while the page was open (marked until reload). */
   const fresh = new Set<string>();
   let globe: ReturnType<typeof createGlobe> | null = null;
@@ -52,7 +57,71 @@ export function mountNews(refs: NewsRefs): void {
   // ---------- the drawer
   /** Headlines passing the topic filter (and the picked place). */
   const matching = (withPlace = true) =>
-    (data?.items ?? []).filter((i) => (!topic || i.topics.includes(topic)) && (!withPlace || !picked || i.place === picked));
+    (data?.items ?? []).filter((i) => (!topic || i.topics.includes(topic)) && (!keyword || i.kw?.includes(keyword)) && (!withPlace || !picked || i.place === picked));
+
+  /** "This week" (shown while no country is picked): the hottest keywords and the story most outlets ran. */
+  function renderWeek(): void {
+    const week = data?.week;
+    refs.week.hidden = !!picked || !week || (!week.hot.length && !week.top);
+    if (refs.week.hidden || !week) return;
+    const fmtDay = (d: string) => new Date(`${d}T00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const head = document.createElement('div');
+    head.className = 'news-week-head';
+    head.innerHTML = '<span>This week</span><span class="meta"></span>';
+    head.querySelector('.meta')!.textContent = `${fmtDay(week.from)} – ${fmtDay(week.to)}`;
+    const parts: HTMLElement[] = [head];
+
+    const [first, ...rest] = week.hot;
+    if (first) {
+      const hot = document.createElement('div');
+      hot.className = 'news-hot';
+      const lead = document.createElement('button');
+      lead.type = 'button';
+      lead.className = 'news-hot-lead';
+      lead.setAttribute('aria-pressed', String(keyword === first[0]));
+      lead.innerHTML = '<span class="meta">Hottest keyword</span><span class="kw"></span><span class="n meta"></span>';
+      lead.querySelector('.kw')!.textContent = first[0];
+      lead.querySelector('.n')!.textContent = `${first[1]} stories`;
+      lead.addEventListener('click', () => pickKeyword(first[0]));
+      const chips = document.createElement('div');
+      chips.className = 'news-hot-rest';
+      chips.append(...rest.slice(0, 7).map(([k, n]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.setAttribute('aria-pressed', String(keyword === k));
+        b.innerHTML = '<span></span><span class="n"></span>';
+        b.firstElementChild!.textContent = k;
+        b.lastElementChild!.textContent = String(n);
+        b.addEventListener('click', () => pickKeyword(k));
+        return b;
+      }));
+      hot.append(lead, chips);
+      parts.push(hot);
+    }
+    if (week.top) {
+      const a = document.createElement('a');
+      a.className = 'news-top';
+      a.href = week.top.link;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.innerHTML = '<span class="meta">Most covered</span><span class="news-title"></span><span class="news-meta meta"><span class="src"></span><span class="ago"></span></span>';
+      a.querySelector('.news-title')!.textContent = week.top.title;
+      a.querySelector('.src')!.textContent = week.top.source;
+      a.querySelector('.ago')!.textContent = `${week.top.outlets} outlets`;
+      parts.push(a);
+    }
+    refs.week.replaceChildren(...parts);
+  }
+
+  function pickKeyword(k: string): void {
+    keyword = keyword === k ? null : k;
+    renderWeek();
+    renderScope();
+    renderList();
+    globe?.setMarkers(markers());
+    refs.list.scrollTop = 0;
+  }
 
   // topic chips: one active at a time; clicking the active one shows everything again
   const topicChips = new Map<Topic | null, HTMLButtonElement>();
@@ -78,11 +147,22 @@ export function mountNews(refs: NewsRefs): void {
 
   function renderScope(): void {
     const region = data?.places.find((r) => r.id === picked);
+    // an active keyword shows as a chip too, so it's clear why the list is short
+    const kwChip = (): HTMLElement[] => {
+      if (!keyword) return [];
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.setAttribute('aria-label', `Clear keyword ${keyword}`);
+      b.append(keyword, icon('x'));
+      b.addEventListener('click', () => pickKeyword(keyword!));
+      return [b];
+    };
     if (!region) {
       const all = document.createElement('span');
       all.className = 'meta';
       all.textContent = 'All countries';
-      refs.scope.replaceChildren(all);
+      refs.scope.replaceChildren(all, ...kwChip());
       return;
     }
     const chip = document.createElement('button');
@@ -91,7 +171,7 @@ export function mountNews(refs: NewsRefs): void {
     chip.setAttribute('aria-label', `Show all countries (now ${region.name})`);
     chip.append(region.name, icon('x'));
     chip.addEventListener('click', () => choose(null));
-    refs.scope.replaceChildren(chip);
+    refs.scope.replaceChildren(chip, ...kwChip());
   }
 
   function renderList(): void {
@@ -145,6 +225,7 @@ export function mountNews(refs: NewsRefs): void {
   function choose(id: string | null): void {
     picked = id;
     globe?.select(id);
+    renderWeek();
     renderScope();
     renderList();
     refs.list.scrollTop = 0;
@@ -175,6 +256,7 @@ export function mountNews(refs: NewsRefs): void {
       globe?.flash([...new Set(arrived.map((i) => i.place))]);
     }
     globe?.setMarkers(markers());
+    renderWeek();
     renderScope();
     renderList();
     renderUpdated();
@@ -183,8 +265,8 @@ export function mountNews(refs: NewsRefs): void {
   let lastStamp = '';
   async function poll(): Promise<void> {
     try {
-      // the site's CDN caches files for a few minutes: ask past it
-      const res = await fetch(`${import.meta.env.BASE_URL}data/news.json?t=${Date.now()}`, { cache: 'no-store' });
+      // revalidate every time: unchanged → a tiny 304, changed → the new file (publishing purges the site's CDN)
+      const res = await fetch(`${import.meta.env.BASE_URL}data/news.json`, { cache: 'no-cache' });
       if (!res.ok) throw new Error(String(res.status));
       const next = (await res.json()) as NewsFile;
       refs.live.classList.add('on');
