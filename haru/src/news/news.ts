@@ -206,7 +206,7 @@ export function mountNews(refs: NewsRefs): void {
   renderScope();
 
   // ---------- the globe
-  fetch(`${import.meta.env.BASE_URL}data/globe.json`)
+  fetch(`${import.meta.env.BASE_URL}data/globe.json?v=${__BUILD_ID__}`)
     .then((r) => r.json() as Promise<{ points: LandDot[]; extra?: LandDot[] }>)
     .then(({ points, extra }) => {
       globe = createGlobe(refs.canvas, points, extra ?? [], { lat: 37.57, lon: 126.98 });

@@ -401,7 +401,7 @@ export function mountCalendar(refs: CalendarRefs): void {
 
   render(0);
   // data is a static snapshot shipped with the site; refreshed on every deploy
-  fetch(`${import.meta.env.BASE_URL}data/calendar.json`)
+  fetch(`${import.meta.env.BASE_URL}data/calendar.json?v=${__BUILD_ID__}`)
     .then((r) => r.json() as Promise<{ events: CalEvent[] }>)
     .then((data) => {
       events = data.events ?? [];

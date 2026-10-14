@@ -18,7 +18,7 @@ const PIN_HIT_PX = 16;       // how close a click must land to a pin
 const FLASH_MS = 2600;       // a pin that just got news pulses this long
 const AIM_MS = 260;          // turning a picked place to the front: time constant
 const POP_MS = 650;          // one dot of a picked country popping up
-const POP_SPREAD_MS = 700;   // the pop ripples out from the pin over this long
+const POP_SPREAD_MS = 650;   // dots pop at random moments within this window, all over the country
 const UNLIGHT_MS = 300;      // letting go of a country fades its dots back
 const ZOOM_IN = 2.4;         // double-click zoom
 const ZOOM_MS = 180;         // zoom easing time constant
@@ -89,11 +89,12 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     for (let i = 0; i < total; i++) if (want.has(cc[i]!)) picked.push(i);
     // a country too small for the dot grid: light the land right around its pin instead
     if (picked.length < 8) picked = picked.concat([...Array(n).keys()].filter((i) => !want.has(cc[i]!) && angle(i) < 2.5 * DEG));
+    // the whole country lights up together: every dot pops at its own random moment (a slight lead near the pin)
     const far = Math.max(1e-3, ...picked.map(angle));
     lit = {
       start: now,
       until: Infinity,
-      dots: picked.map((i) => ({ i, delay: (angle(i) / far) * POP_SPREAD_MS + Math.random() * 120 })),
+      dots: picked.map((i) => ({ i, delay: (0.8 * Math.random() + 0.2 * (angle(i) / far)) * POP_SPREAD_MS })),
     };
     for (const { i } of lit.dots) if (i < n) litMask[i] = 1;
   }
@@ -482,8 +483,8 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
           continue;
         }
         const p = Math.min(1, t);
-        const r = size * (p < 1 ? 1 + 1.3 * bump(p, 0.35) + 0.15 * smooth(p) : 1.15);
-        const a = Math.min(1, p * 2.5) * strength * (0.45 + 0.55 * z2);
+        const r = size * (p < 1 ? 1 + 1.3 * bump(p, 0.35) + 0.35 * smooth(p) : 1.35);
+        const a = Math.min(1, p * 2.5) * strength * (0.8 + 0.2 * z2);
         const path = green[Math.min(BUCKETS - 1, Math.floor(a * BUCKETS))]!;
         path.moveTo(sx + r, sy);
         path.arc(sx, sy, r, 0, TAU);
