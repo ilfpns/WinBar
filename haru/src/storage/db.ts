@@ -1,9 +1,10 @@
 /**
- * The app's IndexedDB: `notes` (one memo per date) and `kv` (mirrors and settings that must
- * outlive localStorage hiccups — the timetable copy, the backup file handle).
+ * The app's IndexedDB: `notes` (one memo per date), `images` (pictures attached to a day's memo)
+ * and `kv` (mirrors and settings that must outlive localStorage hiccups — the timetable copy,
+ * the backup file handle). Upgrades only ever add stores, so nothing saved is touched.
  */
 const NAME = 'haru';
-const VERSION = 2;
+const VERSION = 3;
 
 let opening: Promise<IDBDatabase> | null = null;
 
@@ -14,8 +15,14 @@ export function db(): Promise<IDBDatabase> {
       const d = req.result;
       if (!d.objectStoreNames.contains('notes')) d.createObjectStore('notes', { keyPath: 'date' });
       if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
+      if (!d.objectStoreNames.contains('images')) d.createObjectStore('images', { keyPath: 'id' });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const opened = req.result;
+      // a newer Haru (another tab, after a deploy) needs to upgrade: step aside instead of blocking it
+      opened.onversionchange = () => opened.close();
+      resolve(opened);
+    };
     req.onerror = () => reject(req.error);
   });
   return opening;

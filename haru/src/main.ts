@@ -63,6 +63,7 @@ mountNews({
   updated: byId('news-updated'),
   live: byId('news-live'),
   scope: byId('news-scope'),
+  topics: byId('news-topics'),
   list: byId('news-list'),
 });
 mountCalendar({

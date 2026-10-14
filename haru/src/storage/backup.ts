@@ -2,6 +2,7 @@ import { kvGet, kvSet, requestPersistence } from './db';
 import { type Block, isBlock } from '../timetable/model';
 import { setState, state, subscribe } from '../timetable/state';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
+import { type ImageRecord, fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
 
 /**
  * Keeping data no matter what:
@@ -16,6 +17,8 @@ interface BackupFile {
   exportedAt: string;
   timetable: Block[];
   notes: NoteRecord[];
+  /** Memo images; `data` is a data URL. Missing in backups made before images existed. */
+  images?: { id: string; date: string; created: number; data: string }[];
 }
 
 // File System Access API (Chromium); not in TypeScript's DOM lib yet
@@ -35,8 +38,9 @@ export interface BackupRefs {
   file: HTMLInputElement;
 }
 
-function snapshot(): BackupFile {
-  return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [] };
+async function snapshot(): Promise<BackupFile> {
+  const images = await Promise.all((imagesStore()?.all() ?? []).map(async (r) => ({ id: r.id, date: r.date, created: r.created, data: await toDataUrl(r.blob) })));
+  return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [], images };
 }
 
 export function mountBackup(refs: BackupRefs): void {
@@ -69,10 +73,11 @@ export function mountBackup(refs: BackupRefs): void {
     })
     .catch(() => {});
   onNotesChanged(() => scheduleFileSave());
+  onImagesChanged(() => scheduleFileSave());
 
   // ---- 3a. Export / Import
-  refs.exportBtn.addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(snapshot(), null, 2)], { type: 'application/json' });
+  refs.exportBtn.addEventListener('click', async () => {
+    const blob = new Blob([JSON.stringify(await snapshot(), null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `haru-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -93,6 +98,15 @@ export function mountBackup(refs: BackupRefs): void {
       const notes = (Array.isArray(data.notes) ? data.notes : []).filter((n): n is NoteRecord => typeof n?.date === 'string' && typeof n.text === 'string');
       setState({ blocks, draft: null, selected: [] });
       notesStore()?.replace(notes);
+      // older backups have no images: leave the current ones alone then
+      if (Array.isArray(data.images)) {
+        const imgs: ImageRecord[] = [];
+        for (const i of data.images) {
+          if (typeof i?.date !== 'string' || typeof i.data !== 'string' || !i.data.startsWith('data:image/')) continue;
+          imgs.push({ id: String(i.id), date: i.date, created: Number(i.created) || Date.now(), blob: await fromDataUrl(i.data) });
+        }
+        imagesStore()?.replace(imgs);
+      }
       show('Restored');
     } catch {
       show('Not a Haru backup', true);
@@ -112,7 +126,7 @@ export function mountBackup(refs: BackupRefs): void {
     if (!handle) return;
     try {
       const w = await handle.createWritable();
-      await w.write(JSON.stringify(snapshot(), null, 2));
+      await w.write(JSON.stringify(await snapshot(), null, 2));
       await w.close();
       show(`Saved ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`);
     } catch {

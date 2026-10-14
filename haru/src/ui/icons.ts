@@ -1,6 +1,6 @@
 import {
   ArrowRight, BookOpen, Briefcase, Calendar, CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight,
-  CircleCheck, CircleDot, Clock, Coffee, Dumbbell, House, Moon, Newspaper, Plus, Search, Sparkles, X,
+  CircleCheck, CircleDot, Clock, Coffee, Dumbbell, House, Moon, Newspaper, Plus, Search, Sparkles, X, ImagePlus, Image,
   type IconNode, createElement,
 } from 'lucide';
 
@@ -10,7 +10,7 @@ const ICONS: Record<string, IconNode> = {
   'calendar-clock': CalendarClock, check: Check, 'chevron-down': ChevronDown, 'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight, 'circle-check': CircleCheck, 'circle-dot': CircleDot, clock: Clock,
   coffee: Coffee, dumbbell: Dumbbell, house: House, moon: Moon, newspaper: Newspaper, plus: Plus,
-  search: Search, sparkles: Sparkles, x: X,
+  search: Search, sparkles: Sparkles, x: X, 'image-plus': ImagePlus, image: Image,
 };
 
 export type IconName = keyof typeof ICONS;

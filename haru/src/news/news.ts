@@ -4,13 +4,19 @@ import { toggleDrawer } from '../timetable/state';
 import { icon } from '../ui/icons';
 
 /** data/news.json, refreshed every 10 minutes by scripts/fetch-news.mjs (GitHub Actions). */
-interface NewsItem { title: string; source: string; link: string; time: number }
-interface Region extends GeoPoint { id: string; name: string; items: NewsItem[] }
-interface NewsFile { updated: string; regions: Region[] }
+type Topic = 'ai' | 'agi' | 'robotics' | 'chips' | 'embedded' | 'sw' | 'hw';
+interface NewsItem { title: string; source: string; link: string; time: number; topics: Topic[]; place: string; lang: string }
+interface Place extends GeoPoint { id: string; name: string }
+interface NewsFile { updated: string; places: Place[]; items: NewsItem[] }
 
 const POLL_MS = 60_000;     // look for a fresh file this often while the page is open
-const FRESH_MS = 3 * 3600_000;
-const ALL_LIMIT = 60;
+const FRESH_MS = 6 * 3600_000;
+const LIMIT = 120;
+/** Topic filters, in the order shown. */
+const TOPICS: [Topic, string][] = [
+  ['ai', 'AI'], ['agi', 'AGI'], ['robotics', 'Robotics'], ['chips', 'Chips'], ['embedded', 'Embedded'], ['sw', 'Software'], ['hw', 'Hardware'],
+];
+const TOPIC_LABEL = Object.fromEntries(TOPICS) as Record<Topic, string>;
 
 const fmt = (p: GeoPoint) =>
   `${Math.abs(p.lat).toFixed(1)}°${p.lat >= 0 ? 'N' : 'S'}  ${Math.abs(p.lon).toFixed(1)}°${p.lon >= 0 ? 'E' : 'W'}`;
@@ -30,6 +36,7 @@ export interface NewsRefs {
   updated: HTMLElement;
   live: HTMLElement;
   scope: HTMLElement;
+  topics: HTMLElement;
   list: HTMLElement;
 }
 
@@ -37,13 +44,40 @@ export interface NewsRefs {
 export function mountNews(refs: NewsRefs): void {
   let data: NewsFile | null = null;
   let picked: string | null = null;
+  let topic: Topic | null = null;
   /** Headlines that arrived while the page was open (marked until reload). */
   const fresh = new Set<string>();
   let globe: ReturnType<typeof createGlobe> | null = null;
 
   // ---------- the drawer
+  /** Headlines passing the topic filter (and the picked place). */
+  const matching = (withPlace = true) =>
+    (data?.items ?? []).filter((i) => (!topic || i.topics.includes(topic)) && (!withPlace || !picked || i.place === picked));
+
+  // topic chips: one active at a time; clicking the active one shows everything again
+  const topicChips = new Map<Topic | null, HTMLButtonElement>();
+  for (const [id, label] of [[null, 'All'], ...TOPICS] as [Topic | null, string][]) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      topic = topic === id ? null : id;
+      renderTopics();
+      renderList();
+      globe?.setMarkers(markers());
+      refs.list.scrollTop = 0;
+    });
+    topicChips.set(id, b);
+  }
+  refs.topics.replaceChildren(...topicChips.values());
+  function renderTopics(): void {
+    for (const [id, b] of topicChips) b.setAttribute('aria-pressed', String(id === topic));
+  }
+  renderTopics();
+
   function renderScope(): void {
-    const region = data?.regions.find((r) => r.id === picked);
+    const region = data?.places.find((r) => r.id === picked);
     if (!region) {
       const all = document.createElement('span');
       all.className = 'meta';
@@ -62,18 +96,8 @@ export function mountNews(refs: NewsRefs): void {
 
   function renderList(): void {
     if (!data) return;
-    const regions = picked ? data.regions.filter((r) => r.id === picked) : data.regions;
-    const seen = new Set<string>();
-    const rows: { item: NewsItem; region: Region }[] = [];
-    for (const region of regions) {
-      for (const item of region.items) {
-        if (seen.has(item.title)) continue; // the same story often shows up under two places
-        seen.add(item.title);
-        rows.push({ item, region });
-      }
-    }
-    rows.sort((a, b) => b.item.time - a.item.time);
-    const shown = picked ? rows : rows.slice(0, ALL_LIMIT);
+    const names = new Map(data.places.map((p) => [p.id, p.name]));
+    const shown = matching().slice(0, LIMIT);
     if (!shown.length) {
       const empty = document.createElement('li');
       empty.className = 'news-empty';
@@ -81,7 +105,7 @@ export function mountNews(refs: NewsRefs): void {
       refs.list.replaceChildren(empty);
       return;
     }
-    refs.list.replaceChildren(...shown.map(({ item, region }) => {
+    refs.list.replaceChildren(...shown.map((item) => {
       const li = document.createElement('li');
       li.classList.toggle('fresh', fresh.has(item.link));
       const a = document.createElement('a');
@@ -90,12 +114,11 @@ export function mountNews(refs: NewsRefs): void {
       a.rel = 'noopener noreferrer';
       const meta = document.createElement('span');
       meta.className = 'news-meta meta';
-      if (!picked) {
-        const place = document.createElement('span');
-        place.className = 'news-place';
-        place.textContent = region.name;
-        meta.append(place);
-      }
+      // what it's about, and where (unless a place is already picked)
+      const tag = document.createElement('span');
+      tag.className = 'news-place';
+      tag.textContent = [TOPIC_LABEL[item.topics[0]!], picked ? '' : names.get(item.place) ?? ''].filter(Boolean).join(' · ');
+      meta.append(tag);
       const src = document.createElement('span');
       src.className = 'src';
       src.textContent = item.source;
@@ -107,6 +130,7 @@ export function mountNews(refs: NewsRefs): void {
       const title = document.createElement('span');
       title.className = 'news-title';
       title.textContent = item.title;
+      title.lang = item.lang;
       a.append(meta, title);
       li.append(a);
       return li;
@@ -129,22 +153,26 @@ export function mountNews(refs: NewsRefs): void {
   }
 
   // ---------- data: load, then keep polling for a newer file
+  /** A pin per place that has headlines (for the current topic); size follows the last few hours' share. */
   function markers(): Marker[] {
     if (!data) return [];
     const now = Date.now();
-    const counts = data.regions.map((r) => r.items.filter((i) => now - i.time < FRESH_MS).length);
+    const items = matching(false);
+    const count = (id: string) => items.filter((i) => i.place === id && now - i.time < FRESH_MS).length;
+    const places = data.places.filter((p) => items.some((i) => i.place === p.id) || p.id === picked);
+    const counts = places.map((p) => count(p.id));
     const most = Math.max(1, ...counts);
-    return data.regions.map((r, i) => ({ id: r.id, label: r.name, lat: r.lat, lon: r.lon, weight: counts[i]! / most }));
+    return places.map((p, i) => ({ id: p.id, label: p.name, lat: p.lat, lon: p.lon, weight: Math.sqrt(counts[i]! / most) }));
   }
 
   function apply(next: NewsFile): void {
-    const known = new Set(data?.regions.flatMap((r) => r.items.map((i) => i.link)) ?? []);
+    const known = new Set(data?.items.map((i) => i.link) ?? []);
     const first = !data;
     data = next;
     if (!first) {
-      const arrived = next.regions.filter((r) => r.items.some((i) => !known.has(i.link)));
-      for (const r of arrived) for (const i of r.items) if (!known.has(i.link)) fresh.add(i.link);
-      globe?.flash(arrived.map((r) => r.id));
+      const arrived = next.items.filter((i) => !known.has(i.link));
+      for (const i of arrived) fresh.add(i.link);
+      globe?.flash([...new Set(arrived.map((i) => i.place))]);
     }
     globe?.setMarkers(markers());
     renderScope();

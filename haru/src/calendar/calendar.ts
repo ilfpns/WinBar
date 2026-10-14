@@ -1,5 +1,7 @@
 import { currentView, onView } from '../ui/router';
 import { createNotes } from './notes';
+import { createImages } from './images';
+import { icon } from '../ui/icons';
 import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
 import { addBlock, state } from '../timetable/state';
 
@@ -68,6 +70,10 @@ export function mountCalendar(refs: CalendarRefs): void {
 
   // the day panel doubles as a memo pad for that date; memos show up in the grid
   const notes = createNotes(() => renderGrid(0));
+  const images = createImages(() => {
+    renderGrid(0);
+    renderImages();
+  });
   const note = document.createElement('textarea');
   note.className = 'cal-note';
   note.placeholder = 'Note';
@@ -109,6 +115,93 @@ export function mountCalendar(refs: CalendarRefs): void {
   }
 
   note.addEventListener('input', () => notes.set(noteDate, note.value));
+
+  // ---------- images on the memo: paste, drop, or pick files
+  const gallery = document.createElement('div');
+  gallery.className = 'cal-images';
+  const addImage = document.createElement('button');
+  addImage.type = 'button';
+  addImage.className = 'icon-btn cal-add-image';
+  addImage.setAttribute('aria-label', 'Add image');
+  addImage.title = 'Add image (or paste / drop one on the memo)';
+  addImage.append(icon('image-plus'));
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.accept = 'image/*';
+  picker.multiple = true;
+  picker.hidden = true;
+  addImage.addEventListener('click', () => picker.click());
+  picker.addEventListener('change', () => {
+    void attach([...(picker.files ?? [])]);
+    picker.value = '';
+  });
+  async function attach(files: Blob[]): Promise<void> {
+    const n = await images.add(noteDate, files);
+    if (n) say(`${n} image${n === 1 ? '' : 's'} added`);
+  }
+  // an image on the clipboard goes in as a picture; plain text pastes as usual
+  note.addEventListener('paste', (e) => {
+    const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+    if (!files.length) return;
+    e.preventDefault();
+    void attach(files);
+  });
+  refs.day.addEventListener('dragover', (e) => {
+    if (![...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file')) return;
+    e.preventDefault();
+    refs.day.classList.add('drop');
+  });
+  refs.day.addEventListener('dragleave', (e) => {
+    if (!refs.day.contains(e.relatedTarget as Node)) refs.day.classList.remove('drop');
+  });
+  refs.day.addEventListener('drop', (e) => {
+    const files = [...(e.dataTransfer?.files ?? [])];
+    refs.day.classList.remove('drop');
+    if (!files.length) return;
+    e.preventDefault();
+    void attach(files);
+  });
+
+  // full-size view: a modal dialog; any click or Esc closes it
+  const viewer = document.createElement('dialog');
+  viewer.className = 'img-view';
+  const big = document.createElement('img');
+  big.alt = '';
+  viewer.append(big);
+  viewer.addEventListener('click', () => viewer.close());
+  document.body.append(viewer);
+
+  function renderImages(): void {
+    const list = images.get(noteDate);
+    gallery.hidden = !list.length;
+    gallery.replaceChildren(...list.map((rec, k) => {
+      const item = document.createElement('div');
+      item.className = 'cal-img';
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'cal-img-open';
+      open.setAttribute('aria-label', `Open image ${k + 1}`);
+      const img = document.createElement('img');
+      img.src = images.url(rec);
+      img.alt = '';
+      img.loading = 'lazy';
+      open.append(img);
+      open.addEventListener('click', () => {
+        big.src = images.url(rec);
+        viewer.showModal();
+      });
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'cal-img-del';
+      del.setAttribute('aria-label', `Remove image ${k + 1}`);
+      del.append(icon('x'));
+      del.addEventListener('click', () => {
+        if (confirm('Remove this image?')) images.remove(rec.id);
+      });
+      item.append(open, del);
+      return item;
+    }));
+  }
   note.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') note.blur();
   });
@@ -215,6 +308,7 @@ export function mountCalendar(refs: CalendarRefs): void {
     const head = document.createElement('div');
     head.className = 'cal-day-head';
     head.innerHTML = `<span class="cal-day-num"></span><span class="meta"></span>`;
+    head.append(addImage, picker);
     head.querySelector('.cal-day-num')!.textContent = String(d.getDate());
     head.querySelector('.meta')!.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     // keep the textarea itself (and the caret) — only swap its contents when the day changes
@@ -222,6 +316,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       noteDate = selected;
       note.value = notes.get(selected);
     }
+    renderImages();
     const list = document.createElement('ul');
     list.className = 'cal-day-list';
     for (const ev of eventsOn(selected)) {
@@ -233,7 +328,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       list.append(li);
     }
     // events first, then the memo pad, which takes the rest of the panel
-    refs.day.replaceChildren(head, list, note, status, hint);
+    refs.day.replaceChildren(head, list, note, gallery, status, hint);
   }
 
   function render(direction: number): void {
@@ -251,7 +346,9 @@ export function mountCalendar(refs: CalendarRefs): void {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
       const date = iso(d);
       const list = eventsOn(date);
-      const memo = firstLine(notes.get(date));
+      const pics = images.get(date).length;
+      // a day with only pictures still shows that something is there
+      const memo = firstLine(notes.get(date)) || (pics ? `${pics} image${pics === 1 ? '' : 's'}` : '');
       const cell = document.createElement('button');
       cell.type = 'button';
       cell.className = 'cal-cell';
