@@ -117,6 +117,17 @@ export function loadBlocks(): Block[] {
   }
 }
 
+const STAMP_KEY = 'haru:timetable:updated';
+/** When Today's timetable last changed on this device (0 if never recorded). */
+export const blocksUpdated = (): number => Number(localStorage.getItem(STAMP_KEY) ?? 0) || 0;
+export function stampBlocks(t: number): void {
+  try {
+    localStorage.setItem(STAMP_KEY, String(t));
+  } catch {
+    // ignore
+  }
+}
+
 export function saveBlocks(blocks: readonly Block[]): void {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(blocks));

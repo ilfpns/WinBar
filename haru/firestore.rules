@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// Haru: invite-only. The owner manages `allow/{email}`; an invited (or the owner's) Google account may read and
+// write only its own data under `users/{uid}`. Paste into Firebase console → Firestore → Rules, or
+// `firebase deploy --only firestore:rules`. Replace OWNER_EMAIL with the owner's Google address.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function email() {
+      return request.auth.token.email.lower();
+    }
+    function isOwner() {
+      return signedIn() && email() == 'OWNER_EMAIL';
+    }
+    function isInvited() {
+      return signedIn() && (isOwner() || exists(/databases/$(database)/documents/allow/$(email())));
+    }
+
+    // invitations: the owner lists and edits them; anyone signed in may check their own entry
+    match /allow/{invitee} {
+      allow read: if isOwner() || (signedIn() && email() == invitee);
+      allow write: if isOwner();
+    }
+
+    // each person's planner
+    match /users/{uid}/{document=**} {
+      allow read, write: if isInvited() && request.auth.uid == uid;
+    }
+  }
+}

@@ -10,6 +10,9 @@ export interface TemplateBlock { title: string; cat: Category; start: number; du
 export interface Template { id: string; name: string; blocks: TemplateBlock[]; updated: number }
 
 const KEY = 'haru:templates:v1';
+const STAMP = 'haru:templates:updated';
+/** When the template list last changed on this device (0 if never). */
+export const templatesUpdated = (): number => Number(localStorage.getItem(STAMP) ?? 0) || 0;
 const listeners = new Set<() => void>();
 let templates: Template[] = load();
 
@@ -36,8 +39,9 @@ function load(): Template[] {
     return [];
   }
 }
-function save(): void {
+function save(stamp = Date.now()): void {
   try {
+    localStorage.setItem(STAMP, String(stamp));
     localStorage.setItem(KEY, JSON.stringify(templates));
   } catch {
     // storage unavailable — the IndexedDB mirror below still has them
@@ -83,6 +87,12 @@ export function applyTemplate(id: string): Block[] | null {
   const before = state.blocks;
   setState({ blocks: t.blocks.map((b) => ({ ...b, id: newId(), done: false })), draft: null, selected: [] });
   return before;
+}
+
+/** Applies the template list from the cloud, keeping its time stamp. */
+export function templatesFromRemote(list: unknown[], stamp: number): void {
+  templates = clean(list);
+  save(stamp);
 }
 
 /** Replaces all templates (restoring a backup). */

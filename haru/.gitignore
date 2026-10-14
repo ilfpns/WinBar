@@ -1,4 +1,4 @@
 node_modules
 dist
-# third-party site captures: kept locally, not published
-design-references/screenshots/
+# Firebase web config for this deployment (read by Vite at build time)
+.env.local

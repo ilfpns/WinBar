@@ -18,6 +18,7 @@ import { mountBackup } from './storage/backup';
 import { mountWinBarLink } from './ui/winbar';
 import { mountTemplates } from './timetable/templates-ui';
 import { trackHistory } from './timetable/history';
+import { mountAccount } from './cloud/account';
 
 hydrateIcons();
 mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news') });
@@ -110,3 +111,6 @@ document.addEventListener('keydown', (e) => {
     search.focus();
   }
 });
+
+// sign-in and cloud sync start once the local stores exist (memos and images are created by the calendar)
+mountAccount({ section: byId('account') });

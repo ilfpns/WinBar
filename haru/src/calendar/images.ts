@@ -23,6 +23,10 @@ export interface Images {
   all(): ImageRecord[];
   /** Replaces all images (restoring a backup). */
   replace(records: ImageRecord[]): void;
+  /** Applies an image added or removed elsewhere (cloud), without notifying the sync back. */
+  putFromRemote(rec: ImageRecord): void;
+  removeFromRemote(id: string): void;
+  has(id: string): boolean;
   ready: Promise<void>;
 }
 
@@ -85,8 +89,32 @@ export function createImages(onChange: () => void): Images {
     })
     .then(onChange);
 
+  const dropLocal = (id: string) => {
+    for (const [date, list] of byDate) {
+      const next = list.filter((r) => r.id !== id);
+      if (next.length === list.length) continue;
+      if (next.length) byDate.set(date, next);
+      else byDate.delete(date);
+    }
+    const u = urls.get(id);
+    if (u) URL.revokeObjectURL(u);
+    urls.delete(id);
+    write((s) => s.delete(id));
+  };
   shared = {
     ready,
+    has: (id) => [...byDate.values()].some((l) => l.some((r) => r.id === id)),
+    putFromRemote(rec) {
+      if (shared!.has(rec.id)) return;
+      put(rec);
+      write((s) => s.put(rec));
+      onChange();
+    },
+    removeFromRemote(id) {
+      if (!shared!.has(id)) return;
+      dropLocal(id);
+      onChange();
+    },
     get: (date) => byDate.get(date) ?? [],
     all: () => [...byDate.values()].flat(),
     url(rec) {

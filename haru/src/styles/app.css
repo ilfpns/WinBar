@@ -615,6 +615,33 @@ body.resizing .panel > * { animation: none; }
 .tpl-save.empty button { opacity: .4; }
 .tpl-status { display: inline-flex; align-items: center; gap: 4px; text-transform: none; }
 .tpl-undo { padding: 2px 6px; font-size: 11px; color: var(--accent); }
+/* account */
+.acct-who { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 4px 4px 4px 6px; }
+.acct-avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: var(--gray-btn); font-weight: 500; color: var(--text-strong); }
+.acct-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.acct-text { display: grid; min-width: 0; }
+.acct-name, .acct-mail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-name { font-size: 13.5px; color: var(--text-strong); }
+.acct-mail { text-transform: none; }
+.acct-sync { text-transform: none; }
+.acct-invites { display: grid; gap: 6px; }
+.acct-invites[hidden] { display: none; }
+.acct-list { list-style: none; margin: 0; padding: 0 2px; display: grid; gap: 2px; }
+.acct-list li { position: relative; padding: 6px 30px 6px 10px; border-radius: var(--radius-sm); background: var(--well); font-size: 12.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-list li:hover .tpl-del { opacity: 1; }
+.acct-list .tpl-del { top: 4px; }
+/* sign-in gate: covers the app until an invited account is confirmed */
+.gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--bg); animation: fade-in .3s var(--ease-out) both; }
+.gate[hidden] { display: none; }
+.gate.leaving { animation: gate-out .35s var(--ease-out) both; }
+@keyframes gate-out { to { opacity: 0; transform: scale(1.02); } }
+.gate-card { display: grid; justify-items: center; gap: 18px; width: min(340px, calc(100vw - 32px)); padding: 32px 24px; border: 1px solid var(--panel-border); border-radius: 12px; background: var(--popover); }
+.gate-card .brand { gap: 10px; padding: 0; }
+.gate-card .brand-name { font-size: 22px; }
+.gate-mark .ic { width: 22px; height: 22px; color: var(--accent); }
+.gate-msg { margin: 0; min-height: 20px; text-align: center; font-size: 13.5px; color: var(--text-muted); }
+.gate-google { width: 100%; height: 38px; }
+body.gated > :not(.gate) { visibility: hidden; }
 .backup-row { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
 .backup-row #backup-auto[aria-pressed="true"] { color: var(--text-strong); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .backup-status { text-transform: none; }

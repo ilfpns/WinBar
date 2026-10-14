@@ -20,6 +20,10 @@ export interface Notes {
   all(): NoteRecord[];
   /** Replaces all memos (restoring a backup). */
   replace(records: NoteRecord[]): void;
+  /** Applies a memo that came from the cloud (no change notification back to the sync). */
+  setFromRemote(record: NoteRecord | { date: string; text: ''; updated: number }): void;
+  /** When each memo was last changed (for the sync). */
+  record(date: string): NoteRecord | undefined;
   ready: Promise<void>;
 }
 
@@ -60,6 +64,17 @@ export function createNotes(onChange: () => void): Notes {
 
   shared = {
     ready,
+    record: (date) => cache.get(date),
+    setFromRemote(record) {
+      const blank = !record.text.trim();
+      if (blank) cache.delete(record.date);
+      else cache.set(record.date, record as NoteRecord);
+      onChange();
+      if (!handle) return;
+      const store = handle.transaction(STORE, 'readwrite').objectStore(STORE);
+      if (blank) store.delete(record.date);
+      else store.put(record);
+    },
     get: (date) => cache.get(date)?.text ?? '',
     all: () => [...cache.values()],
     set(date, text) {

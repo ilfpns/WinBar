@@ -13,6 +13,18 @@ export const dayKey = (d = new Date()) =>
 
 export interface DaySnapshot { date: string; blocks: Block[]; saved: number }
 
+const savedListeners = new Set<(s: DaySnapshot) => void>();
+/** Fires after a day's snapshot is written locally (not for ones applied from the cloud). */
+export function onDaySaved(fn: (s: DaySnapshot) => void): void {
+  savedListeners.add(fn);
+}
+/** Writes a snapshot that came from the cloud, unless this device has a newer one for that day. */
+export async function putFromRemote(snap: DaySnapshot): Promise<void> {
+  const mine = await timetableOn(snap.date);
+  if (mine && !mine.carried && mine.snap.saved >= snap.saved) return;
+  await put(snap);
+}
+
 async function put(snap: DaySnapshot): Promise<void> {
   const d = await db();
   await new Promise<void>((resolve, reject) => {
@@ -64,7 +76,8 @@ export function trackHistory(): void {
   let last = state.blocks;
   const snap = () => {
     clearTimeout(timer);
-    void put({ date: dayKey(), blocks: state.blocks, saved: Date.now() }).catch(() => {});
+    const s = { date: dayKey(), blocks: state.blocks, saved: Date.now() };
+    void put(s).then(() => savedListeners.forEach((fn) => fn(s))).catch(() => {});
   };
   subscribe(() => {
     if (state.blocks === last) return;
