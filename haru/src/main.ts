@@ -1,4 +1,6 @@
 import './styles/tokens.css';
+
+const byIdEarly = (id: string): HTMLElement => document.getElementById(id)!;
 import './styles/app.css';
 import { mountBulk } from './timetable/bulk';
 import { mountDial } from './timetable/dial';
@@ -9,10 +11,12 @@ import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, s
 import { mountDrawers } from './ui/drawers';
 import { hydrateIcons } from './ui/icons';
 import { mountRouter } from './ui/router';
+import { mountViewSwipe } from './ui/view-swipe';
 import { mountCalendar } from './calendar/calendar';
 import { mountWinBarLink } from './ui/winbar';
 
 hydrateIcons();
+mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar') });
 mountRouter();
 
 // labels, icons and links are not draggable content

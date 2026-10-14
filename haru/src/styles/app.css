@@ -111,8 +111,11 @@ img, svg, a { -webkit-user-drag: none; }
 #orb-layer .orb-pct { font: 600 25px var(--font-mono); letter-spacing: -.03em; fill: var(--bg); font-variant-numeric: tabular-nums; }
 
 /* ---------- views: Today (the dial) and Calendar share the page */
-body[data-view="calendar"] .stage { display: none; }
-body:not([data-view="calendar"]) .calendar-view { display: none; }
+body[data-view="calendar"]:not(.switching) .stage { display: none; }
+body:not([data-view="calendar"]):not(.switching) .calendar-view { display: none; }
+/* during a page turn both pages are on screen; the leaving one stays below the drawers */
+body.switching .stage, body.switching .calendar-view { will-change: transform; }
+.leaving { pointer-events: none; }
 
 .icon-btn {
   display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm);
