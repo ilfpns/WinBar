@@ -3,7 +3,12 @@ import { createNotes } from './notes';
 import { createImages } from './images';
 import { icon } from '../ui/icons';
 import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
-import { addBlock, state } from '../timetable/state';
+import { addBlock, setState, state, subscribe } from '../timetable/state';
+import { dayKey, timetableOn } from '../timetable/history';
+import { sectorPath } from '../timetable/geometry';
+import { svgEl, centeredText } from '../timetable/svg';
+import { CATEGORIES, labelOf, progressOf } from '../timetable/model';
+import { DAY, formatDuration, hhmm } from '../timetable/time';
 
 /** One entry from public/data/calendar.json (built by scripts/fetch-calendar.mjs). */
 interface CalEvent {
@@ -119,21 +124,94 @@ export function mountCalendar(refs: CalendarRefs): void {
   // ---------- images on the memo: paste, drop, or pick files
   const gallery = document.createElement('div');
   gallery.className = 'cal-images';
-  const addImage = document.createElement('button');
-  addImage.type = 'button';
-  addImage.className = 'icon-btn cal-add-image';
-  addImage.setAttribute('aria-label', 'Add image');
-  addImage.title = 'Add image (or paste / drop one on the memo)';
-  addImage.append(icon('image-plus'));
-  const picker = document.createElement('input');
-  picker.type = 'file';
-  picker.accept = 'image/*';
-  picker.multiple = true;
-  picker.hidden = true;
-  addImage.addEventListener('click', () => picker.click());
-  picker.addEventListener('change', () => {
-    void attach([...(picker.files ?? [])]);
-    picker.value = '';
+  // ---------- that day's timetable (Today as it was on the selected date)
+  const ttBtn = document.createElement('button');
+  ttBtn.type = 'button';
+  ttBtn.className = 'icon-btn cal-tt-btn';
+  ttBtn.setAttribute('aria-label', 'Timetable of this day');
+  ttBtn.title = 'Timetable of this day';
+  ttBtn.setAttribute('aria-pressed', 'false');
+  ttBtn.append(icon('clock'));
+  const ttView = document.createElement('div');
+  ttView.className = 'cal-tt';
+  ttView.hidden = true;
+  let ttOpen = false;
+  ttBtn.addEventListener('click', () => {
+    ttOpen = !ttOpen;
+    ttBtn.setAttribute('aria-pressed', String(ttOpen));
+    void renderTimetable();
+  });
+  let ttFor = '';
+  async function renderTimetable(): Promise<void> {
+    ttView.hidden = !ttOpen;
+    if (!ttOpen) return;
+    const date = selected;
+    ttFor = date;
+    const isToday = date === dayKey();
+    const found = isToday ? { snap: { date, blocks: state.blocks, saved: Date.now() }, carried: false } : date > dayKey() ? null : await timetableOn(date);
+    if (ttFor !== date) return; // another day was picked meanwhile
+    const blocks = found?.snap.blocks ?? [];
+    if (!blocks.length) {
+      const empty = document.createElement('p');
+      empty.className = 'cal-tt-empty';
+      empty.textContent = date > dayKey() ? 'Not planned yet' : 'No timetable saved for this day';
+      ttView.replaceChildren(empty);
+      return;
+    }
+    // a small read-only dial: the day's tasks around 24 h, done ones solid
+    const svg = svgEl('svg', { class: 'cal-tt-dial', viewBox: '-110 -110 220 220', role: 'img', 'aria-label': 'Timetable' }) as SVGSVGElement;
+    svg.append(svgEl('path', { class: 'tt-bg', d: sectorPath(0, DAY, 58, 100) }));
+    for (const b of blocks) {
+      svg.append(svgEl('path', { class: `tt-block${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur, 58, 100), style: `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)` }));
+    }
+    const { done } = progressOf(blocks);
+    svg.append(centeredText('tt-pct', 0, 1, `${Math.round((done / DAY) * 100)}%`));
+    const list = document.createElement('ul');
+    list.className = 'cal-tt-list';
+    for (const b of [...blocks].sort((x, y) => x.start - y.start)) {
+      const li = document.createElement('li');
+      li.classList.toggle('done', b.done);
+      li.style.setProperty('--c', `var(--cat-${b.cat})`);
+      li.innerHTML = '<span class="t"></span><span class="dot"></span><span class="n"></span><span class="d"></span>';
+      li.querySelector('.t')!.textContent = `${hhmm(b.start)}–${hhmm(b.start + b.dur)}`;
+      li.querySelector('.n')!.textContent = labelOf(b);
+      li.querySelector('.n')!.setAttribute('title', CATEGORIES[b.cat]);
+      li.querySelector('.d')!.textContent = formatDuration(b.dur);
+      list.append(li);
+    }
+    const foot = document.createElement('div');
+    foot.className = 'cal-tt-foot';
+    const note = document.createElement('span');
+    note.className = 'meta';
+    note.textContent = found?.carried ? `Carried over from ${found.snap.date.slice(5).replace('-', '/')}` : isToday ? 'Today, live' : 'Saved that day';
+    foot.append(note);
+    if (!isToday) {
+      // bring that day back as Today (done marks start over); undo from the memo status line
+      const use = document.createElement('button');
+      use.type = 'button';
+      use.className = 'btn-text';
+      use.textContent = 'Use for Today';
+      use.addEventListener('click', () => {
+        const before = state.blocks;
+        setState({ blocks: blocks.map((b) => ({ ...b, done: false })), draft: null, selected: [] });
+        const undo = document.createElement('button');
+        undo.type = 'button';
+        undo.className = 'btn-text cal-undo';
+        undo.textContent = 'Undo';
+        undo.addEventListener('click', () => {
+          setState({ blocks: before, draft: null, selected: [] });
+          say('Restored');
+        });
+        say('Today set from this day');
+        status.append(undo);
+      });
+      foot.append(use);
+    }
+    ttView.replaceChildren(svg, list, foot);
+  }
+  // Today changes show up live while today's timetable is open
+  subscribe(() => {
+    if (ttOpen && selected === dayKey()) void renderTimetable();
   });
   async function attach(files: Blob[]): Promise<void> {
     const n = await images.add(noteDate, files);
@@ -308,7 +386,7 @@ export function mountCalendar(refs: CalendarRefs): void {
     const head = document.createElement('div');
     head.className = 'cal-day-head';
     head.innerHTML = `<span class="cal-day-num"></span><span class="meta"></span>`;
-    head.append(addImage, picker);
+    head.append(ttBtn);
     head.querySelector('.cal-day-num')!.textContent = String(d.getDate());
     head.querySelector('.meta')!.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     // keep the textarea itself (and the caret) — only swap its contents when the day changes
@@ -328,7 +406,8 @@ export function mountCalendar(refs: CalendarRefs): void {
       list.append(li);
     }
     // events first, then the memo pad, which takes the rest of the panel
-    refs.day.replaceChildren(head, list, note, gallery, status, hint);
+    refs.day.replaceChildren(head, ttView, list, note, gallery, status, hint);
+    void renderTimetable();
   }
 
   function render(direction: number): void {

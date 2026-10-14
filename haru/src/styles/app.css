@@ -191,8 +191,26 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 
 .cal-day { align-self: stretch; display: flex; flex-direction: column; gap: 14px; min-height: 0; padding: 16px; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well); }
 .cal-day-head { position: relative; display: grid; gap: 6px; }
-.cal-add-image { position: absolute; top: 0; right: 0; }
-.cal-add-image .ic { width: 15px; height: 15px; }
+.cal-tt-btn { position: absolute; top: 0; right: 0; }
+.cal-tt-btn .ic { width: 15px; height: 15px; }
+.cal-tt-btn[aria-pressed="true"] { color: var(--bg); background: var(--accent); }
+/* that day's timetable: a small dial and its tasks */
+.cal-tt { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: rgba(0, 0, 0, .25); }
+.cal-tt[hidden] { display: none; }
+.cal-tt-dial { width: 132px; height: 132px; justify-self: center; }
+.cal-tt-dial .tt-bg { fill: var(--surface-solid); stroke: var(--line); stroke-width: 1; }
+.cal-tt-dial .tt-block { fill: var(--cf); stroke: var(--bg); stroke-width: 1.5; }
+.cal-tt-dial .tt-block.done { fill: color-mix(in srgb, var(--c) 70%, var(--cf)); }
+.cal-tt-dial .tt-pct { font: 600 22px var(--font-mono); fill: var(--accent); }
+.cal-tt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 220px; overflow-y: auto; scrollbar-width: thin; }
+.cal-tt-list li { display: grid; grid-template-columns: auto 6px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 2px; font-size: 13px; }
+.cal-tt-list .t, .cal-tt-list .d { font: 400 11px var(--font-mono); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
+.cal-tt-list .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.cal-tt-list li.done .n { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-subtle); }
+.cal-tt-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal-tt-foot .meta { text-transform: none; }
+.cal-tt-empty { margin: 0; font-size: 12px; color: var(--text-subtle); }
+.cal-undo { margin-left: 6px; padding: 0 4px; font-size: 11px; color: var(--accent); }
 .cal-day.drop { box-shadow: inset 0 0 0 1px var(--text-muted); }
 .cal-images { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; flex: none; }
 .cal-images[hidden] { display: none; }

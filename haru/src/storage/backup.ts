@@ -4,6 +4,7 @@ import { setState, state, subscribe } from '../timetable/state';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { type ImageRecord, fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
 import { type Template, allTemplates, onTemplates, replaceTemplates } from '../timetable/templates';
+import { type DaySnapshot, allDays, restoreDays } from '../timetable/history';
 
 /**
  * Keeping data no matter what:
@@ -22,6 +23,8 @@ interface BackupFile {
   images?: { id: string; date: string; created: number; data: string }[];
   /** Day templates. Missing in backups made before templates existed. */
   templates?: Template[];
+  /** Each day's timetable as it was. Missing in older backups. */
+  days?: DaySnapshot[];
 }
 
 // File System Access API (Chromium); not in TypeScript's DOM lib yet
@@ -43,7 +46,7 @@ export interface BackupRefs {
 
 async function snapshot(): Promise<BackupFile> {
   const images = await Promise.all((imagesStore()?.all() ?? []).map(async (r) => ({ id: r.id, date: r.date, created: r.created, data: await toDataUrl(r.blob) })));
-  return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [], images, templates: allTemplates() };
+  return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [], images, templates: allTemplates(), days: await allDays().catch(() => []) };
 }
 
 export function mountBackup(refs: BackupRefs): void {
@@ -103,6 +106,7 @@ export function mountBackup(refs: BackupRefs): void {
       setState({ blocks, draft: null, selected: [] });
       notesStore()?.replace(notes);
       if (Array.isArray(data.templates)) replaceTemplates(data.templates);
+      if (Array.isArray(data.days)) await restoreDays(data.days);
       // older backups have no images: leave the current ones alone then
       if (Array.isArray(data.images)) {
         const imgs: ImageRecord[] = [];
