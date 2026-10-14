@@ -114,17 +114,20 @@ export function mountCalendar(refs: CalendarRefs): void {
   });
   // Enter on a `!` line schedules just that line; the caret stays where the line was.
   // Handled as the line break is about to be inserted, i.e. after any IME composition (Korean) has committed.
-  note.addEventListener('beforeinput', (e) => {
-    if ((e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph') || e.isComposing) return;
-    if (note.selectionStart !== note.selectionEnd) return;
+  /** The `!` line under the caret, if any: its bounds and what it parses to. */
+  const caretLine = () => {
     const value = note.value;
     const caret = note.selectionStart;
     const start = value.lastIndexOf('\n', caret - 1) + 1;
     const newline = value.indexOf('\n', caret);
     const end = newline === -1 ? value.length : newline;
-    const parsed = parseQuickAdd(value.slice(start, end), state.lastCat);
+    return { value, start, end, newline, parsed: parseQuickAdd(value.slice(start, end), state.lastCat) };
+  };
+
+  /** Schedules the `!` line under the caret; the caret stays where the line was. */
+  function scheduleCaretLine(): void {
+    const { value, start, end, newline, parsed } = caretLine();
     if (parsed === null) return;
-    e.preventDefault();
     const err = typeof parsed === 'string' ? parsed : addBlock(parsed);
     if (err) {
       say(err, true);
@@ -134,6 +137,31 @@ export function mountCalendar(refs: CalendarRefs): void {
     note.value = value.slice(0, start) + value.slice(newline === -1 ? end : end + 1);
     note.setSelectionRange(start, start);
     notes.set(noteDate, note.value);
+  }
+
+  // Enter on a `!` line schedules it instead of breaking the line. With a Korean IME the Enter can arrive
+  // while the last syllable is still being composed: the break is cancelled right away (so the syllable
+  // isn't pushed onto a new line) and the line is scheduled once the composition has committed.
+  let afterComposition = false;
+  note.addEventListener('beforeinput', (e) => {
+    if (e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph') return;
+    if (note.selectionStart !== note.selectionEnd || caretLine().parsed === null) return;
+    e.preventDefault();
+    if (e.isComposing) afterComposition = true;
+    else scheduleCaretLine();
+  });
+  note.addEventListener('compositionend', () => {
+    if (!afterComposition) return;
+    afterComposition = false;
+    setTimeout(scheduleCaretLine, 0);
+  });
+  // some IMEs commit first and send the Enter as a plain keydown afterwards
+  note.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) return;
+    if (note.selectionStart === note.selectionEnd && caretLine().parsed !== null) {
+      e.preventDefault();
+      scheduleCaretLine();
+    }
   });
   note.addEventListener('blur', moveScheduledLines);
   // memos load asynchronously (IndexedDB): fill the open day's pad once they arrive, unless already typing

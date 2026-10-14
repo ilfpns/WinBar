@@ -38,10 +38,35 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   let colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong') };
 
+  // orientation is a 3×3 rotation (row-major), so drags roll the ball freely — over the poles too.
+  // Screen-space turns pre-multiply (roll the ball as seen); the idle spin post-multiplies (around Earth's own axis).
+  let M = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  const mul = (a: number[], b: number[]) => [
+    a[0]! * b[0]! + a[1]! * b[3]! + a[2]! * b[6]!, a[0]! * b[1]! + a[1]! * b[4]! + a[2]! * b[7]!, a[0]! * b[2]! + a[1]! * b[5]! + a[2]! * b[8]!,
+    a[3]! * b[0]! + a[4]! * b[3]! + a[5]! * b[6]!, a[3]! * b[1]! + a[4]! * b[4]! + a[5]! * b[7]!, a[3]! * b[2]! + a[4]! * b[5]! + a[5]! * b[8]!,
+    a[6]! * b[0]! + a[7]! * b[3]! + a[8]! * b[6]!, a[6]! * b[1]! + a[7]! * b[4]! + a[8]! * b[7]!, a[6]! * b[2]! + a[7]! * b[5]! + a[8]! * b[8]!,
+  ];
+  /** Rotation about the vertical axis (left/right). */
+  const rotY = (t: number) => { const c = Math.cos(t), s = Math.sin(t); return [c, 0, s, 0, 1, 0, -s, 0, c]; };
+  /** Rotation about the horizontal axis (up/down). */
+  const rotX = (t: number) => { const c = Math.cos(t), s = Math.sin(t); return [1, 0, 0, 0, c, -s, 0, s, c]; };
+  /** Keep M a clean rotation after many small steps (Gram–Schmidt on the rows). */
+  const tidy = () => {
+    const r0 = [M[0]!, M[1]!, M[2]!], r1 = [M[3]!, M[4]!, M[5]!];
+    const n0 = Math.hypot(...r0); r0.forEach((v, i) => (r0[i] = v / n0));
+    const d = r0[0]! * r1[0]! + r0[1]! * r1[1]! + r0[2]! * r1[2]!;
+    r1.forEach((v, i) => (r1[i] = v - d * r0[i]!));
+    const n1 = Math.hypot(...r1); r1.forEach((v, i) => (r1[i] = v / n1));
+    const r2 = [r0[1]! * r1[2]! - r0[2]! * r1[1]!, r0[2]! * r1[0]! - r0[0]! * r1[2]!, r0[0]! * r1[1]! - r0[1]! * r1[0]!];
+    M = [...r0, ...r1, ...r2];
+  };
+  /** Roll the ball as seen on screen: dx turns it sideways, dy over the top — any amount, any direction. */
+  const roll = (dx: number, dy: number) => { M = mul(rotX(dy), mul(rotY(dx), M)); };
+
   // start facing home (Korea), tilted so it sits a little above centre
-  let yaw = -home.lon * DEG;
-  let pitch = 0.42;
-  let vYaw = AUTO_SPIN, vPitch = 0;
+  M = mul(rotX(0.42), rotY(-home.lon * DEG));
+  let vx = 0, vy = 0;           // screen-space angular velocity from a throw (rad/s)
+  let spin = AUTO_SPIN;         // idle rotation about Earth's axis (rad/s)
   let lastTouch = -Infinity;
   let pointer: { x: number; y: number } | null = null;
   let drag: { x: number; y: number; t: number } | null = null;
@@ -68,12 +93,10 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     const d = x1 * x1 + y2 * y2;
     if (d > 1) return null;
     const z2 = Math.sqrt(1 - d);
-    const c = Math.cos(pitch), s = Math.sin(pitch);
-    const y = y2 * c + z2 * s;
-    const z1 = -y2 * s + z2 * c;
-    const cy_ = Math.cos(yaw), sy_ = Math.sin(yaw);
-    const x = x1 * cy_ - z1 * sy_;
-    const z = x1 * sy_ + z1 * cy_;
+    // inverse of a rotation is its transpose
+    const x = M[0]! * x1 + M[3]! * y2 + M[6]! * z2;
+    const y = M[1]! * x1 + M[4]! * y2 + M[7]! * z2;
+    const z = M[2]! * x1 + M[5]! * y2 + M[8]! * z2;
     return { lat: Math.asin(Math.max(-1, Math.min(1, y))) / DEG, lon: Math.atan2(x, z) / DEG };
   }
 
@@ -81,9 +104,11 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   function project(p: GeoPoint): { x: number; y: number; z: number } {
     const φ = p.lat * DEG, λ = p.lon * DEG;
     const x = Math.cos(φ) * Math.sin(λ), y = Math.sin(φ), z = Math.cos(φ) * Math.cos(λ);
-    const cY = Math.cos(yaw), sY = Math.sin(yaw), cP = Math.cos(pitch), sP = Math.sin(pitch);
-    const x1 = x * cY + z * sY, z1 = -x * sY + z * cY;
-    return { x: cx + R * x1, y: cy - R * (y * cP - z1 * sP), z: y * sP + z1 * cP };
+    return {
+      x: cx + R * (M[0]! * x + M[1]! * y + M[2]! * z),
+      y: cy - R * (M[3]! * x + M[4]! * y + M[5]! * z),
+      z: M[6]! * x + M[7]! * y + M[8]! * z,
+    };
   }
 
   const local = (e: PointerEvent) => {
@@ -96,7 +121,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     const p = local(e);
     drag = { x: p.x, y: p.y, t: performance.now() };
     moved = 0;
-    vYaw = vPitch = 0;
+    vx = vy = 0;
   });
   canvas.addEventListener('pointermove', (e) => {
     const p = local(e);
@@ -104,12 +129,12 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     if (drag) {
       const now = performance.now();
       const dt = Math.max(1, now - drag.t);
-      const dYaw = (p.x - drag.x) / R, dPitch = (p.y - drag.y) / R;
-      yaw += dYaw;
-      pitch = Math.max(-1.25, Math.min(1.25, pitch + dPitch));
+      const dx = (p.x - drag.x) / R, dy = (p.y - drag.y) / R;
+      roll(dx, dy);
       // velocity for the throw, smoothed
-      vYaw = vYaw * 0.6 + ((dYaw / dt) * 1000) * 0.4;
-      vPitch = vPitch * 0.6 + ((dPitch / dt) * 1000) * 0.4;
+      vx = vx * 0.6 + ((dx / dt) * 1000) * 0.4;
+      vy = vy * 0.6 + ((dy / dt) * 1000) * 0.4;
+      spin = 0;
       moved += Math.abs(p.x - drag.x) + Math.abs(p.y - drag.y);
       drag = { x: p.x, y: p.y, t: now };
       lastTouch = now;
@@ -120,7 +145,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     if (moved < 6 * dpr) {
       // a click (not a drag) pins that spot; clicking off the globe unpins
       pinned = unproject(local(e).x, local(e).y);
-      vYaw = vPitch = 0;
+      vx = vy = 0;
     }
     drag = null;
     lastTouch = performance.now();
@@ -146,12 +171,14 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     if (!drag) {
       // inertia, then drift back into a slow spin once the user lets go
       const decay = Math.exp((-dt * 1000) / FRICTION_MS);
-      const idle = now - lastTouch > IDLE_MS;
-      vYaw = idle ? vYaw + (AUTO_SPIN - vYaw) * (1 - decay) : vYaw * decay;
-      vPitch *= decay;
-      if (pinned) vYaw *= decay; // hold still while a spot is pinned
-      yaw += vYaw * dt;
-      pitch = Math.max(-1.25, Math.min(1.25, pitch + vPitch * dt));
+      vx *= decay;
+      vy *= decay;
+      // after a pause, ease back into turning about Earth's own axis (held still while a spot is pinned)
+      const target = !pinned && now - lastTouch > IDLE_MS ? AUTO_SPIN : 0;
+      spin += (target - spin) * (1 - decay);
+      roll(vx * dt, vy * dt);
+      M = mul(M, rotY(spin * dt));
+      tidy();
     }
     draw(now);
 
@@ -183,7 +210,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     ctx.lineWidth = dpr;
     ctx.stroke();
 
-    const cY = Math.cos(yaw), sY = Math.sin(yaw), cP = Math.cos(pitch), sP = Math.sin(pitch);
+    const [m0, m1, m2, m3, m4, m5, m6, m7, m8] = M as [number, number, number, number, number, number, number, number, number];
     const base = Math.max(0.9, R / 240) * dpr * 0.85;
     const back = new Path2D();
     const front: Path2D[] = Array.from({ length: SHADES }, () => new Path2D());
@@ -192,10 +219,10 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     const reach = HOVER_PX * dpr;
 
     for (let i = 0; i < n; i++) {
-      const x1 = px[i]! * cY + pz[i]! * sY;
-      const z1 = -px[i]! * sY + pz[i]! * cY;
-      const y2 = py[i]! * cP - z1 * sP;
-      const z2 = py[i]! * sP + z1 * cP;
+      const x = px[i]!, y = py[i]!, z = pz[i]!;
+      const x1 = m0 * x + m1 * y + m2 * z;
+      const y2 = m3 * x + m4 * y + m5 * z;
+      const z2 = m6 * x + m7 * y + m8 * z;
       const sx = cx + R * x1, sy = cy - R * y2;
       if (z2 <= 0) {
         // the far side shows faintly through the globe

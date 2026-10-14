@@ -1,5 +1,5 @@
-import { DAY, SNAP } from './time';
-import { type Block, type Category, type Draft, loadBlocks, newId, overlaps, saveBlocks } from './model';
+import { DAY, SNAP, hhmm, mod } from './time';
+import { type Block, type Category, type Draft, labelOf, loadBlocks, newId, overlaps, saveBlocks } from './model';
 
 export interface DragState {
   /** Snapped minute where the drag began. */
@@ -106,10 +106,16 @@ export function closeDraft(): void {
   setState({ draft: null });
 }
 
+/** Names the first task a draft would collide with, e.g. "Overlaps Meetings 13:00–18:00". */
+function overlapMessage(d: Draft): string {
+  const hit = state.blocks.find((b) => b.id !== d.id && (mod(d.start - b.start) < b.dur || mod(b.start - d.start) < d.dur));
+  return hit ? `Overlaps ${labelOf(hit)} ${hhmm(hit.start)}–${hhmm(hit.start + hit.dur)}` : 'Overlaps another task';
+}
+
 /** Adds a ready-made task (e.g. from a memo line). Returns an error message if it can't be placed. */
 export function addBlock(d: Draft): string | null {
   if (d.dur <= 0 || d.dur >= DAY) return 'Start and end are the same';
-  if (overlaps(state.blocks, d)) return 'Overlaps another task';
+  if (overlaps(state.blocks, d)) return overlapMessage(d);
   const block: Block = { ...d, id: newId(), title: d.title.trim() };
   setState({ blocks: [...state.blocks, block], lastCat: block.cat });
   savedListeners.forEach((fn) => fn(block));
@@ -121,7 +127,7 @@ export function commitDraft(): string | null {
   const d = state.draft;
   if (!d) return null;
   if (d.dur <= 0 || d.dur >= DAY) return 'Start and end are the same';
-  if (overlaps(state.blocks, d)) return 'Overlaps another block';
+  if (overlaps(state.blocks, d)) return overlapMessage(d);
   const block: Block = { ...d, id: d.id ?? newId(), title: d.title.trim() };
   committing = true;
   setState({ blocks: [...state.blocks.filter((b) => b.id !== block.id), block], draft: null });

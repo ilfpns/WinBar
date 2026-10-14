@@ -1,40 +1,51 @@
 import { state, subscribe, toggleDrawer } from '../timetable/state';
-import { currentView, onView } from './router';
+import { type View, currentView, onView } from './router';
 
 const WIDE = 1000;   // above this the dial makes room for open drawers; below, drawers overlay it
 const GUTTER = 40;   // space kept between an open drawer and the dial
 const EDGE = 56;     // stage side padding when a drawer is closed (its tab sits there)
 
+type Side = 'left' | 'right';
+
+/** Which drawer lives on which side of which page. The open/closed state is per side. */
+const DRAWERS: { id: string; side: Side; views: View[] }[] = [
+  { id: 'drawer-left', side: 'left', views: ['today', 'calendar', 'news'] },
+  { id: 'drawer-right', side: 'right', views: ['today'] },  // tasks
+  { id: 'drawer-news', side: 'right', views: ['news'] },    // news feed (empty for now)
+];
+
 /** Side drawers: tucked off-screen with a tab peeking out; the tab slides them in and out. */
 export function mountDrawers(dialWrap: HTMLElement): void {
-  const sides = (['left', 'right'] as const).map((side) => ({
-    side,
-    tab: document.querySelector<HTMLButtonElement>(`.drawer-tab[data-drawer="${side}"]`)!,
-    panel: document.getElementById(`panel-${side}`)!,
-  }));
+  const drawers = DRAWERS.map((d) => {
+    const el = document.getElementById(d.id)!;
+    return { ...d, el, tab: el.querySelector<HTMLButtonElement>('.drawer-tab')!, panel: el.querySelector<HTMLElement>('.panel')! };
+  });
+  const hasDrawer = (side: Side, view = currentView()) => drawers.some((d) => d.side === side && d.views.includes(view));
+  const pull = (side: Side) => {
+    if (hasDrawer(side)) toggleDrawer(side);
+  };
 
-  for (const { side, tab, panel } of sides) {
+  for (const { side, tab, panel } of drawers) {
     tab.addEventListener('click', () => toggleDrawer(side));
     // stagger index for the contents' entrance animation
     [...panel.children].forEach((child, k) => (child as HTMLElement).style.setProperty('--k', String(k)));
   }
 
-  // background click: the dial's centre splits the screen — left half pulls the left drawer, right half the right
+  // background click: the page's centre splits the screen — left half pulls the left drawer, right half the right
   const dial = dialWrap.querySelector<SVGSVGElement>('svg')!;
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     const t = e.target as Element;
     if (t.closest('.drawer, .time-pop, button, input, textarea, a, .cal-day, #globe')) return;
-    if (currentView() === 'news') {
-      // news: empty space splits at the globe's centre
+    const view = currentView();
+    if (view === 'news') {
       const globe = document.getElementById('globe')!.getBoundingClientRect();
-      toggleDrawer(e.clientX < globe.left + globe.width / 2 ? 'left' : 'right');
+      pull(e.clientX < globe.left + globe.width / 2 ? 'left' : 'right');
       return;
     }
-    if (currentView() === 'calendar') {
-      // calendar: empty space splits at the month grid's centre
+    if (view === 'calendar') {
       const grid = document.querySelector('.cal-main')!.getBoundingClientRect();
-      toggleDrawer(e.clientX < grid.left + grid.width / 2 ? 'left' : 'right');
+      pull(e.clientX < grid.left + grid.width / 2 ? 'left' : 'right');
       return;
     }
     const box = dial.getBoundingClientRect();
@@ -43,13 +54,13 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     // the ring and its hour labels belong to the dial (dial units: outer edge 400 + labels ≈ 460 of 520)
     const ringPx = (box.width / 1040) * 460;
     if (Math.hypot(e.clientX - cx, e.clientY - cy) < ringPx) return;
-    toggleDrawer(e.clientX < cx ? 'left' : 'right');
+    pull(e.clientX < cx ? 'left' : 'right');
   });
 
   document.addEventListener('keydown', (e) => {
     if ((e.target as Element).closest('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === '[') toggleDrawer('left');
-    if (e.key === ']') toggleDrawer('right');
+    if (e.key === '[') pull('left');
+    if (e.key === ']') pull('right');
   });
 
   /**
@@ -67,7 +78,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
       return;
     }
     const left = state.drawers.left ? px('--panel-left-w') + 2 * inset + GUTTER : EDGE;
-    const right = state.drawers.right ? px('--panel-right-w') + 2 * inset + GUTTER : EDGE;
+    const right = state.drawers.right && hasDrawer('right', 'today') ? px('--panel-right-w') + 2 * inset + GUTTER : EDGE;
     const room = innerWidth - left - right;
     const base = dialWrap.offsetWidth; // layout size, unaffected by the transform
     const scale = base ? Math.min(1, room / base) : 1;
@@ -79,13 +90,19 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   let last = '';
   let settle = 0;
   function render(): void {
-    const key = `${state.drawers.left}${state.drawers.right}`;
-    for (const { side, tab, panel } of sides) {
-      const open = state.drawers[side];
-      document.body.classList.toggle(`${side}-open`, open);
-      tab.setAttribute('aria-expanded', String(open));
+    const view = currentView();
+    const key = `${state.drawers.left}${state.drawers.right}${view}`;
+    for (const side of ['left', 'right'] as const) {
+      // a side with no drawer on this page reads as closed (nothing to push aside)
+      document.body.classList.toggle(`${side}-open`, state.drawers[side] && hasDrawer(side, view));
+    }
+    for (const d of drawers) {
+      const here = d.views.includes(view);
+      const open = state.drawers[d.side] && here;
+      d.el.hidden = !here;
+      d.tab.setAttribute('aria-expanded', String(open));
       // a tucked-away panel must not take focus
-      panel.inert = !open;
+      d.panel.inert = !open;
     }
     if (key === last) return;
     last = key;
@@ -99,10 +116,10 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   onView(() => {
     // narrow screens: picking a view from the overlaying menu should reveal it
     if (innerWidth <= WIDE && state.drawers.left) toggleDrawer('left', false);
-    placeDial();
+    render();
   });
   addEventListener('resize', () => {
-    // shrinking to a narrow layout with both drawers out: keep the right one (tasks)
+    // shrinking to a narrow layout with both drawers out: keep the right one
     if (innerWidth <= WIDE && state.drawers.left && state.drawers.right) toggleDrawer('left', false);
     placeDial();
   });

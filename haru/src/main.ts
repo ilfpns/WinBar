@@ -14,6 +14,7 @@ import { mountRouter } from './ui/router';
 import { mountViewSwipe } from './ui/view-swipe';
 import { mountCalendar } from './calendar/calendar';
 import { mountNews } from './news/news';
+import { mountBackup } from './storage/backup';
 import { mountWinBarLink } from './ui/winbar';
 
 hydrateIcons();
@@ -49,6 +50,13 @@ mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
 mountBulk(byId('bulk'));
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountWinBarLink();
+mountBackup({
+  status: byId('backup-status'),
+  auto: byId('backup-auto'),
+  exportBtn: byId('backup-export'),
+  importBtn: byId('backup-import'),
+  file: byId('backup-file'),
+});
 mountNews(byId<HTMLCanvasElement>('globe'), byId('globe-readout'), byId('news-date'));
 mountCalendar({
   month: byId('cal-month'),
