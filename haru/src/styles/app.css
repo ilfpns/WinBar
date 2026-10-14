@@ -112,10 +112,10 @@ img, svg, a { -webkit-user-drag: none; }
 
 /* ---------- views: Today (the dial) and Calendar share the page */
 /* pages: only the current one (and, mid-turn, the one sliding away) is on screen */
-.page:not(.current):not(.leaving):not(.peek) { display: none; }
+.page:not(.current):not(.leaving) { display: none; }
 /* during a page turn both pages are on screen; the leaving one stays below the drawers */
 body.switching .page { will-change: transform; }
-.leaving, .peek { pointer-events: none; }
+.leaving { pointer-events: none; }
 
 .icon-btn {
   display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm);
