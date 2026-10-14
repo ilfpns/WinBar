@@ -80,6 +80,7 @@ export function firstFreeSlot(blocks: readonly Block[], from: number): { start: 
 
 export const newId = (): string => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+/** A filled-in example day (kept for tests and demos; no longer offered in the UI). */
 export function sampleDay(): Block[] {
   const t = (h: number, m = 0) => h * 60 + m;
   const day: Omit<Block, 'id' | 'done'>[] = [

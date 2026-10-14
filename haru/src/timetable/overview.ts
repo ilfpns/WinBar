@@ -1,5 +1,5 @@
 import { DAY, formatDuration, hhmm, mod, nowMinutes } from './time';
-import { CATEGORIES, CATEGORY_KEYS, type Category, contains, labelOf, progressOf, sampleDay } from './model';
+import { CATEGORIES, CATEGORY_KEYS, type Category, contains, labelOf, progressOf } from './model';
 import { setState, state, subscribe } from './state';
 import { ring } from '../ui/ring';
 import type { IconName } from '../ui/icons';
@@ -16,7 +16,6 @@ export interface OverviewRefs {
   dayRings: HTMLElement;
   catRings: HTMLElement;
   search: HTMLInputElement;
-  sample: HTMLButtonElement;
   clear: HTMLButtonElement;
 }
 
@@ -25,10 +24,6 @@ export function mountOverview(refs: OverviewRefs): void {
   refs.date.textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
   refs.search.addEventListener('input', () => setState({ query: refs.search.value }));
-  refs.sample.addEventListener('click', () => {
-    if (state.blocks.length && !confirm('Replace your day with the sample?')) return;
-    setState({ blocks: sampleDay(), draft: null });
-  });
   refs.clear.addEventListener('click', () => {
     if (!state.blocks.length || !confirm('Clear every block?')) return;
     setState({ blocks: [], draft: null });

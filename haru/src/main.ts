@@ -44,7 +44,6 @@ mountOverview({
   dayRings: byId('day-rings'),
   catRings: byId('cat-rings'),
   search,
-  sample: byId('sample'),
   clear: byId('clear'),
 });
 mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
