@@ -36,11 +36,14 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     const t = e.target as Element;
-    if (t.closest('.drawer, .time-pop, button, input, textarea, a, .cal-day, #globe')) return;
+    if (t.closest('.drawer, .time-pop, button, input, textarea, a, .cal-day')) return;
     const view = currentView();
     if (view === 'news') {
       const globe = document.getElementById('globe')!.getBoundingClientRect();
-      pull(e.clientX < globe.left + globe.width / 2 ? 'left' : 'right');
+      const gx = globe.left + globe.width / 2;
+      // the sphere (radius 0.42 of the canvas) spins; everything around it is background
+      if (t.closest('#globe') && Math.hypot(e.clientX - gx, e.clientY - (globe.top + globe.height / 2)) <= globe.width * 0.42) return;
+      pull(e.clientX < gx ? 'left' : 'right');
       return;
     }
     if (view === 'calendar') {
@@ -89,6 +92,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
 
   let last = '';
   let settle = 0;
+  const hideTimers = new Map<string, number>();
   function render(): void {
     const view = currentView();
     const key = `${state.drawers.left}${state.drawers.right}${view}`;
@@ -99,7 +103,16 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     for (const d of drawers) {
       const here = d.views.includes(view);
       const open = state.drawers[d.side] && here;
-      d.el.hidden = !here;
+      if (here) {
+        clearTimeout(hideTimers.get(d.id));
+        d.el.hidden = false;
+      } else if (!d.el.hidden && !hideTimers.has(d.id)) {
+        // leaving its page: let it slide shut first, then take it away
+        hideTimers.set(d.id, window.setTimeout(() => {
+          hideTimers.delete(d.id);
+          if (!d.views.includes(currentView())) d.el.hidden = true;
+        }, 600));
+      }
       d.tab.setAttribute('aria-expanded', String(open));
       // a tucked-away panel must not take focus
       d.panel.inert = !open;
@@ -113,7 +126,9 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     placeDial();
   }
 
-  onView(() => {
+  onView((_view, prev) => {
+    // the right drawer belongs to its page (Tasks on Today, News on News): leaving the page closes it
+    if (prev && state.drawers.right) toggleDrawer('right', false);
     // narrow screens: picking a view from the overlaying menu should reveal it
     if (innerWidth <= WIDE && state.drawers.left) toggleDrawer('left', false);
     render();

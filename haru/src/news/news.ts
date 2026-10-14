@@ -7,8 +7,7 @@ const fmt = (p: GeoPoint) =>
   `${Math.abs(p.lat).toFixed(1)}°${p.lat >= 0 ? 'N' : 'S'}  ${Math.abs(p.lon).toFixed(1)}°${p.lon >= 0 ? 'E' : 'W'}`;
 
 /** News page: for now, the interactive dot globe the headlines will hang off. */
-export function mountNews(canvas: HTMLCanvasElement, readout: HTMLElement, date: HTMLElement): void {
-  date.textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+export function mountNews(canvas: HTMLCanvasElement, readout: HTMLElement): void {
   fetch(`${import.meta.env.BASE_URL}data/globe.json`)
     .then((r) => r.json() as Promise<{ points: [number, number][] }>)
     .then(({ points }) => {

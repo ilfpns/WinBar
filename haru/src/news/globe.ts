@@ -116,9 +116,13 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     return { x: (e.clientX - box.left) * (canvas.width / box.width), y: (e.clientY - box.top) * (canvas.height / box.height) };
   };
 
+  /** Is a canvas point on the sphere (the only part that drags/pins)? */
+  const onSphere = (p: { x: number; y: number }) => Math.hypot(p.x - cx, p.y - cy) <= R;
+
   canvas.addEventListener('pointerdown', (e) => {
-    canvas.setPointerCapture(e.pointerId);
     const p = local(e);
+    if (!onSphere(p)) return; // corners of the canvas behave like the page background
+    canvas.setPointerCapture(e.pointerId);
     drag = { x: p.x, y: p.y, t: performance.now() };
     moved = 0;
     vx = vy = 0;

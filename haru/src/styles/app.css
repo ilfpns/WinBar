@@ -112,10 +112,10 @@ img, svg, a { -webkit-user-drag: none; }
 
 /* ---------- views: Today (the dial) and Calendar share the page */
 /* pages: only the current one (and, mid-turn, the one sliding away) is on screen */
-.page:not(.current):not(.leaving) { display: none; }
+.page:not(.current):not(.leaving):not(.peek) { display: none; }
 /* during a page turn both pages are on screen; the leaving one stays below the drawers */
 body.switching .page { will-change: transform; }
-.leaving { pointer-events: none; }
+.leaving, .peek { pointer-events: none; }
 
 .icon-btn {
   display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm);
@@ -227,11 +227,9 @@ body.switching .page { will-change: transform; }
 
 /* ---------- news: the dot globe */
 .news-view {
-  position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr; gap: 8px;
+  position: fixed; inset: 0; display: grid; grid-template-rows: 1fr;
   padding: 28px 56px 24px; max-width: 1240px; margin: 0 auto;
 }
-.news-head { display: flex; align-items: baseline; gap: 14px; }
-.news-head h1 { margin: 0; font-size: clamp(40px, 5vw, 64px); font-weight: 400; line-height: 1; letter-spacing: var(--tracking-display); color: var(--text-strong); }
 .globe-wrap { position: relative; display: grid; place-items: center; min-height: 0; }
 /* open drawers nudge the globe toward the free space (transform only, like the dial) */
 .globe-wrap { transition: transform var(--drawer-dur) var(--drawer-ease); }
@@ -285,7 +283,7 @@ body.left-open .drawer-left, body.right-open .drawer-right { transform: none; }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
   width: var(--tab-w); height: 132px; padding: 0; cursor: pointer;
   background: color-mix(in srgb, var(--popover) 82%, transparent);
-  backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
+  backdrop-filter: blur(var(--blur-glass));
   border: 1px solid var(--panel-border); color: var(--text-subtle);
   transition: color var(--dur-base) var(--ease-out), width var(--dur-base) var(--drawer-ease), background-color var(--dur-base) var(--ease-out);
 }
@@ -319,7 +317,7 @@ body.left-open .drawer-left, body.right-open .drawer-right { transform: none; }
   display: flex; flex-direction: column; gap: 14px; padding: 10px;
   overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
   background: var(--panel);
-  backdrop-filter: blur(var(--blur-glass)); -webkit-backdrop-filter: blur(var(--blur-glass));
+  backdrop-filter: blur(var(--blur-glass));
   border: 1px solid var(--panel-border); border-radius: var(--radius-sm);
 }
 .panel-left { width: var(--panel-left-w); }
