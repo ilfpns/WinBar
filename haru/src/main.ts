@@ -38,7 +38,7 @@ const byId = <T extends HTMLElement>(id: string): T => {
 
 const search = byId<HTMLInputElement>('search');
 
-mountDial(document.querySelector<SVGSVGElement>('#dial')!);
+const dial = mountDial(document.querySelector<SVGSVGElement>('#dial')!);
 mountEditor(byId<HTMLFormElement>('editor'));
 mountOverview({
   clock: byId('clock'),
@@ -52,7 +52,7 @@ mountOverview({
 mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
 mountBulk(byId('bulk'));
 trackHistory();
-mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'));
+mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'), dial);
 mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountWinBarLink();

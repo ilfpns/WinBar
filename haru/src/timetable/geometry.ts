@@ -1,9 +1,14 @@
 import { DAY, mod } from './time';
 
-/** Dial geometry in SVG units (viewBox is -520..520). */
-export const R_IN = 170;
-export const R_OUT = 400;
-export const R_MID = (R_IN + R_OUT) / 2;
+/** Dial geometry in SVG units (viewBox is -520..520). The ring's radii change with Today's view style. */
+export let R_IN = 170;
+export let R_OUT = 400;
+export let R_MID = (R_IN + R_OUT) / 2;
+export function setRing(inner: number, outer: number): void {
+  R_IN = inner;
+  R_OUT = outer;
+  R_MID = (inner + outer) / 2;
+}
 
 export type Point = readonly [x: number, y: number];
 

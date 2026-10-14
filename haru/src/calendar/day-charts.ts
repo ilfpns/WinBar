@@ -139,7 +139,7 @@ export function ringsChart(blocks: Block[], S: ChartSize = SMALL): SVGSVGElement
   cats.forEach((k, i) => {
     const t = totals.get(k)!;
     const r = S.ringOuter - i * (S.ringW + S.ringGap);
-    const base = { cx, cy: 0, r, pathLength: 1, transform: `rotate(-90 ${cx} 0)` };
+    const base = { cx, cy: 0, r, pathLength: 1, transform: `rotate(-90 ${cx} 0)`, 'data-cat': k };
     svg.append(
       svgEl('circle', { ...base, class: 'tt-ring-track' }),
       svgEl('circle', { ...base, class: 'tt-ring plan', style: `--c:var(--cat-${k});--f:${t.plan / DAY};--i:${i}` }),
@@ -155,7 +155,7 @@ export function ringsChart(blocks: Block[], S: ChartSize = SMALL): SVGSVGElement
   cats.forEach((k, i) => {
     const t = totals.get(k)!;
     const y = top + i * rowH;
-    const g = svgEl('g', { class: 'tt-legend', style: `--c:var(--cat-${k});--i:${i}` });
+    const g = svgEl('g', { class: 'tt-legend', 'data-cat': k, style: `--c:var(--cat-${k});--i:${i}` });
     g.append(
       svgEl('circle', { class: 'tt-legend-dot', cx: lx, cy: y, r: 4.5 * unit }),
       svgEl('text', { class: 'tt-co-name', x: lx + 10 * unit, y: y - 2 * unit }, CATEGORIES[k]),

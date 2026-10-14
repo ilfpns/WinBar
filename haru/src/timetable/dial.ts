@@ -1,5 +1,5 @@
 import { DAY, SNAP, formatDuration, hhmm, mod, nowMinutes, snap } from './time';
-import { R_IN, R_MID, R_OUT, arcPath, pointAt, polarOf, sectorPath } from './geometry';
+import { R_IN, R_MID, R_OUT, angleOf, arcPath, pointAt, polarOf, sectorPath, setRing } from './geometry';
 import { type Block, type Draft, blockAt, blocksInRange, contains, freeAround, labelOf, progressOf } from './model';
 import { clearSelection, closeDraft, onCancelled, onRemoved, onSaved, openDraft, select, setState, state, subscribe, toggleSelected } from './state';
 import { centeredText, svgEl } from './svg';
@@ -45,10 +45,22 @@ function dragRange(delta: number, start: number): { start: number; dur: number }
   return delta > 0 ? { start, dur: delta } : { start: mod(start + delta), dur: -delta };
 }
 
-export function mountDial(svg: SVGSVGElement): void {
+export type DialStyle = 'full' | 'thin';
+export interface Dial {
+  /** full: the wide ring with names inside; thin: a slimmer ring with every task named outside on a leader line. */
+  setStyle(style: DialStyle): void;
+}
+
+/** Ring radii per style (dial units). */
+const RINGS: Record<DialStyle, [number, number]> = { full: [170, 400], thin: [318, 400] };
+
+export function mountDial(svg: SVGSVGElement): Dial {
   const layer = (name: string) => svg.appendChild(svgEl('g', { class: `layer-${name}` }));
   const gBase = layer('base');
   const gBlocks = layer('blocks');
+  const gCallouts = layer('callouts');
+  // (named so a block's own `style` string in render() can't shadow it)
+  let dialStyle: DialStyle = 'full';
   const gGhost = layer('ghost');
   const gNow = layer('now');
   const gHover = layer('hover');
@@ -87,7 +99,7 @@ export function mountDial(svg: SVGSVGElement): void {
         svgEl('path', { class: `block${isSel ? ' sel' : ''}`, d: sectorPath(b.start, b.dur), style }),
         svgEl('path', { class: `block-arc${b.done ? ' done' : ''}`, d: arcPath(b.start, b.dur, R_OUT - 3.5), style }),
       );
-      if (b.dur < 45) continue;
+      if (dialStyle === 'thin' || b.dur < 45) continue;
       const [x, y] = pointAt(R_MID, b.start + b.dur / 2);
       const room = Math.min((b.dur / DAY) * Math.PI * 2 * R_MID - 12, 210);
       const name = labelOf(b);
@@ -99,6 +111,8 @@ export function mountDial(svg: SVGSVGElement): void {
       gBlocks.append(centeredText(cls, x, withTime ? y - 10 : y, label));
       if (withTime) gBlocks.append(centeredText('block-time', x, y + 16, `${hhmm(b.start)}–${hhmm(b.start + b.dur)}`));
     }
+
+    renderCallouts(visibleBlocks(), picked, now);
 
     gGhost.replaceChildren();
     if (drag?.delta) {
@@ -195,6 +209,61 @@ export function mountDial(svg: SVGSVGElement): void {
     return { ...polarOf(p.x, p.y), x: p.x, y: p.y };
   }
 
+  /**
+   * Thin style: every task named outside the ring — a leader line from its middle out past the hour labels to its
+   * name, share of the day and time. Labels are spread per side so they never overlap.
+   */
+  function renderCallouts(blocks: (Block | Draft)[], picked: Set<string>, now: number): void {
+    if (dialStyle !== 'thin') {
+      gCallouts.replaceChildren();
+      return;
+    }
+    const NAME = 22, DETAIL = 15, GAP = NAME + DETAIL + 10, LIMIT = 500;
+    const items = [...blocks].sort((a, b) => b.dur - a.dur).slice(0, 14).map((b) => {
+      const a = angleOf(b.start + b.dur / 2);
+      return { b, dx: Math.cos(a), dy: Math.sin(a), side: Math.cos(a) >= 0 ? 1 : -1, y: (R_OUT + 70) * Math.sin(a) };
+    });
+    for (const side of [1, -1]) {
+      const col = items.filter((it) => it.side === side).sort((a, b) => a.y - b.y);
+      for (let k = 1; k < col.length; k++) col[k]!.y = Math.max(col[k]!.y, col[k - 1]!.y + GAP);
+      const over = (col.at(-1)?.y ?? 0) - LIMIT;
+      if (over > 0) col.forEach((it) => (it.y -= over));
+      for (let k = col.length - 2; k >= 0; k--) col[k]!.y = Math.min(col[k]!.y, col[k + 1]!.y - GAP);
+    }
+    const legX = R_OUT + 112;
+    gCallouts.replaceChildren(...items.map(({ b, dx, dy, side, y }) => {
+      const sel = b === state.draft || (b.id !== null && picked.has(b.id));
+      const cls = `callout${b.done ? ' done' : ''}${sel ? ' sel' : ''}${contains(b, now) ? ' now' : ''}`;
+      const g = svgEl('g', { class: cls, style: `--c:var(--cat-${b.cat})` });
+      const p0 = [(R_OUT + 4) * dx, (R_OUT + 4) * dy];
+      const p1 = [(R_OUT + 70) * dx, y];
+      const p2 = [side * (legX - 8), y];
+      const anchor = side > 0 ? 'start' : 'end';
+      g.append(
+        svgEl('polyline', { class: 'callout-line', points: `${p0.join(',')} ${p1.join(',')} ${p2.join(',')}` }),
+        svgEl('circle', { class: 'callout-dot', cx: p0[0]!, cy: p0[1]!, r: 3.5 }),
+        svgEl('text', { class: 'callout-name', x: side * legX, y: y - 3, 'text-anchor': anchor }, labelOf(b)),
+        svgEl('text', { class: 'callout-detail', x: side * legX, y: y + DETAIL + 3, 'text-anchor': anchor },
+          `${hhmm(b.start)}–${hhmm(b.start + b.dur)} · ${Math.round((b.dur / DAY) * 100)}%`),
+      );
+      return g;
+    }));
+  }
+
+  /** While a new task is being dragged out: the time under the pointer (and where it started), on the ring. */
+  function showDragTimes(start: number, end: number): void {
+    const mark = (m: number, cls: string) => {
+      const [x0, y0] = pointAt(R_IN, m);
+      const [x1, y1] = pointAt(R_OUT + 10, m);
+      const [tx, ty] = pointAt(R_OUT + 46, m);
+      return [
+        svgEl('line', { class: 'hover-tick', x1: x0, y1: y0, x2: x1, y2: y1 }),
+        centeredText(`hover-label drag-time ${cls}`, tx, ty, hhmm(m)),
+      ];
+    };
+    gHover.replaceChildren(...mark(start, 'from'), ...(mod(end - start) ? mark(end, 'to') : []));
+  }
+
   function showHover(m: number): void {
     const { at: s, now } = snapTime(m);
     // label sits inside the empty ring band, clear of the centre hole and its progress ring
@@ -236,8 +305,8 @@ export function mountDial(svg: SVGSVGElement): void {
     const { fwd, back } = freeAround(state.blocks, start);
     if (!fwd && !back) return;
     svg.setPointerCapture(e.pointerId);
-    gHover.replaceChildren();
     setState({ draft: null, selected: [], drag: { start, prev: m, acc: 0, delta: 0, fwd, back, moved: false } });
+    showDragTimes(start, start);
   });
 
   svg.addEventListener('pointermove', (e) => {
@@ -258,6 +327,7 @@ export function mountDial(svg: SVGSVGElement): void {
       const acc = drag.acc + stepBetween(drag.prev, m);
       const delta = Math.max(-drag.back, Math.min(drag.fwd, snap(acc)));
       setState({ drag: { ...drag, prev: m, acc, delta, moved: drag.moved || Math.abs(acc) > 5 } });
+      showDragTimes(drag.start, mod(drag.start + delta));
       return;
     }
     if (!onRing(r)) {
@@ -299,6 +369,7 @@ export function mountDial(svg: SVGSVGElement): void {
     } else {
       range = dragRange(drag.delta, drag.start);
     }
+    gHover.replaceChildren();
     if (range.dur < SNAP) {
       setState({ drag: null });
       return;
@@ -312,6 +383,7 @@ export function mountDial(svg: SVGSVGElement): void {
     const drag = state.drag;
     if (drag) {
       if (drag.delta) orb.play('cancel', 'var(--text-muted)', dragRange(drag.delta, drag.start));
+      gHover.replaceChildren();
       setState({ drag: null });
     }
     if (sweep) {
@@ -322,6 +394,7 @@ export function mountDial(svg: SVGSVGElement): void {
 
   svg.addEventListener('pointercancel', () => {
     sweep = null;
+    gHover.replaceChildren();
     setState({ drag: null });
   });
 
@@ -331,6 +404,18 @@ export function mountDial(svg: SVGSVGElement): void {
   setInterval(() => {
     if (!state.drag) render();
   }, 20_000);
+
+  return {
+    setStyle(next) {
+      if (next === dialStyle) return;
+      dialStyle = next;
+      setRing(...RINGS[next]);
+      svg.classList.toggle('thin', next === 'thin');
+      gBase.replaceChildren();
+      drawBase(gBase);
+      render();
+    },
+  };
 }
 
 function drawBase(g: SVGGElement): void {
