@@ -95,6 +95,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
 
   /** Screen (device px) → lat/lon on the front face, or null off the globe. */
   function unproject(sx: number, sy: number): GeoPoint | null {
+    if (!R) return null;
     const x1 = (sx - cx) / R, y2 = -(sy - cy) / R;
     const d = x1 * x1 + y2 * y2;
     if (d > 1) return null;

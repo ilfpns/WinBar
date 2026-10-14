@@ -92,7 +92,6 @@ export function mountDrawers(dialWrap: HTMLElement): void {
 
   let last = '';
   let settle = 0;
-  const hideTimers = new Map<string, number>();
   function render(): void {
     const view = currentView();
     const key = `${state.drawers.left}${state.drawers.right}${view}`;
@@ -103,16 +102,8 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     for (const d of drawers) {
       const here = d.views.includes(view);
       const open = state.drawers[d.side] && here;
-      if (here) {
-        clearTimeout(hideTimers.get(d.id));
-        d.el.hidden = false;
-      } else if (!d.el.hidden && !hideTimers.has(d.id)) {
-        // leaving its page: let it slide shut first, then take it away
-        hideTimers.set(d.id, window.setTimeout(() => {
-          hideTimers.delete(d.id);
-          if (!d.views.includes(currentView())) d.el.hidden = true;
-        }, 600));
-      }
+      // a page's own drawer (tab included) comes and goes with the page, at once
+      d.el.hidden = !here;
       d.tab.setAttribute('aria-expanded', String(open));
       // a tucked-away panel must not take focus
       d.panel.inert = !open;

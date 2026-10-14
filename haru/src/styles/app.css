@@ -138,8 +138,11 @@ body.switching :is(.panel, .drawer-tab) { backdrop-filter: none; background: #1a
   transition: padding var(--drawer-dur) var(--drawer-ease);
 }
 @media (min-width: 1001px) {
-  body[data-view="calendar"].left-open .calendar-view { padding-left: calc(var(--panel-left-w) + 2 * var(--panel-inset) + 32px); }
+  /* the page that is on screen (or still sliding off) makes room; a page turn applies this at once */
+  body.left-open .calendar-view:is(.current, .leaving) { padding-left: calc(var(--panel-left-w) + 2 * var(--panel-inset) + 32px); }
 }
+/* only the page on screen animates its room for a drawer; a hidden one just takes the new layout */
+body.switching .calendar-view, .calendar-view:not(.current) { transition: none; }
 .cal-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .cal-title { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
 .cal-title h1 { margin: 0; font-size: clamp(40px, 5vw, 64px); font-weight: 400; line-height: 1; letter-spacing: var(--tracking-display); color: var(--text-strong); }
@@ -210,9 +213,12 @@ body.switching :is(.panel, .drawer-tab) { backdrop-filter: none; background: #1a
 .cal-day-list .meta { grid-column: 2; text-transform: none; }
 
 @media (max-width: 1000px) {
-  .calendar-view { padding: 20px 36px; grid-template-rows: auto auto auto; align-content: start; }
-  .cal-body { grid-template-columns: 1fr; }
-  .cal-main { grid-template-rows: auto auto; }
+  /* one column: the grid, then the day panel below it; the page scrolls */
+  .calendar-view { display: flex; flex-direction: column; padding: 20px 36px; }
+  .cal-body { display: flex; flex-direction: column; flex: none; min-height: auto; }
+  .cal-main { display: block; min-height: auto; }
+  .cal-grid { grid-auto-rows: minmax(92px, auto); }
+  .cal-day { flex: none; }
   .cal-note { min-height: 240px; }
 }
 @media (max-width: 640px) {
@@ -241,8 +247,9 @@ body.switching :is(.panel, .drawer-tab) { backdrop-filter: none; background: #1a
 @media (min-width: 1001px) {
   body.left-open { --shift-l: calc(var(--panel-left-w) + 2 * var(--panel-inset)); }
   body.right-open { --shift-r: calc(var(--panel-right-w) + 2 * var(--panel-inset)); }
-  body[data-view="news"] .globe-wrap { transform: translate3d(calc((var(--shift-l, 0px) - var(--shift-r, 0px)) / 2), 0, 0); }
+  .news-view:is(.current, .leaving) .globe-wrap { transform: translate3d(calc((var(--shift-l, 0px) - var(--shift-r, 0px)) / 2), 0, 0); }
 }
+body.switching .globe-wrap { transition: none; }
 #globe { width: min(100%, calc(100svh - 150px), 820px); aspect-ratio: 1; cursor: grab; touch-action: none; }
 #globe:active { cursor: grabbing; }
 .globe-readout {
@@ -273,6 +280,8 @@ body.switching :is(.panel, .drawer-tab) { backdrop-filter: none; background: #1a
   will-change: transform;
 }
 body.left-open .drawer-left, body.right-open .drawer-right { transition-timing-function: var(--drawer-pop); }
+/* a drawer that closes because the page turned (narrow screens, a page's own drawer) goes with the page: no slide */
+body.switching .drawer { transition: none; }
 
 /* opening: the drawer's contents rise in one after another */
 @keyframes drawer-in-left { from { opacity: 0; transform: translate3d(-14px, 0, 0); } }

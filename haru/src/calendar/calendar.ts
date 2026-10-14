@@ -130,7 +130,10 @@ export function mountCalendar(refs: CalendarRefs): void {
     if (parsed === null) return;
     const err = typeof parsed === 'string' ? parsed : addBlock(parsed);
     if (err) {
+      // the line stays as written, and Enter still breaks it — a line that can't be scheduled mustn't trap the caret
       say(err, true);
+      note.setRangeText('\n', note.selectionStart, note.selectionEnd, 'end');
+      notes.set(noteDate, note.value);
       return;
     }
     if (typeof parsed !== 'string') say(`Added to Today  ${describe(parsed)}`);

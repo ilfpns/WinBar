@@ -1,5 +1,5 @@
 import { kvGet, kvSet, requestPersistence } from './db';
-import { type Block } from '../timetable/model';
+import { type Block, isBlock } from '../timetable/model';
 import { setState, state, subscribe } from '../timetable/state';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 
@@ -49,8 +49,17 @@ export function mountBackup(refs: BackupRefs): void {
     if (state.blocks === lastBlocks) return;
     lastBlocks = state.blocks;
     clearTimeout(mirrorTimer);
-    mirrorTimer = window.setTimeout(() => void kvSet('timetable', state.blocks).catch(() => {}), 300);
+    mirrorTimer = window.setTimeout(mirror, 300);
     scheduleFileSave();
+  });
+  function mirror(): void {
+    clearTimeout(mirrorTimer);
+    void kvSet('timetable', state.blocks).catch(() => {});
+  }
+  // leaving the page (or switching tabs) flushes a pending mirror write right away
+  addEventListener('pagehide', mirror);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') mirror();
   });
   void kvGet<Block[]>('timetable')
     .then((saved) => {
@@ -79,8 +88,11 @@ export function mountBackup(refs: BackupRefs): void {
       const data = JSON.parse(await f.text()) as Partial<BackupFile>;
       if (data.app !== 'haru' || !Array.isArray(data.timetable)) throw new Error('not a Haru backup');
       if (!confirm('Replace today’s tasks and all memos with this backup?')) return;
-      setState({ blocks: data.timetable, draft: null, selected: [] });
-      notesStore()?.replace(Array.isArray(data.notes) ? data.notes : []);
+      // only well-formed entries come in (a hand-edited or older file must not break the app)
+      const blocks = data.timetable.filter(isBlock).map((b) => ({ ...b, done: b.done === true }));
+      const notes = (Array.isArray(data.notes) ? data.notes : []).filter((n): n is NoteRecord => typeof n?.date === 'string' && typeof n.text === 'string');
+      setState({ blocks, draft: null, selected: [] });
+      notesStore()?.replace(notes);
       show('Restored');
     } catch {
       show('Not a Haru backup', true);

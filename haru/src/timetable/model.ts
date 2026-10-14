@@ -99,7 +99,7 @@ export function sampleDay(): Block[] {
 
 const STORE_KEY = 'haru:timetable:v1';
 
-function isBlock(v: unknown): v is Block {
+export function isBlock(v: unknown): v is Block {
   if (typeof v !== 'object' || v === null) return false;
   const b = v as Record<string, unknown>;
   return typeof b.id === 'string' && typeof b.title === 'string' && typeof b.cat === 'string' && b.cat in CATEGORIES

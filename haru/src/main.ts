@@ -89,8 +89,9 @@ document.addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'Delete' || e.key === 'Backspace') {
     const n = state.selected.length;
-    if (n && confirm(`Delete ${n} task${n === 1 ? '' : 's'}?`)) deleteSelected();
-    else if (state.draft?.id) deleteDraftBlock();
+    if (n) {
+      if (confirm(`Delete ${n} task${n === 1 ? '' : 's'}?`)) deleteSelected();
+    } else if (state.draft?.id && confirm('Delete this task?')) deleteDraftBlock();
   }
   if (e.key === '/') {
     e.preventDefault();
