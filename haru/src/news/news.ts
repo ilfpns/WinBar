@@ -1,4 +1,4 @@
-import { createGlobe, type GeoPoint, type Marker } from './globe';
+import { createGlobe, type GeoPoint, type LandDot, type Marker } from './globe';
 import { currentView, onView } from '../ui/router';
 import { toggleDrawer } from '../timetable/state';
 import { icon } from '../ui/icons';
@@ -6,12 +6,12 @@ import { icon } from '../ui/icons';
 /** data/news.json, refreshed every 10 minutes by scripts/fetch-news.mjs (GitHub Actions). */
 type Topic = 'ai' | 'agi' | 'robotics' | 'chips' | 'embedded' | 'sw' | 'hw';
 interface NewsItem { title: string; source: string; link: string; time: number; topics: Topic[]; place: string; lang: string }
-interface Place extends GeoPoint { id: string; name: string }
+interface Place extends GeoPoint { id: string; name: string; iso?: string[] }
 interface NewsFile { updated: string; places: Place[]; items: NewsItem[] }
 
 const POLL_MS = 60_000;     // look for a fresh file this often while the page is open
 const FRESH_MS = 6 * 3600_000;
-const LIMIT = 120;
+const LIMIT = 150;
 /** Topic filters, in the order shown. */
 const TOPICS: [Topic, string][] = [
   ['ai', 'AI'], ['agi', 'AGI'], ['robotics', 'Robotics'], ['chips', 'Chips'], ['embedded', 'Embedded'], ['sw', 'Software'], ['hw', 'Hardware'],
@@ -81,14 +81,14 @@ export function mountNews(refs: NewsRefs): void {
     if (!region) {
       const all = document.createElement('span');
       all.className = 'meta';
-      all.textContent = 'All places';
+      all.textContent = 'All countries';
       refs.scope.replaceChildren(all);
       return;
     }
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'chip';
-    chip.setAttribute('aria-label', `Show all places (now ${region.name})`);
+    chip.setAttribute('aria-label', `Show all countries (now ${region.name})`);
     chip.append(region.name, icon('x'));
     chip.addEventListener('click', () => choose(null));
     refs.scope.replaceChildren(chip);
@@ -162,7 +162,7 @@ export function mountNews(refs: NewsRefs): void {
     const places = data.places.filter((p) => items.some((i) => i.place === p.id) || p.id === picked);
     const counts = places.map((p) => count(p.id));
     const most = Math.max(1, ...counts);
-    return places.map((p, i) => ({ id: p.id, label: p.name, lat: p.lat, lon: p.lon, weight: Math.sqrt(counts[i]! / most) }));
+    return places.map((p, i) => ({ id: p.id, label: p.name, lat: p.lat, lon: p.lon, weight: Math.sqrt(counts[i]! / most), iso: p.iso ?? [] }));
   }
 
   function apply(next: NewsFile): void {
@@ -207,9 +207,9 @@ export function mountNews(refs: NewsRefs): void {
 
   // ---------- the globe
   fetch(`${import.meta.env.BASE_URL}data/globe.json`)
-    .then((r) => r.json() as Promise<{ points: [number, number][] }>)
-    .then(({ points }) => {
-      globe = createGlobe(refs.canvas, points, { lat: 37.57, lon: 126.98 });
+    .then((r) => r.json() as Promise<{ points: LandDot[]; extra?: LandDot[] }>)
+    .then(({ points, extra }) => {
+      globe = createGlobe(refs.canvas, points, extra ?? [], { lat: 37.57, lon: 126.98 });
       globe.onReadout((p) => {
         refs.readout.textContent = p ? fmt(p) : '';
       });

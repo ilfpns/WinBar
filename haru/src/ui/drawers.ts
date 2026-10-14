@@ -4,6 +4,8 @@ import { type View, currentView, onView } from './router';
 const WIDE = 1000;   // above this the dial makes room for open drawers; below, drawers overlay it
 const GUTTER = 40;   // space kept between an open drawer and the dial
 const EDGE = 56;     // stage side padding when a drawer is closed (its tab sits there)
+const MIN_W = 220;   // narrowest a drawer can be dragged
+const WIDTHS_KEY = 'haru:drawer-widths';
 
 type Side = 'left' | 'right';
 
@@ -31,6 +33,73 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     [...panel.children].forEach((child, k) => (child as HTMLElement).style.setProperty('--k', String(k)));
   }
 
+  // ---------- widths: drag a drawer's inner edge to resize it (double-click the edge to reset)
+  const root = document.documentElement.style;
+  let widths: Record<string, number> = {};
+  try {
+    widths = JSON.parse(localStorage.getItem(WIDTHS_KEY) ?? '{}') as Record<string, number>;
+  } catch {
+    // unreadable: defaults
+  }
+  const maxW = () => Math.max(MIN_W, Math.min(900, innerWidth - 160));
+  /** Puts the current page's drawer widths into the layout variables (each right drawer keeps its own). */
+  function applyWidths(): void {
+    const view = currentView();
+    for (const side of ['left', 'right'] as const) {
+      const d = drawers.find((x) => x.side === side && x.views.includes(view));
+      const w = d ? widths[d.id] : undefined;
+      if (w) root.setProperty(`--panel-${side}-w`, `${Math.min(w, maxW())}px`);
+      else root.removeProperty(`--panel-${side}-w`);
+    }
+  }
+  for (const d of drawers) {
+    const grip = document.createElement('div');
+    grip.className = 'drawer-resize';
+    grip.setAttribute('role', 'separator');
+    grip.setAttribute('aria-orientation', 'vertical');
+    grip.setAttribute('aria-label', 'Resize panel');
+    grip.title = 'Drag to resize · double-click to reset';
+    d.el.append(grip);
+    grip.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      grip.setPointerCapture(e.pointerId);
+      document.body.classList.add('resizing');
+      const inset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--panel-inset')) || 0;
+      const move = (ev: PointerEvent) => {
+        const raw = d.side === 'left' ? ev.clientX - inset : innerWidth - ev.clientX - inset;
+        widths[d.id] = Math.round(Math.max(MIN_W, Math.min(maxW(), raw)));
+        applyWidths();
+        placeDial();
+      };
+      const up = () => {
+        grip.removeEventListener('pointermove', move);
+        grip.removeEventListener('pointerup', up);
+        grip.removeEventListener('pointercancel', up);
+        document.body.classList.remove('resizing');
+        try {
+          localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths));
+        } catch {
+          // storage unavailable: the width lasts for this session
+        }
+      };
+      grip.addEventListener('pointermove', move);
+      grip.addEventListener('pointerup', up);
+      grip.addEventListener('pointercancel', up);
+    });
+    grip.addEventListener('dblclick', () => {
+      delete widths[d.id];
+      try {
+        localStorage.setItem(WIDTHS_KEY, JSON.stringify(widths));
+      } catch {
+        // ignore
+      }
+      applyWidths();
+      placeDial();
+    });
+  }
+  applyWidths();
+
   // background click: the page's centre splits the screen — left half pulls the left drawer, right half the right
   const dial = dialWrap.querySelector<SVGSVGElement>('svg')!;
   document.addEventListener('pointerdown', (e) => {
@@ -41,8 +110,9 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     if (view === 'news') {
       const globe = document.getElementById('globe')!.getBoundingClientRect();
       const gx = globe.left + globe.width / 2;
-      // the sphere (radius 0.42 of the canvas) spins; everything around it is background
-      if (t.closest('#globe') && Math.hypot(e.clientX - gx, e.clientY - (globe.top + globe.height / 2)) <= globe.width * 0.42) return;
+      // the sphere (radius 0.42 of the canvas, more while zoomed in) spins; everything around it is background
+      const r = Number((t.closest('#globe') as HTMLElement | null)?.dataset.r ?? 0.42);
+      if (t.closest('#globe') && Math.hypot(e.clientX - gx, e.clientY - (globe.top + globe.height / 2)) <= globe.width * r) return;
       pull(e.clientX < gx ? 'left' : 'right');
       return;
     }
@@ -92,8 +162,11 @@ export function mountDrawers(dialWrap: HTMLElement): void {
 
   let last = '';
   let settle = 0;
+  /** Drawers sliding away with the page they belong to (kept on screen until the slide ends). */
+  const closing = new Set<string>();
   function render(): void {
     const view = currentView();
+    applyWidths();
     const key = `${state.drawers.left}${state.drawers.right}${view}`;
     for (const side of ['left', 'right'] as const) {
       // a side with no drawer on this page reads as closed (nothing to push aside)
@@ -102,8 +175,8 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     for (const d of drawers) {
       const here = d.views.includes(view);
       const open = state.drawers[d.side] && here;
-      // a page's own drawer (tab included) comes and goes with the page, at once
-      d.el.hidden = !here;
+      // a page's own drawer (tab included) comes and goes with the page; an open one first slides away
+      if (here || !closing.has(d.id)) d.el.hidden = !here;
       d.tab.setAttribute('aria-expanded', String(open));
       // a tucked-away panel must not take focus
       d.panel.inert = !open;
@@ -117,9 +190,29 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     placeDial();
   }
 
-  onView((_view, prev) => {
+  /** An open drawer leaving with its page slides out, tab and all, instead of vanishing. */
+  function slideAway(d: (typeof drawers)[number]): void {
+    closing.add(d.id);
+    d.el.hidden = false;
+    const off = d.side === 'right' ? 'calc(100% + var(--panel-inset))' : 'calc(-100% - var(--panel-inset))';
+    const anim = d.el.animate(
+      [{ transform: 'translate3d(0, 0, 0)' }, { transform: `translate3d(${off}, 0, 0)` }],
+      { duration: 380, easing: 'cubic-bezier(.4, 0, .2, 1)' },
+    );
+    const done = () => {
+      closing.delete(d.id);
+      anim.cancel();
+      d.el.hidden = !d.views.includes(currentView());
+    };
+    anim.onfinish = done;
+    anim.oncancel = () => closing.has(d.id) && done();
+  }
+
+  onView((view, prev) => {
     // the right drawer belongs to its page (Tasks on Today, News on News): leaving the page closes it
+    const leaving = prev ? drawers.filter((d) => state.drawers[d.side] && d.views.includes(prev) && !d.views.includes(view) && !d.el.hidden) : [];
     if (prev && state.drawers.right) toggleDrawer('right', false);
+    for (const d of leaving) if (d.side === 'right') slideAway(d);
     // narrow screens: picking a view from the overlaying menu should reveal it
     if (innerWidth <= WIDE && state.drawers.left) toggleDrawer('left', false);
     render();

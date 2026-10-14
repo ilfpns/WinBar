@@ -4,7 +4,8 @@
  * a faint see-through far side and a rim light.
  *
  * Interaction: drag to spin (with inertia), idle auto-rotation, dots swell under the pointer,
- * click a pin to pick that place. Strictly monochrome. Work per frame is a few milliseconds at most (dots are batched by shade).
+ * click a pin to pick that country (its dots pop up in the accent green), double-click to zoom in on a spot.
+ * Monochrome apart from the picked country. Work per frame is a few milliseconds at most (dots are batched by shade).
  */
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
@@ -16,11 +17,23 @@ const SHADES = 10;           // alpha buckets → one fill per bucket
 const PIN_HIT_PX = 16;       // how close a click must land to a pin
 const FLASH_MS = 2600;       // a pin that just got news pulses this long
 const AIM_MS = 260;          // turning a picked place to the front: time constant
+const POP_MS = 650;          // one dot of a picked country popping up
+const POP_SPREAD_MS = 700;   // the pop ripples out from the pin over this long
+const UNLIGHT_MS = 300;      // letting go of a country fades its dots back
+const ZOOM_IN = 2.4;         // double-click zoom
+const ZOOM_MS = 180;         // zoom easing time constant
+
+const smooth = (t: number) => t * t * (3 - 2 * t);
+/** 0 → 1 → 0 hump peaking at `peak` (the Today emblem's "pop"). */
+const bump = (t: number, peak: number) => (t < peak ? smooth(t / peak) : smooth((1 - t) / (1 - peak)));
+
+/** A land dot: latitude, longitude and the ISO 3166 numeric code of its country ('' if none). */
+export type LandDot = [lat: number, lon: number, country: string];
 
 export interface GeoPoint { lat: number; lon: number }
 
-/** A place with news: drawn as a pin, picked by clicking it. `weight` (0..1) sizes it. */
-export interface Marker extends GeoPoint { id: string; label: string; weight: number }
+/** A place with news: drawn as a pin, picked by clicking it. `weight` (0..1) sizes it; `iso` are the countries it lights up. */
+export interface Marker extends GeoPoint { id: string; label: string; weight: number; iso: string[] }
 
 export interface Globe {
   /** Starts/stops the animation loop (run only while the News page is visible). */
@@ -38,20 +51,55 @@ export interface Globe {
   flash(ids: string[]): void;
 }
 
-export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, number][], home: GeoPoint): Globe {
+export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: LandDot[], home: GeoPoint): Globe {
   const ctx = canvas.getContext('2d')!;
-  const n = landLatLon.length;
+  // land dots first, then the finer dots of small countries (drawn only while their country is lit)
+  const all = [...land, ...extra];
+  const n = land.length;
+  const total = all.length;
   // unit vectors: x right, y up, z toward the viewer at lon 0
-  const px = new Float32Array(n), py = new Float32Array(n), pz = new Float32Array(n);
-  landLatLon.forEach(([lat, lon], i) => {
+  const px = new Float32Array(total), py = new Float32Array(total), pz = new Float32Array(total);
+  const cc = all.map((d) => d[2]);
+  all.forEach(([lat, lon], i) => {
     const φ = lat * DEG, λ = lon * DEG;
     px[i] = Math.cos(φ) * Math.sin(λ);
     py[i] = Math.sin(φ);
     pz[i] = Math.cos(φ) * Math.cos(λ);
   });
 
+  /** The picked country's dots: index, pop delay, and whether it is a land dot (vs. a small-country extra). */
+  interface Lit { dots: { i: number; delay: number }[]; start: number; until: number }
+  let lit: Lit | null = null;
+  let fading: Lit | null = null;
+  /** Land dots currently drawn in the accent (skipped by the plain pass). */
+  let litMask = new Uint8Array(n);
+  function light(m: Marker | null): void {
+    const now = performance.now();
+    if (lit) {
+      fading = { ...lit, until: now + UNLIGHT_MS };
+      lit = null;
+    }
+    litMask = new Uint8Array(n);
+    if (!m) return;
+    const want = new Set(m.iso);
+    const φ = m.lat * DEG, λ = m.lon * DEG;
+    const ax = Math.cos(φ) * Math.sin(λ), ay = Math.sin(φ), az = Math.cos(φ) * Math.cos(λ);
+    const angle = (i: number) => Math.acos(Math.max(-1, Math.min(1, px[i]! * ax + py[i]! * ay + pz[i]! * az)));
+    let picked: number[] = [];
+    for (let i = 0; i < total; i++) if (want.has(cc[i]!)) picked.push(i);
+    // a country too small for the dot grid: light the land right around its pin instead
+    if (picked.length < 8) picked = picked.concat([...Array(n).keys()].filter((i) => !want.has(cc[i]!) && angle(i) < 2.5 * DEG));
+    const far = Math.max(1e-3, ...picked.map(angle));
+    lit = {
+      start: now,
+      until: Infinity,
+      dots: picked.map((i) => ({ i, delay: (angle(i) / far) * POP_SPREAD_MS + Math.random() * 120 })),
+    };
+    for (const { i } of lit.dots) if (i < n) litMask[i] = 1;
+  }
+
   const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  let colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong') };
+  let colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong'), accent: css('--accent') };
 
   // orientation is a 3×3 rotation (row-major), so drags roll the ball freely — over the poles too.
   // Screen-space turns pre-multiply (roll the ball as seen); the idle spin post-multiplies (around Earth's own axis).
@@ -95,7 +143,8 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   /** A place being turned to the front (after it was picked). */
   let aim: GeoPoint | null = null;
 
-  let dpr = 1, size = 0, R = 0, cx = 0, cy = 0;
+  let dpr = 1, size = 0, R = 0, R0 = 0, cx = 0, cy = 0;
+  let zoom = 1, zoomTo = 1;
   const fit = () => {
     dpr = Math.min(devicePixelRatio || 1, 2.5);
     size = canvas.offsetWidth;
@@ -105,10 +154,13 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       canvas.width = w;
       canvas.height = w;
     }
-    R = canvas.width * 0.42;
+    R0 = canvas.width * 0.42;
+    R = R0 * zoom;
     cx = cy = canvas.width / 2;
-    colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong') };
+    colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong'), accent: css('--accent') };
   };
+  /** Radius of the visible disc: the sphere, or the round window onto it while zoomed in. */
+  const disc = () => Math.min(R, canvas.width / 2 - dpr);
   new ResizeObserver(fit).observe(canvas);
   fit();
 
@@ -137,13 +189,13 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     };
   }
 
-  const local = (e: PointerEvent) => {
+  const local = (e: MouseEvent) => {
     const box = canvas.getBoundingClientRect();
     return { x: (e.clientX - box.left) * (canvas.width / box.width), y: (e.clientY - box.top) * (canvas.height / box.height) };
   };
 
   /** Is a canvas point on the sphere (the only part that drags/pins)? */
-  const onSphere = (p: { x: number; y: number }) => Math.hypot(p.x - cx, p.y - cy) <= R;
+  const onSphere = (p: { x: number; y: number }) => Math.hypot(p.x - cx, p.y - cy) <= disc();
 
   /** The front-facing pin nearest to a canvas point, within reach. */
   function pinAt(p: { x: number; y: number }): Marker | null {
@@ -172,8 +224,14 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   };
 
   canvas.addEventListener('pointerdown', (e) => {
+    // only the main button drags: a right/middle press's release can be swallowed by a context menu,
+    // which would leave the globe glued to the pointer
+    if (e.button !== 0) return;
     const p = local(e);
-    if (!onSphere(p)) return; // corners of the canvas behave like the page background
+    const onPin = pinAt(p);
+    if (!onSphere(p) && !onPin) return; // corners of the canvas behave like the page background
+    // a pin right at the rim can reach past the sphere: it is still the pin, not the background
+    if (onPin) e.stopPropagation();
     canvas.setPointerCapture(e.pointerId);
     drag = { x: p.x, y: p.y, t: performance.now() };
     moved = 0;
@@ -183,6 +241,11 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   canvas.addEventListener('pointermove', (e) => {
     const p = local(e);
     pointer = p;
+    // the release happened somewhere we never heard about (outside the window, a dialog): let go now
+    if (drag && !(e.buttons & 1)) {
+      drag = null;
+      lastTouch = performance.now();
+    }
     if (drag) {
       const now = performance.now();
       const dt = Math.max(1, now - drag.t);
@@ -209,6 +272,31 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
+  const letGo = () => {
+    if (!drag) return;
+    drag = null;
+    lastTouch = performance.now();
+  };
+  canvas.addEventListener('lostpointercapture', letGo);
+  addEventListener('blur', letGo);
+
+  // double-click: zoom in on that spot (it turns to the front); double-click again, or Esc, zooms back out
+  canvas.addEventListener('dblclick', (e) => {
+    const p = local(e);
+    if (!onSphere(p)) return;
+    if (zoomTo > 1) {
+      zoomTo = 1;
+      return;
+    }
+    const spot = unproject(p.x, p.y);
+    if (!spot) return;
+    aim = spot;
+    zoomTo = ZOOM_IN;
+    vx = vy = 0;
+  });
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && active && zoomTo > 1) zoomTo = 1;
+  });
   canvas.addEventListener('pointerleave', () => {
     if (!drag) pointer = null;
   });
@@ -225,6 +313,11 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
   function frame(now: number): void {
     const dt = Math.min(64, now - last) / 1000;
     last = now;
+    if (Math.abs(zoomTo - zoom) > 1e-3) {
+      zoom += (zoomTo - zoom) * (1 - Math.exp((-dt * 1000) / ZOOM_MS));
+      R = R0 * zoom;
+      canvas.dataset.r = (disc() / canvas.width).toFixed(3);
+    }
     if (!drag) {
       // inertia, then drift back into a slow spin once the user lets go
       const decay = Math.exp((-dt * 1000) / FRICTION_MS);
@@ -234,7 +327,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       const target = !selected && !aim && now - lastTouch > IDLE_MS ? AUTO_SPIN : 0;
       spin += (target - spin) * (1 - decay);
       roll(vx * dt, vy * dt);
-      M = mul(M, rotY(spin * dt));
+      M = mul(M, rotY((spin * dt) / zoom)); // the same screen speed when zoomed in
       if (aim) {
         // turn the shortest way until the picked place faces the viewer
         const φ = aim.lat * DEG, λ = aim.lon * DEG;
@@ -273,6 +366,11 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     const w = canvas.width;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, w);
+    // zoomed in, the sphere outgrows the canvas: show it through a round window
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, disc(), 0, TAU);
+    ctx.clip();
 
     // body: a dark sphere with a soft lit edge, so the dots read as sitting on a ball
     const body = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R * 1.05);
@@ -281,11 +379,8 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     body.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = body;
     ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, TAU);
+    ctx.arc(cx, cy, disc(), 0, TAU);
     ctx.fill();
-    ctx.strokeStyle = colors.rim;
-    ctx.lineWidth = dpr;
-    ctx.stroke();
 
     const [m0, m1, m2, m3, m4, m5, m6, m7, m8] = M as [number, number, number, number, number, number, number, number, number];
     const base = Math.max(0.9, R / 240) * dpr * 0.85;
@@ -296,6 +391,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     const reach = HOVER_PX * dpr;
 
     for (let i = 0; i < n; i++) {
+      if (litMask[i]) continue; // drawn with its country below
       const x = px[i]!, y = py[i]!, z = pz[i]!;
       const x1 = m0 * x + m1 * y + m2 * z;
       const y2 = m3 * x + m4 * y + m5 * z;
@@ -327,6 +423,8 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
     ctx.fillStyle = colors.hi;
     ctx.fill(lit);
 
+    drawCountry(now, base);
+
     // home marker: a steady dot with a slow pulse ring, only while it faces us (monochrome like the rest)
     const h = project(home);
     if (h.z > 0) {
@@ -344,6 +442,62 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       ctx.globalAlpha = 1;
     }
     drawMarkers(now, base);
+    ctx.restore();
+    ctx.strokeStyle = colors.rim;
+    ctx.lineWidth = dpr;
+    ctx.beginPath();
+    ctx.arc(cx, cy, disc(), 0, TAU);
+    ctx.stroke();
+  }
+
+  /**
+   * The picked country: each dot pops (swells, then settles a little larger) and turns green, rippling
+   * out from the pin like the Today emblem; letting go fades it back. Batched into a few alpha buckets.
+   */
+  function drawCountry(now: number, base: number): void {
+    if (fading && now > fading.until) fading = null;
+    const sets: [Lit, number][] = [];
+    if (fading) sets.push([fading, Math.max(0, (fading.until - now) / UNLIGHT_MS)]);
+    if (lit) sets.push([lit, 1]);
+    if (!sets.length) return;
+    const BUCKETS = 4;
+    const green: Path2D[] = Array.from({ length: BUCKETS }, () => new Path2D());
+    const plain = new Path2D();
+    const [m0, m1, m2, m3, m4, m5, m6, m7, m8] = M as [number, number, number, number, number, number, number, number, number];
+    for (const [set, strength] of sets) {
+      for (const { i, delay } of set.dots) {
+        const x = px[i]!, y = py[i]!, z = pz[i]!;
+        const z2 = m6 * x + m7 * y + m8 * z;
+        if (z2 <= 0) continue;
+        const sx = cx + R * (m0 * x + m1 * y + m2 * z), sy = cy - R * (m3 * x + m4 * y + m5 * z);
+        const small = i >= n; // a small country's own finer dots
+        const size = base * (0.6 + 0.55 * z2) * (small ? 0.75 : 1);
+        const t = (now - set.start - delay) / POP_MS;
+        if (t < 0) {
+          // not reached by the ripple yet: a land dot keeps its plain look, an extra dot isn't there yet
+          if (!small && set === lit) {
+            plain.moveTo(sx + size, sy);
+            plain.arc(sx, sy, size, 0, TAU);
+          }
+          continue;
+        }
+        const p = Math.min(1, t);
+        const r = size * (p < 1 ? 1 + 1.3 * bump(p, 0.35) + 0.15 * smooth(p) : 1.15);
+        const a = Math.min(1, p * 2.5) * strength * (0.45 + 0.55 * z2);
+        const path = green[Math.min(BUCKETS - 1, Math.floor(a * BUCKETS))]!;
+        path.moveTo(sx + r, sy);
+        path.arc(sx, sy, r, 0, TAU);
+      }
+    }
+    ctx.fillStyle = colors.dot;
+    ctx.globalAlpha = 0.6;
+    ctx.fill(plain);
+    ctx.fillStyle = colors.accent;
+    for (let b = 0; b < BUCKETS; b++) {
+      ctx.globalAlpha = (b + 1) / BUCKETS;
+      ctx.fill(green[b]!);
+    }
+    ctx.globalAlpha = 1;
   }
 
   /** News pins: a ring sized by how much is new there; the hovered or picked one is filled and named. */
@@ -355,14 +509,15 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       if (p.z <= 0) continue;
       const fade = Math.min(1, p.z * 2.5); // pins near the rim fade out as they turn away
       const on = m === selected || m === hoverPin;
+      const ink = m === selected ? colors.accent : colors.hi;
       const r = base * (2.2 + 1.6 * m.weight) * (on ? 1.25 : 1);
       ctx.globalAlpha = fade;
-      ctx.strokeStyle = colors.hi;
+      ctx.strokeStyle = ink;
       ctx.lineWidth = 1.3 * dpr;
       ctx.beginPath();
       ctx.arc(p.x, p.y, r, 0, TAU);
       ctx.stroke();
-      ctx.fillStyle = colors.hi;
+      ctx.fillStyle = ink;
       ctx.beginPath();
       ctx.arc(p.x, p.y, on ? r * 0.62 : base * 0.9, 0, TAU);
       ctx.fill();
@@ -382,7 +537,7 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
         // a dark plate keeps the name readable over the dots
         ctx.fillStyle = 'rgba(10,10,10,0.82)';
         ctx.fillRect(tx - 4 * dpr, p.y - 9 * dpr, w + 8 * dpr, 18 * dpr);
-        ctx.fillStyle = colors.hi;
+        ctx.fillStyle = ink;
         ctx.fillText(m.label, tx, p.y + 0.5 * dpr);
       }
     }
@@ -398,7 +553,9 @@ export function createGlobe(canvas: HTMLCanvasElement, landLatLon: [number, numb
       pick = fn;
     },
     select(id) {
-      selected = id ? markers.find((m) => m.id === id) ?? null : null;
+      const next = id ? markers.find((m) => m.id === id) ?? null : null;
+      if (next !== selected) light(next);
+      selected = next;
       if (selected) {
         aim = { lat: selected.lat, lon: selected.lon };
         vx = vy = 0;

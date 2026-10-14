@@ -40,11 +40,7 @@ export function mountBulk(card: HTMLElement): void {
       case 'move': return run(updateSelected((b) => ({ ...b, start: mod(b.start + by) })));
       case 'len': return run(updateSelected((b) => ({ ...b, dur: b.dur + by })));
       case 'clear': return clearSelection();
-      case 'delete': {
-        const n = state.selected.length;
-        if (confirm(`Delete ${n} task${n === 1 ? '' : 's'}?`)) deleteSelected();
-        return;
-      }
+      case 'delete': return deleteSelected();
     }
   });
 

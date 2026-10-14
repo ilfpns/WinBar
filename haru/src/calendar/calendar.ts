@@ -196,7 +196,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       del.setAttribute('aria-label', `Remove image ${k + 1}`);
       del.append(icon('x'));
       del.addEventListener('click', () => {
-        if (confirm('Remove this image?')) images.remove(rec.id);
+        images.remove(rec.id);
       });
       item.append(open, del);
       return item;

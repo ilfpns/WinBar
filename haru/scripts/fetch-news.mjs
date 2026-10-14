@@ -1,5 +1,5 @@
 // Builds data/news.json: IT-only headlines (AI, AGI, robotics / physical AI, chips, embedded, software, hardware)
-// from many outlets, English and Korean, each placed on the globe at the tech hub it is about.
+// from many outlets, English and Korean, each placed on the globe at the country it is about.
 // Runs on every deploy (`npm run news`) and every 10 minutes from GitHub Actions
 // (.github/workflows/haru-news.yml), which writes straight into the published site.
 // Browsers can't read these feeds directly (no CORS), so the site serves this snapshot instead.
@@ -12,48 +12,77 @@ import { dirname } from 'node:path';
 const OUT = process.argv[2] ?? 'public/data/news.json';
 const MAX_AGE_H = 72;       // older headlines drop off
 const PER_SOURCE = 40;
-const MAX_ITEMS = 500;
+const MAX_ITEMS = 600;
 
 const gn = (q, lang = 'en') => lang === 'ko'
   ? `https://news.google.com/rss/search?q=${encodeURIComponent(`${q} when:2d`)}&hl=ko&gl=KR&ceid=KR:ko`
   : `https://news.google.com/rss/search?q=${encodeURIComponent(`${q} when:2d`)}&hl=en-US&gl=US&ceid=US:en`;
 
+/** Countries drawn as pins (`iso`: ISO 3166 numeric codes lit on the globe); `q` searches that country's IT news (English, plus the local language where useful). */
+const COUNTRIES = {
+  us: { iso: ['840'], name: 'United States', lat: 37.39, lon: -122.08, q: ['"United States" OR U.S. OR American'] },
+  kr: { iso: ['410'], name: 'South Korea', lat: 37.57, lon: 126.98, q: ['"South Korea" OR Korean OR Samsung OR "SK hynix"'], ko: '한국' },
+  cn: { iso: ['156'], name: 'China', lat: 39.9, lon: 116.4, q: ['China OR Chinese OR Huawei OR Alibaba OR DeepSeek'] },
+  jp: { iso: ['392'], name: 'Japan', lat: 35.68, lon: 139.69, q: ['Japan OR Japanese OR SoftBank OR Rapidus OR Sony'], ko: '일본' },
+  tw: { iso: ['158'], name: 'Taiwan', lat: 25.03, lon: 121.56, q: ['Taiwan OR TSMC OR MediaTek OR Foxconn'] },
+  in: { iso: ['356'], name: 'India', lat: 12.97, lon: 77.59, q: ['India OR Indian OR Bengaluru'] },
+  uk: { iso: ['826'], name: 'United Kingdom', lat: 51.51, lon: -0.13, q: ['UK OR Britain OR British OR Arm OR DeepMind'] },
+  de: { iso: ['276'], name: 'Germany', lat: 52.52, lon: 13.4, q: ['Germany OR German OR Siemens OR Infineon'] },
+  fr: { iso: ['250'], name: 'France', lat: 48.86, lon: 2.35, q: ['France OR French OR Mistral'] },
+  nl: { iso: ['528'], name: 'Netherlands', lat: 52.37, lon: 4.9, q: ['Netherlands OR Dutch OR ASML OR NXP'] },
+  il: { iso: ['376'], name: 'Israel', lat: 32.08, lon: 34.78, q: ['Israel OR Israeli'] },
+  eu: { iso: ['040', '056', '100', '191', '196', '203', '208', '233', '246', '250', '276', '300', '348', '372', '380', '428', '440', '442', '470', '528', '616', '620', '642', '703', '705', '724', '752'], name: 'European Union', lat: 50.85, lon: 4.35, q: ['"European Union" OR EU OR Brussels'] },
+  ca: { iso: ['124'], name: 'Canada', lat: 43.65, lon: -79.38, q: ['Canada OR Canadian OR Toronto'] },
+  sg: { iso: ['702'], name: 'Singapore', lat: 1.35, lon: 103.82, q: ['Singapore'] },
+  ae: { iso: ['784'], name: 'UAE', lat: 24.45, lon: 54.38, q: ['UAE OR Emirates OR "Abu Dhabi" OR Dubai OR G42'] },
+  sa: { iso: ['682'], name: 'Saudi Arabia', lat: 24.71, lon: 46.68, q: ['"Saudi Arabia" OR Saudi OR Humain'] },
+  au: { iso: ['036'], name: 'Australia', lat: -33.87, lon: 151.21, q: ['Australia OR Australian'] },
+  br: { iso: ['076'], name: 'Brazil', lat: -23.55, lon: -46.63, q: ['Brazil OR Brazilian'] },
+};
+const IT_TERMS = '(AI OR "artificial intelligence" OR semiconductor OR chip OR robot OR robotics OR software OR "tech" OR GPU OR "data center")';
+
 /**
- * Feeds. `home` places a headline when its title names no place or company we know.
+ * Feeds. `place` pins every headline of a feed to one country (the per-country searches);
+ * otherwise `home` places a headline when its title names no country or company we know.
  * `topic` is the default topic for a specialised feed whose headlines don't spell their field out.
  * `strict` feeds are general (e.g. Hacker News): only headlines that match an IT topic are kept.
  */
 const FEEDS = [
+  // per country (listed first so a story found for a country keeps that country)
+  ...Object.entries(COUNTRIES).flatMap(([id, c]) => [
+    ...c.q.map((q) => ({ name: null, url: gn(`(${q}) ${IT_TERMS}`), place: id, strict: true })),
+    ...(c.ko ? [{ name: null, url: gn(`${c.ko} (인공지능 OR 반도체 OR 로봇 OR 소프트웨어)`, 'ko'), place: id, strict: true }] : []),
+  ]),
   // outlets
-  { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', home: 'sv', strict: true },
-  { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', home: 'sv', strict: true },
-  { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/technology-lab', home: 'sv', strict: true },
-  { name: 'WIRED', url: 'https://www.wired.com/feed/tag/ai/latest/rss', home: 'sv', topic: 'ai' },
-  { name: 'MIT Technology Review', url: 'https://www.technologyreview.com/feed/', home: 'sv', strict: true },
-  { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/feeds/feed.rss', home: 'sv', strict: true },
-  { name: "Tom's Hardware", url: 'https://www.tomshardware.com/feeds/all', home: 'sv', topic: 'hw' },
+  { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', home: 'us', strict: true },
+  { name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', home: 'us', strict: true },
+  { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/technology-lab', home: 'us', strict: true },
+  { name: 'WIRED', url: 'https://www.wired.com/feed/tag/ai/latest/rss', home: 'us', topic: 'ai' },
+  { name: 'MIT Technology Review', url: 'https://www.technologyreview.com/feed/', home: 'us', strict: true },
+  { name: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/feeds/feed.rss', home: 'us', strict: true },
+  { name: "Tom's Hardware", url: 'https://www.tomshardware.com/feeds/all', home: 'us', topic: 'hw' },
   { name: 'The Register', url: 'https://www.theregister.com/headlines.atom', home: 'uk', strict: true },
-  { name: 'EE Times', url: 'https://www.eetimes.com/feed/', home: 'sv', topic: 'chips' },
-  { name: 'Embedded.com', url: 'https://www.embedded.com/feed/', home: 'sv', topic: 'embedded' },
-  { name: 'Hackaday', url: 'https://hackaday.com/blog/feed/', home: 'sv', topic: 'embedded' },
-  { name: 'The Robot Report', url: 'https://www.therobotreport.com/feed/', home: 'sv', topic: 'robotics' },
-  { name: 'Hacker News', url: 'https://hnrss.org/frontpage', home: 'sv', strict: true },
+  { name: 'EE Times', url: 'https://www.eetimes.com/feed/', home: 'us', topic: 'chips' },
+  { name: 'Embedded.com', url: 'https://www.embedded.com/feed/', home: 'us', topic: 'embedded' },
+  { name: 'Hackaday', url: 'https://hackaday.com/blog/feed/', home: 'us', topic: 'embedded' },
+  { name: 'The Robot Report', url: 'https://www.therobotreport.com/feed/', home: 'us', topic: 'robotics' },
+  { name: 'Hacker News', url: 'https://hnrss.org/frontpage', home: 'us', strict: true },
   // labs and vendors
-  { name: 'OpenAI', url: 'https://openai.com/news/rss.xml', home: 'sv', topic: 'ai' },
+  { name: 'OpenAI', url: 'https://openai.com/news/rss.xml', home: 'us', topic: 'ai' },
   { name: 'Google DeepMind', url: 'https://deepmind.google/blog/rss.xml', home: 'uk', topic: 'ai' },
   { name: 'Hugging Face', url: 'https://huggingface.co/blog/feed.xml', home: 'fr', topic: 'ai' },
-  { name: 'NVIDIA', url: 'https://blogs.nvidia.com/feed/', home: 'sv', topic: 'chips' },
+  { name: 'NVIDIA', url: 'https://blogs.nvidia.com/feed/', home: 'us', topic: 'chips' },
   // Korean IT press
   { name: 'AI타임스', url: 'https://www.aitimes.com/rss/allArticle.xml', home: 'kr', topic: 'ai' },
   { name: '전자신문', url: 'https://rss.etnews.com/Section901.xml', home: 'kr', strict: true },
   { name: '블로터', url: 'https://www.bloter.net/rss/allArticle.xml', home: 'kr', strict: true },
   // Google News searches per field (many more outlets)
-  { name: null, url: gn('"artificial general intelligence" OR AGI'), home: 'sv', topic: 'agi' },
-  { name: null, url: gn('"physical AI" OR "humanoid robot" OR "vision-language-action" OR "VLA model"'), home: 'sv', topic: 'robotics' },
-  { name: null, url: gn('GPU OR CPU OR NPU OR semiconductor OR chipmaker'), home: 'sv', topic: 'chips' },
-  { name: null, url: gn('"embedded systems" OR microcontroller OR RTOS OR FPGA OR firmware'), home: 'sv', topic: 'embedded' },
-  { name: null, url: gn('"large language model" OR LLM OR "AI model"'), home: 'sv', topic: 'ai' },
-  { name: null, url: gn('"software engineering" OR "open source" OR programming language OR developer tools'), home: 'sv', topic: 'sw' },
+  { name: null, url: gn('"artificial general intelligence" OR AGI'), home: 'us', topic: 'agi' },
+  { name: null, url: gn('"physical AI" OR "humanoid robot" OR "vision-language-action" OR "VLA model"'), home: 'us', topic: 'robotics' },
+  { name: null, url: gn('GPU OR CPU OR NPU OR semiconductor OR chipmaker'), home: 'us', topic: 'chips' },
+  { name: null, url: gn('"embedded systems" OR microcontroller OR RTOS OR FPGA OR firmware'), home: 'us', topic: 'embedded' },
+  { name: null, url: gn('"large language model" OR LLM OR "AI model"'), home: 'us', topic: 'ai' },
+  { name: null, url: gn('"software engineering" OR "open source" OR programming language OR developer tools'), home: 'us', topic: 'sw' },
   { name: null, url: gn('반도체 OR GPU OR 인공지능 OR 로봇', 'ko'), home: 'kr', strict: true },
 ];
 
@@ -68,22 +97,6 @@ const TOPICS = {
   hw: /hardware|laptop|\bPC\b|smartphone|iphone|pixel|galaxy|display|battery|quantum|server|data ?center|supercomputer|headset|wearable|하드웨어|노트북|스마트폰|디스플레이|배터리|양자|서버|데이터센터/i,
 };
 
-/** Tech hubs drawn as pins. */
-const PLACES = {
-  sv: { name: 'Silicon Valley', lat: 37.39, lon: -122.08 },
-  sea: { name: 'Seattle', lat: 47.61, lon: -122.33 },
-  kr: { name: 'Seoul', lat: 37.57, lon: 126.98 },
-  jp: { name: 'Tokyo', lat: 35.68, lon: 139.69 },
-  cn: { name: 'China', lat: 39.9, lon: 116.4 },
-  tw: { name: 'Taiwan', lat: 25.03, lon: 121.56 },
-  uk: { name: 'London', lat: 51.51, lon: -0.13 },
-  nl: { name: 'Netherlands', lat: 51.44, lon: 5.47 },
-  de: { name: 'Germany', lat: 52.52, lon: 13.4 },
-  fr: { name: 'Paris', lat: 48.86, lon: 2.35 },
-  il: { name: 'Israel', lat: 32.08, lon: 34.78 },
-  in: { name: 'India', lat: 12.97, lon: 77.59 },
-  eu: { name: 'Brussels', lat: 50.85, lon: 4.35 },
-};
 
 /** Place words in a headline, checked in this order (countries before companies). */
 const PLACE_WORDS = [
@@ -98,8 +111,13 @@ const PLACE_WORDS = [
   ['fr', /france|french|paris|mistral|프랑스/i],
   ['uk', /\bUK\b|britain|british|london|\barm holdings|deepmind|영국/i],
   ['eu', /\bEU\b|european|europe|brussels|유럽/i],
-  ['sea', /microsoft|amazon|\baws\b|seattle|마이크로소프트|아마존/i],
-  ['sv', /nvidia|apple|google|alphabet|\bmeta\b|openai|anthropic|intel|\bAMD\b|qualcomm|tesla|\bxAI\b|broadcom|silicon valley|엔비디아|애플|구글|메타|오픈AI|앤트로픽|인텔|퀄컴|테슬라/i],
+  ['ca', /canada|canadian|toronto|montreal|캐나다/i],
+  ['sg', /singapore|싱가포르/i],
+  ['ae', /\bUAE\b|emirates|abu dhabi|dubai|\bG42\b|아랍에미리트|두바이/i],
+  ['sa', /saudi|humain|사우디/i],
+  ['au', /australia|australian|호주/i],
+  ['br', /brazil|brazilian|브라질/i],
+  ['us', /nvidia|apple|google|alphabet|\bmeta\b|openai|anthropic|intel|\bAMD\b|qualcomm|tesla|\bxAI\b|broadcom|microsoft|amazon|\baws\b|silicon valley|seattle|\bU\.?S\.?\b|united states|american|washington|trump|미국|엔비디아|애플|구글|메타|오픈AI|앤트로픽|인텔|퀄컴|테슬라|마이크로소프트|아마존/i],
 ];
 
 const decode = (s) => s
@@ -157,7 +175,8 @@ async function fetchFeed(feed) {
     }
     out.push({
       title, source, link: it.link, time: it.time, topics,
-      place: placeOf(title, feed.home),
+      // the title's own country/company wins; a country search's hit that names none stays with that country
+      place: placeOf(title, feed.place ?? feed.home),
       lang: /[가-힣]/.test(title) ? 'ko' : 'en',
     });
     if (out.length >= PER_SOURCE) break;
@@ -173,7 +192,7 @@ let failed = 0;
 results.forEach((r, i) => {
   if (r.status === 'rejected') {
     failed++;
-    console.warn(`news: ${FEEDS[i].name ?? FEEDS[i].url.slice(0, 60)} — ${r.reason?.message ?? r.reason}`);
+    console.warn(`news: ${FEEDS[i].name ?? FEEDS[i].place ?? FEEDS[i].url.slice(0, 60)} — ${r.reason?.message ?? r.reason}`);
     return;
   }
   for (const it of r.value) {
@@ -189,7 +208,7 @@ if (!items.length && previous) {
 }
 items.sort((a, b) => b.time - a.time);
 const kept = items.slice(0, MAX_ITEMS);
-const places = Object.entries(PLACES).map(([id, p]) => ({ id, ...p }));
+const places = Object.entries(COUNTRIES).map(([id, { name, lat, lon, iso }]) => ({ id, name, lat, lon, iso }));
 
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, `${JSON.stringify({ updated: new Date().toISOString(), places, items: kept })}\n`);
