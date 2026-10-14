@@ -142,9 +142,43 @@ export function mountCalendar(refs: CalendarRefs): void {
     void renderTimetable();
   });
   let ttFor = '';
+  /** The card's height glides between sizes (open, close, a longer or shorter day), so the memo below moves with it. */
+  let ttAnim: Animation | null = null;
+  const GAP = 14; // the panel's flex gap, folded away while the card is closed
+  const ease = 'cubic-bezier(.22, 1, .36, 1)';
+  const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function resizeFrom(from: number): void {
+    ttAnim?.cancel();
+    ttView.hidden = false;
+    const to = ttView.getBoundingClientRect().height;
+    if (Math.abs(to - from) < 1 || reduced()) return;
+    const start: Keyframe = from ? { height: `${from}px` } : { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: `-${GAP}px`, borderWidth: '0px' };
+    ttAnim = ttView.animate([start, { height: `${to}px` }], { duration: 420, easing: ease });
+  }
+  function closeTimetable(): void {
+    ttAnim?.cancel();
+    if (ttView.hidden) return;
+    const from = ttView.getBoundingClientRect().height;
+    if (reduced()) {
+      ttView.hidden = true;
+      return;
+    }
+    ttAnim = ttView.animate(
+      [{ height: `${from}px`, opacity: 1 }, { height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: `-${GAP}px`, borderWidth: '0px', opacity: 0 }],
+      { duration: 320, easing: ease },
+    );
+    ttAnim.onfinish = () => {
+      ttView.hidden = true;
+      ttAnim = null;
+    };
+  }
+
   async function renderTimetable(): Promise<void> {
-    ttView.hidden = !ttOpen;
-    if (!ttOpen) return;
+    if (!ttOpen) {
+      closeTimetable();
+      return;
+    }
+    const from = ttView.hidden ? 0 : ttView.getBoundingClientRect().height;
     const date = selected;
     ttFor = date;
     const isToday = date === dayKey();
@@ -156,6 +190,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       empty.className = 'cal-tt-empty';
       empty.textContent = date > dayKey() ? 'Not planned yet' : 'No timetable saved for this day';
       ttView.replaceChildren(empty);
+      resizeFrom(from);
       return;
     }
     // a small read-only dial: the day's tasks around 24 h, done ones solid
@@ -221,6 +256,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       foot.append(use);
     }
     ttView.replaceChildren(svg, list, foot);
+    resizeFrom(from);
   }
   // Today changes show up live while today's timetable is open
   subscribe(() => {
