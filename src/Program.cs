@@ -1,4 +1,5 @@
 ﻿using System.Drawing.Drawing2D;
+using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32;
@@ -8,10 +9,16 @@ namespace WinBar;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
         // 로그인 자동 실행과 직접 실행이 겹쳐도 메뉴바는 하나만 뜬다.
         using var singleInstance = new Mutex(true, @"Local\WinBar.SingleInstance", out bool firstInstance);
+        // 브라우저(Haru)가 winbar:// 주소로 실행한 경우: 값만 전달하고 바로 끝낸다(메뉴바를 새로 띄우지 않는다).
+        if (args.Length > 0 && args[0].StartsWith(HaruLink.Scheme + ":", StringComparison.OrdinalIgnoreCase))
+        {
+            HaruLink.Deliver(args[0], running: !firstInstance);
+            return;
+        }
         if (!firstInstance) return;
 
         // 한 기능에서 처리되지 않은 오류가 나도 메뉴바 전체가 종료되지 않게 한다.
@@ -496,6 +503,152 @@ internal static class RunCat
 // 모양: 아래는 둥근 공, 위로는 일렁이며 솟는 불꽃 혀, 그 끝에서 구슬 같은 불티가 떨어져 나와 위로 오르며 사라진다.
 // 크기는 40단계: CPU 사용량에 맞는 단계로 한 장면에 한 단계씩 다가가 툭 바뀌지 않는다.
 // 일렁임은 실제 시간 기준으로 움직여, 장면 수가 바뀌어도 속도가 고르다(바쁠수록 빨리 일렁임).
+// 불꽃 옆 Haru(하루 일정 웹) 버튼. 점 원형 엠블럼의 점이 오늘 진행도만큼 시계 방향으로 밝아진다.
+// 누르면 기본 브라우저로 Haru를 연다. Haru는 일정을 체크할 때 winbar://progress?v=0.46&d=2026-10-14 를 부르고,
+// 그 주소로 실행된 WinBar는 이미 떠 있는 WinBar에 이름 있는 파이프로 값을 넘기고 바로 끝난다(웹 서버 없음).
+internal static class HaruLink
+{
+    public const string Scheme = "winbar";
+    private const string Url = "https://ilfpns.github.io/WinBar/?winbar=1";
+    private const string PipeName = "WinBar.Haru";
+    private static readonly Color Core = Color.FromArgb(79, 191, 122);
+
+    // 점 배치: 지름 18px 원 안의 격자 점과, 각 점이 0시(위)부터 시계 방향으로 하루의 어느 몫인지
+    private static readonly (PointF At, float Turn, float Radius)[] Dots = BuildDots();
+
+    private static (PointF, float, float)[] BuildDots()
+    {
+        var dots = new List<(PointF, float, float)>();
+        const float radius = 8.6f, pitch = 3.1f, core = 3.4f;
+        for (float y = -radius; y <= radius + 0.01f; y += pitch)
+            for (float x = -radius; x <= radius + 0.01f; x += pitch)
+            {
+                float d = MathF.Sqrt(x * x + y * y);
+                if (d > radius || d < core) continue;
+                float turn = (MathF.Atan2(x, -y) / (2 * MathF.PI) + 1) % 1;
+                float size = 0.8f + 0.4f * MathF.Abs(MathF.Sin(x * 0.9f) * MathF.Cos(y * 0.8f));
+                dots.Add((new PointF(x, y), turn, size));
+            }
+        return [.. dots];
+    }
+
+    // 오늘 날짜의 값만 쓴다(자정이 지나면 다시 0부터).
+    public static float TodayProgress =>
+        AppSettings.Current.HaruDay == DateTime.Now.ToString("yyyy-MM-dd") ? AppSettings.Current.HaruProgress / 1000f : 0f;
+
+    public static void DrawEmblem(Graphics graphics, Rectangle area, float progress, Color color)
+    {
+        GraphicsState state = graphics.Save();
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        float cx = area.Left + area.Width / 2f, cy = area.Top + area.Height / 2f;
+        using var lit = new SolidBrush(color);
+        using var dim = new SolidBrush(Color.FromArgb(70, color));
+        foreach ((PointF at, float turn, float r) in Dots)
+            graphics.FillEllipse(turn < progress ? lit : dim, cx + at.X - r, cy + at.Y - r, r * 2, r * 2);
+        using var core = new SolidBrush(Core);
+        graphics.FillEllipse(core, cx - 2.6f, cy - 2.6f, 5.2f, 5.2f);
+        graphics.Restore(state);
+    }
+
+    public static void Open()
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Url) { UseShellExecute = true }); }
+        catch (Exception) { }
+    }
+
+    // winbar:// 주소를 현재 사용자 레지스트리에만 등록한다(관리자 권한 불필요). 경로가 같으면 다시 쓰지 않는다.
+    // 스토어(MSIX) 설치본은 레지스트리 대신 패키지 선언을 써야 하므로 건너뛴다.
+    private static void Register()
+    {
+        if (AppSettings.IsPackaged) return;
+        try
+        {
+            string command = $"\"{Environment.ProcessPath}\" \"%1\"";
+            using RegistryKey key = Registry.CurrentUser.CreateSubKey($@"Software\Classes\{Scheme}");
+            using RegistryKey open = key.CreateSubKey(@"shell\open\command");
+            if (open.GetValue(null) as string == command) return;
+            key.SetValue(null, "URL:WinBar");
+            key.SetValue("URL Protocol", "");
+            open.SetValue(null, command);
+        }
+        catch (Exception) { }
+    }
+
+    // 떠 있는 WinBar: 파이프에 값이 올 때까지 비동기로 기다린다(대기 중에는 CPU를 쓰지 않는다).
+    public static void Listen(SynchronizationContext? ui)
+    {
+        Register();
+        _ = Task.Run(async () =>
+        {
+            while (true)
+            {
+                try
+                {
+                    using var server = new NamedPipeServerStream(PipeName, PipeDirection.In, 1,
+                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                    await server.WaitForConnectionAsync().ConfigureAwait(false);
+                    using var reader = new StreamReader(server, Encoding.UTF8);
+                    string? line = await reader.ReadLineAsync().ConfigureAwait(false);
+                    if (line is not null && Parse(line) is (int value, string day))
+                        ui?.Post(_ => Apply(value, day), null);
+                }
+                catch (Exception) { await Task.Delay(1000).ConfigureAwait(false); }
+            }
+        });
+    }
+
+    // winbar:// 로 실행된 새 WinBar: 떠 있는 WinBar에 넘긴다. 떠 있지 않으면 설정에만 저장해 다음 실행 때 보인다.
+    public static void Deliver(string uri, bool running)
+    {
+        if (Parse(uri) is not (int value, string day)) return;
+        if (running)
+        {
+            try
+            {
+                using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out, PipeOptions.CurrentUserOnly);
+                client.Connect(800);
+                using var writer = new StreamWriter(client, new UTF8Encoding(false));
+                writer.WriteLine(uri);
+                return;
+            }
+            catch (Exception) { }
+        }
+        Apply(value, day);
+    }
+
+    private static void Apply(int value, string day)
+    {
+        AppSettings settings = AppSettings.Current;
+        if (settings.HaruProgress == value && settings.HaruDay == day) return;
+        settings.HaruProgress = value;
+        settings.HaruDay = day;
+        settings.Save(); // Changed → 메뉴바 다시 그리기
+    }
+
+    // winbar://progress?v=0.463&d=2026-10-14 → (463, "2026-10-14"). 형식이 다르면 무시한다.
+    private static (int, string)? Parse(string uri)
+    {
+        try
+        {
+            var parsed = new Uri(uri.Trim());
+            if (!parsed.Scheme.Equals(Scheme, StringComparison.OrdinalIgnoreCase) || parsed.Host != "progress") return null;
+            string? v = null, d = null;
+            foreach (string pair in parsed.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                string[] kv = pair.Split('=', 2);
+                if (kv.Length != 2) continue;
+                if (kv[0] == "v") v = Uri.UnescapeDataString(kv[1]);
+                if (kv[0] == "d") d = Uri.UnescapeDataString(kv[1]);
+            }
+            if (!double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double value)) return null;
+            if (!DateTime.TryParseExact(d, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out _)) return null;
+            return ((int)Math.Round(Math.Clamp(value, 0, 1) * 1000), d!);
+        }
+        catch (Exception) { return null; }
+    }
+}
+
 internal sealed class FlameIcon
 {
     private const int Columns = 12, Rows = 14;
@@ -860,6 +1013,7 @@ internal sealed class WinBarContext : ApplicationContext
         NowPlaying.Changed += OnNowPlayingChanged;
         NowPlaying.Start();
         AppSettings.Current.Changed += OnSettingsChanged;
+        HaruLink.Listen(uiContext);
         fullscreenTimer.Tick += (_, _) => UpdateFullscreenState();
         fullscreenTimer.Start();
 
@@ -1200,7 +1354,7 @@ internal sealed class WinBarContext : ApplicationContext
 internal sealed class BarForm : Form
 {
     // 오른쪽에서부터: 날짜시간 · 제어 센터(스위치) · 소리 · 네트워크 · 배터리 · … · 카메라/마이크
-    private enum Item { None, Privacy, Cat, Media, More, Battery, Network, Sound, Control, Clock }
+    private enum Item { None, Privacy, Cat, Haru, Media, More, Battery, Network, Sound, Control, Clock }
 
     private const int BarHeight = 30;
 
@@ -1770,6 +1924,12 @@ internal sealed class BarForm : Form
         }
 
         Item item = ItemAt(e.Location);
+        if (item == Item.Haru)
+        {
+            panel.HidePanel();
+            HaruLink.Open();
+            return;
+        }
         if (KindOf(item) is null) return;
         // 이미 고정된 같은 모달을 다시 누르면 닫는다. 마우스로만 열린 모달을 누르면 고정한다.
         if (panel.Visible && panelItem == item && panel.Pinned)
@@ -1818,6 +1978,8 @@ internal sealed class BarForm : Form
         Add(Item.More, 30);
         // 움직이는 아이콘(불꽃·고양이)은 맨 왼쪽 로고 바로 오른쪽에 둔다(로고 칸 10~40px).
         if (options.ShowRunCat) areas[Item.Cat] = new Rectangle(44, 0, 32, ClientSize.Height);
+        // Haru 버튼은 불꽃 바로 오른쪽(불꽃을 끄면 그 자리)에 둔다.
+        if (options.ShowHaru) areas[Item.Haru] = new Rectangle(options.ShowRunCat ? 78 : 44, 0, 26, ClientSize.Height);
         if (options.ShowPrivacy && (status.CameraInUse || status.MicrophoneInUse))
             Add(Item.Privacy, status.CameraInUse && status.MicrophoneInUse ? 32 : 22);
     }
@@ -1863,7 +2025,8 @@ internal sealed class BarForm : Form
         mediaLogoStep = MediaLogoCell + Math.Clamp(options.IconSpacing, AppSettings.MinIconSpacing, AppSettings.MaxIconSpacing);
         int collapsed = MediaCollapsedWidth(all.Count);
         int center = ClientSize.Width / 2;
-        int leftLimit = (areas.TryGetValue(Item.Cat, out Rectangle cat) ? cat.Right : 44) + 16;
+        int leftLimit = (areas.TryGetValue(Item.Haru, out Rectangle haru) ? haru.Right
+            : areas.TryGetValue(Item.Cat, out Rectangle cat) ? cat.Right : 44) + 16;
         int rightLimit = areas.Values.Where(area => area.Left > ClientSize.Width / 3).Select(area => area.Left).DefaultIfEmpty(ClientSize.Width).Min() - 16;
         // 가운데에서 양쪽으로 쓸 수 있는 폭 중 좁은 쪽에 맞춘다(정가운데 유지).
         int room = 2 * Math.Min(center - leftLimit, rightLimit - center);
@@ -2040,6 +2203,9 @@ internal sealed class BarForm : Form
             case Item.Cat:
                 if (AppSettings.Current.RunCatStyle == "cat") RunCat.Draw(graphics, area, catFrame, color);
                 else flame.Draw(graphics, area);
+                break;
+            case Item.Haru:
+                HaruLink.DrawEmblem(graphics, area, HaruLink.TodayProgress, color);
                 break;
             case Item.More:
                 Icons.DrawBold(graphics, "", area, color, 11);

@@ -1,0 +1,4 @@
+node_modules
+dist
+# third-party site captures: kept locally, not published
+design-references/screenshots/

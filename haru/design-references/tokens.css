@@ -1,0 +1,85 @@
+/* Design tokens — see design-references/DESIGN.md.
+   Tone: cregg-paris.com + skills.sh (black, hairlines, Geist), category colors from the muted earth palette. */
+
+:root {
+  color-scheme: dark;
+
+  /* base — black, surfaces are translucent black over a faint ambient glow */
+  --bg: #050505;
+  --surface: rgba(10, 10, 10, 0.6);
+  --surface-solid: #0c0c0c;
+  --surface-2: rgba(255, 255, 255, 0.04);
+  --surface-3: rgba(255, 255, 255, 0.07);
+  --line: #1c1c1c;
+  --line-strong: #2c2c2c;
+  --glass: rgba(10, 10, 10, 0.55);
+  --glass-hover: rgba(40, 40, 40, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.07);
+
+  --text: #ebebeb;
+  --text-strong: #ffffff;
+  --text-muted: #8f8f8f;
+  --text-subtle: #5a5a5a;
+
+  /* signals, pulled from the palette and lifted for contrast on black */
+  --accent: #4fbf7a;
+  --info: #4a9fb3;
+  --danger: #c0503c;
+
+  /* earth palette — [deep, mid, light] per hue */
+  --red-1: #4a1e17;    --red-2: #5c1d10;    --red-3: #8a3f30;
+  --brown-1: #432a16;  --brown-2: #554210;  --brown-3: #8a5a32;
+  --olive-1: #3f3614;  --olive-2: #67592a;  --olive-3: #8a7a32;
+  --moss-1: #3c4214;   --moss-2: #5a6224;   --moss-3: #7a8a30;
+  --green-1: #163e22;  --green-2: #226338;  --green-3: #2e8a50;
+  --teal-1: #144238;   --teal-2: #1f6a5e;   --teal-3: #2e8a7e;
+  --petrol-1: #153a44; --petrol-2: #1f5a68; --petrol-3: #2e7a8e;
+  --navy-1: #18184a;   --navy-2: #24226a;   --navy-3: #34308e;
+  --plum-1: #431844;   --plum-2: #6a226a;   --plum-3: #8a2e8a;
+
+  /* schedule categories: line/dot color + fill color */
+  --cat-work: var(--petrol-3);   --cat-work-fill: var(--petrol-1);
+  --cat-study: #4a45b0;          --cat-study-fill: var(--navy-1);
+  --cat-health: var(--moss-3);   --cat-health-fill: var(--moss-1);
+  --cat-personal: var(--green-3); --cat-personal-fill: var(--green-1);
+  --cat-sleep: var(--plum-3);    --cat-sleep-fill: var(--plum-1);
+  --cat-etc: var(--brown-3);     --cat-etc-fill: var(--brown-1);
+
+  /* type */
+  --font-sans: "Geist", "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Pretendard Variable", ui-monospace, monospace;
+  --font-serif: "Instrument Serif", "Noto Serif KR", Georgia, serif;
+
+  --text-display: clamp(56px, 6.67vw, 96px);
+  --text-display--lh: calc(86 / 96);
+  --text-h1: 62px;  --text-h1--lh: calc(58 / 62);
+  --text-h2: 42px;  --text-h2--lh: calc(45 / 42);
+  --text-h3: 27px;  --text-h3--lh: calc(32 / 27);
+  --text-lead: 22px; --text-lead--lh: calc(25 / 22);
+  --text-body: 15px; --text-body--lh: 1.6;
+  --text-ui: 14px;  --text-ui--lh: calc(20 / 14);
+  --text-meta: 12px; --text-meta--lh: calc(16 / 12);
+
+  --tracking-display: -0.035em;
+  --tracking-heading: -0.03em;
+  --tracking-lead: -0.01em;
+  --tracking-ui: 0;
+  --tracking-meta: 0.02em;
+
+  /* space & layout */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 30px; --space-7: 40px; --space-8: 80px; --space-9: 120px;
+  --gutter: 20px;
+  --header-h: 58px;
+  --reading-w: 680px;
+  --radius: 0px;
+  --radius-sm: 6px;
+
+  /* motion */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 0.2s;
+  --dur-base: 0.3s;
+  --dur-slow: 0.4s;
+  --blur-glass: 24px;
+}

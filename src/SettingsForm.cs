@@ -127,6 +127,7 @@ internal sealed class SettingsForm : Form
                     Toggle("네트워크", "", s => s.ShowWifi, (s, v) => s.ShowWifi = v),
                     Toggle("소리", "", s => s.ShowVolume, (s, v) => s.ShowVolume = v),
                     Toggle("움직이는 아이콘 (CPU 사용량)", Icons.Cpu, s => s.ShowRunCat, (s, v) => s.ShowRunCat = v),
+                    Toggle("Haru (하루 일정)", "", s => s.ShowHaru, (s, v) => s.ShowHaru = v),
                     Toggle("지금 재생 중 (메뉴바 가운데)", "", s => s.ShowNowPlaying, (s, v) => s.ShowNowPlaying = v)
                 ], Note: "제어 센터·날짜·시간은 항상 표시"),
                 // 움직이는 아이콘 모양 고르기(CPU 사용량에 따라 크기·속도가 바뀜)

@@ -1,0 +1,21 @@
+{
+  "name": "haru",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc",
+    "deploy": "node scripts/deploy.mjs",
+    "calendar": "node scripts/fetch-calendar.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  },
+  "dependencies": {
+    "lucide": "^1.56.0"
+  }
+}
