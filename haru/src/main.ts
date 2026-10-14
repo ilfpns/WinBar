@@ -76,6 +76,7 @@ mountCalendar({
   prev: byId('cal-prev'),
   next: byId('cal-next'),
   today: byId('cal-today'),
+  stats: byId('cal-stats'),
   filters: byId('cal-filters'),
   week: byId('cal-week'),
   grid: byId('cal-grid'),
@@ -84,8 +85,8 @@ mountCalendar({
 
 document.addEventListener('keydown', (e) => {
   const typing = (e.target as Element).closest('input, select, textarea');
-  // Esc inside an open time picker only closes the picker
-  if (e.key === 'Escape' && document.querySelector(':popover-open')) return;
+  // Esc inside an open time picker or dialog (stats, image) only closes that
+  if (e.key === 'Escape' && document.querySelector(':popover-open, dialog[open]')) return;
   if (e.key === 'Escape') {
     // Esc peels one layer at a time: editor / selection first, then the drawers
     if (state.draft) closeDraft();

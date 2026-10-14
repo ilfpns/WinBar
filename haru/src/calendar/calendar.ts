@@ -1,6 +1,7 @@
 import { currentView, onView } from '../ui/router';
 import { createNotes } from './notes';
 import { createImages } from './images';
+import { mountStats } from './stats';
 import { icon } from '../ui/icons';
 import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
 import { addBlock, setState, state, subscribe } from '../timetable/state';
@@ -33,6 +34,7 @@ export interface CalendarRefs {
   prev: HTMLButtonElement;
   next: HTMLButtonElement;
   today: HTMLButtonElement;
+  stats: HTMLButtonElement;
   filters: HTMLElement;
   week: HTMLElement;
   grid: HTMLElement;
@@ -399,6 +401,7 @@ export function mountCalendar(refs: CalendarRefs): void {
     render(delta);
   }
   refs.prev.addEventListener('click', () => go(-1));
+  mountStats(refs.stats, () => month);
   refs.next.addEventListener('click', () => go(1));
   refs.today.addEventListener('click', () => {
     const now = new Date();
@@ -409,7 +412,7 @@ export function mountCalendar(refs: CalendarRefs): void {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (currentView() !== 'calendar' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (currentView() !== 'calendar' || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
     if ((e.target as Element).closest('input, select, textarea')) return;
     if (e.key === 'ArrowLeft') go(-1);
     if (e.key === 'ArrowRight') go(1);
