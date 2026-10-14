@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <script type="module" crossorigin src="/WinBar/assets/index-BHE_9C46.js"></script>
-  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-DNpAKcoa.css">
+  <script type="module" crossorigin src="/WinBar/assets/index-TMxuiLFe.js"></script>
+  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-DHszep2D.css">
 </head>
 <body>
   <main class="stage page" id="stage">
@@ -86,6 +86,16 @@
       <section class="section">
         <div class="section-head"><span>Categories</span></div>
         <div class="rings rings-sm" id="cat-rings"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-head"><span>Backup</span><span class="meta backup-status" id="backup-status"></span></div>
+        <div class="backup-row">
+          <button type="button" class="btn-sm" id="backup-auto" aria-pressed="false">Auto-backup</button>
+          <button type="button" class="btn-text" id="backup-export">Export</button>
+          <button type="button" class="btn-text" id="backup-import">Import</button>
+          <input type="file" id="backup-file" accept="application/json,.json" hidden>
+        </div>
       </section>
 
       <div class="panel-foot">
@@ -168,6 +178,14 @@
       <button type="button" class="btn-danger" data-bulk="delete">Delete</button>
     </section>
     </div>
+  </aside>
+
+  <!-- News page's right drawer: opens empty for now; the feed will live here -->
+  <aside class="drawer drawer-right drawer-news" id="drawer-news" hidden>
+    <button type="button" class="drawer-tab" data-drawer="right" aria-controls="panel-news" aria-expanded="false" aria-label="Toggle news" title="News  ]">
+      <i data-icon="chevron-left"></i><span class="tab-label">News</span>
+    </button>
+    <div class="panel panel-right" id="panel-news" aria-label="News"></div>
   </aside>
 
 </body>
