@@ -25,7 +25,7 @@ const gn = (q, lang = 'en') => lang === 'ko'
 /** Countries drawn as pins (`iso`: ISO 3166 numeric codes lit on the globe); `q` searches that country's IT news (English, plus the local language where useful). */
 const COUNTRIES = {
   us: { iso: ['840'], name: 'United States', lat: 37.39, lon: -122.08, q: ['"United States" OR U.S. OR American'] },
-  kr: { iso: ['410'], name: 'South Korea', lat: 37.57, lon: 126.98, q: ['"South Korea" OR Korean OR Samsung OR "SK hynix"'], ko: '한국' },
+  kr: { iso: ['410'], name: 'South Korea', lat: 36.4, lon: 127.9, q: ['"South Korea" OR Korean OR Samsung OR "SK hynix"'], ko: '한국' },
   cn: { iso: ['156'], name: 'China', lat: 39.9, lon: 116.4, q: ['China OR Chinese OR Huawei OR Alibaba OR DeepSeek'] },
   jp: { iso: ['392'], name: 'Japan', lat: 35.68, lon: 139.69, q: ['Japan OR Japanese OR SoftBank OR Rapidus OR Sony'], ko: '일본' },
   tw: { iso: ['158'], name: 'Taiwan', lat: 25.03, lon: 121.56, q: ['Taiwan OR TSMC OR MediaTek OR Foxconn'] },
@@ -48,7 +48,7 @@ const COUNTRIES = {
   id: { iso: ['360'], name: 'Indonesia', lat: -6.2, lon: 106.85, q: ['Indonesia OR Indonesian OR Jakarta'] },
   th: { iso: ['764'], name: 'Thailand', lat: 13.76, lon: 100.5, q: ['Thailand OR Thai OR Bangkok'] },
   pk: { iso: ['586'], name: 'Pakistan', lat: 33.68, lon: 73.05, q: ['Pakistan OR Pakistani'] },
-  kp: { iso: ['408'], name: 'North Korea', lat: 39.02, lon: 125.75, q: ['"North Korea" OR "North Korean" OR Lazarus'] },
+  kp: { iso: ['408'], name: 'North Korea', lat: 40.4, lon: 127.2, q: ['"North Korea" OR "North Korean" OR Lazarus'] },
   nz: { iso: ['554'], name: 'New Zealand', lat: -36.85, lon: 174.76, q: ['"New Zealand"'] },
   // Europe
   ru: { iso: ['643'], name: 'Russia', lat: 55.76, lon: 37.62, q: ['Russia OR Russian OR Yandex'] },

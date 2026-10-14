@@ -55,6 +55,19 @@ for (const c of countries) {
   extra.push(...found.slice(0, 160));
 }
 
+// islands the 50m map drops or barely touches, drawn on purpose: always on the globe, and lit with their country.
+// [lat, lon] of each island's dots; the first one is the always-visible dot, the rest fill it in when lit.
+const ISLANDS = [
+  { name: 'Jeju', cc: '410', dots: [[33.38, 126.55], [33.3, 126.25], [33.45, 126.38], [33.5, 126.7], [33.45, 126.88], [33.27, 126.45], [33.3, 126.72]] },
+  { name: 'Ulleungdo', cc: '410', dots: [[37.5, 130.87], [37.47, 130.9]] },
+  { name: 'Dokdo', cc: '410', dots: [[37.24, 131.87]] },
+];
+for (const isle of ISLANDS) {
+  const [first, ...rest] = isle.dots;
+  points.push([first[0], first[1], isle.cc]);
+  extra.push(...rest.map(([lat, lon]) => [lat, lon, isle.cc]));
+}
+
 mkdirSync('public/data', { recursive: true });
 writeFileSync('public/data/globe.json', JSON.stringify({ source: 'Natural Earth (world-atlas land-50m, countries-50m)', points, extra }));
 console.log(`globe: ${points.length} land dots (${tagged} in a country) + ${extra.length} for small countries → public/data/globe.json`);
