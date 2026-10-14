@@ -9,6 +9,7 @@ Haru is WinBar's day planner: a web app built around a 24-hour dial, opened from
 - Side drawers stay tucked away; click the background left or right of the dial, their tabs, or `[` / `]` to slide them out.
 - Works from phone to desktop: drawers push the dial aside on wide screens and overlay it on narrow ones.
 - Opened from WinBar (`?winbar=1`), finishing tasks updates the WinBar menu-bar emblem via `winbar://`.
+- Calendar view (`#/calendar`): Korean public holidays & observances and the 대덕소프트웨어마이스터고 academic calendar, from a snapshot refreshed on every deploy (`npm run calendar`; set `NEIS_KEY` to use an NEIS API key).
 - Data stays in your browser (localStorage).
 
 ## Develop

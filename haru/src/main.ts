@@ -8,9 +8,12 @@ import { mountSchedule } from './timetable/schedule';
 import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, setState, state } from './timetable/state';
 import { mountDrawers } from './ui/drawers';
 import { hydrateIcons } from './ui/icons';
+import { mountRouter } from './ui/router';
+import { mountCalendar } from './calendar/calendar';
 import { mountWinBarLink } from './ui/winbar';
 
 hydrateIcons();
+mountRouter();
 
 // labels, icons and links are not draggable content
 document.addEventListener('dragstart', (e) => {
@@ -41,6 +44,17 @@ mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
 mountBulk(byId('bulk'));
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountWinBarLink();
+mountCalendar({
+  month: byId('cal-month'),
+  year: byId('cal-year'),
+  prev: byId('cal-prev'),
+  next: byId('cal-next'),
+  today: byId('cal-today'),
+  filters: byId('cal-filters'),
+  week: byId('cal-week'),
+  grid: byId('cal-grid'),
+  day: byId('cal-day'),
+});
 
 document.addEventListener('keydown', (e) => {
   const typing = (e.target as Element).closest('input, select, textarea');

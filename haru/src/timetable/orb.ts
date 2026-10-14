@@ -163,6 +163,11 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   function frame(now: number): void {
     const dt = Math.min(64, now - last);
     last = now;
+    // nothing to paint while the dial is off screen (calendar view)
+    if (!canvas.offsetWidth) {
+      requestAnimationFrame(frame);
+      return;
+    }
     // frame-rate independent easing toward targets (≈ a quarter-second transition)
     const ease = 1 - Math.exp(-dt / 90);
     const breathing = !reduced.matches;

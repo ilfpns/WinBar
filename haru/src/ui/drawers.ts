@@ -1,4 +1,5 @@
 import { state, subscribe, toggleDrawer } from '../timetable/state';
+import { currentView, onView } from './router';
 
 const WIDE = 1000;   // above this the dial makes room for open drawers; below, drawers overlay it
 const GUTTER = 40;   // space kept between an open drawer and the dial
@@ -21,7 +22,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   // background click: the dial's centre splits the screen — left half pulls the left drawer, right half the right
   const dial = dialWrap.querySelector<SVGSVGElement>('svg')!;
   document.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || currentView() !== 'today') return;
     const t = e.target as Element;
     if (t.closest('.drawer, .time-pop, button, input, a')) return;
     const box = dial.getBoundingClientRect();
@@ -83,6 +84,11 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     placeDial();
   }
 
+  onView(() => {
+    // narrow screens: picking a view from the overlaying menu should reveal it
+    if (innerWidth <= WIDE && state.drawers.left) toggleDrawer('left', false);
+    placeDial();
+  });
   addEventListener('resize', () => {
     // shrinking to a narrow layout with both drawers out: keep the right one (tasks)
     if (innerWidth <= WIDE && state.drawers.left && state.drawers.right) toggleDrawer('left', false);
