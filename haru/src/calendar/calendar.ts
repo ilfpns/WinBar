@@ -2,14 +2,13 @@ import { currentView, onView } from '../ui/router';
 import { createNotes } from './notes';
 import { createImages } from './images';
 import { mountStats } from './stats';
+import { ringsChart, slicesChart } from './day-charts';
 import { icon } from '../ui/icons';
 import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
 import { addBlock, setState, state, subscribe } from '../timetable/state';
 import { dayKey, timetableOn } from '../timetable/history';
-import { sectorPath } from '../timetable/geometry';
-import { svgEl, centeredText } from '../timetable/svg';
-import { CATEGORIES, labelOf, progressOf } from '../timetable/model';
-import { DAY, formatDuration, hhmm } from '../timetable/time';
+import { CATEGORIES, labelOf } from '../timetable/model';
+import { formatDuration, hhmm } from '../timetable/time';
 
 /** One entry from public/data/calendar.json (built by scripts/fetch-calendar.mjs). */
 interface CalEvent {
@@ -144,6 +143,13 @@ export function mountCalendar(refs: CalendarRefs): void {
     void renderTimetable();
   });
   let ttFor = '';
+  const TT_CHART_KEY = 'haru:tt-chart';
+  let ttChart: 'slices' | 'rings' = 'slices';
+  try {
+    if (localStorage.getItem(TT_CHART_KEY) === 'rings') ttChart = 'rings';
+  } catch {
+    // default view
+  }
   /** The card's height glides between sizes (open, close, a longer or shorter day), so the memo below moves with it. */
   let ttAnim: Animation | null = null;
   const GAP = 14; // the panel's flex gap, folded away while the card is closed
@@ -196,26 +202,32 @@ export function mountCalendar(refs: CalendarRefs): void {
       resizeFrom(from);
       return;
     }
-    // a small read-only dial: the day's tasks around 24 h, done ones solid
-    const svg = svgEl('svg', { class: 'cal-tt-dial', viewBox: '-110 -110 220 220', role: 'img', 'aria-label': 'Timetable' }) as SVGSVGElement;
-    svg.append(svgEl('path', { class: 'tt-bg', d: sectorPath(0, DAY, 58, 100) }));
-    // each slice sweeps in clockwise, one after another (--i orders them around the clock)
-    [...blocks].sort((x, y) => x.start - y.start).forEach((b, i) => {
-      svg.append(svgEl('path', { class: `tt-block${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur, 58, 100), style: `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill);--i:${i}` }));
-    });
-    const { done } = progressOf(blocks);
-    const pct = Math.round((done / DAY) * 100);
-    const pctText = centeredText('tt-pct', 0, 1, '0%');
-    svg.append(pctText);
-    // the percentage counts up while the slices come in
-    const t0 = performance.now();
-    const count = (now: number) => {
-      const t = Math.min(1, (now - t0) / 700);
-      pctText.textContent = `${Math.round(pct * (1 - (1 - t) ** 3))}%`;
-      if (t < 1 && pctText.isConnected) requestAnimationFrame(count);
-    };
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) pctText.textContent = `${pct}%`;
-    else requestAnimationFrame(count);
+    // the day as a chart: slices with named callouts, or one ring per category (switchable, remembered)
+    const views = document.createElement('div');
+    views.className = 'cal-tt-views';
+    views.setAttribute('role', 'group');
+    views.setAttribute('aria-label', 'Chart');
+    for (const [id, label, ic] of [['slices', 'Slices', 'chart-pie'], ['rings', 'By category', 'target']] as const) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cal-tt-view';
+      b.setAttribute('aria-label', label);
+      b.title = label;
+      b.setAttribute('aria-pressed', String(ttChart === id));
+      b.append(icon(ic));
+      b.addEventListener('click', () => {
+        if (ttChart === id) return;
+        ttChart = id;
+        try {
+          localStorage.setItem(TT_CHART_KEY, id);
+        } catch {
+          // remembered for this visit only
+        }
+        void renderTimetable();
+      });
+      views.append(b);
+    }
+    const svg = ttChart === 'rings' ? ringsChart(blocks) : slicesChart(blocks);
     const list = document.createElement('ul');
     list.className = 'cal-tt-list';
     for (const [i, b] of [...blocks].sort((x, y) => x.start - y.start).entries()) {
@@ -258,7 +270,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       });
       foot.append(use);
     }
-    ttView.replaceChildren(svg, list, foot);
+    ttView.replaceChildren(views, svg, list, foot);
     resizeFrom(from);
   }
   // Today changes show up live while today's timetable is open

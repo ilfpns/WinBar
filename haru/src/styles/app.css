@@ -259,11 +259,33 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-tt-list li { animation: tt-row .4s var(--ease-out) both; animation-delay: calc(160ms + var(--i, 0) * 45ms); }
 .cal-tt-foot { animation: tt-open .4s var(--ease-out) both; animation-delay: 300ms; }
 @media (prefers-reduced-motion: reduce) { .cal-tt, .cal-tt * { animation: none !important; } }
-.cal-tt-dial { width: 132px; height: 132px; justify-self: center; }
+.cal-tt { position: relative; }
+.cal-tt-dial { width: 100%; height: auto; overflow: visible; }
+.cal-tt-views { position: absolute; top: 8px; right: 8px; z-index: 1; display: flex; gap: 2px; padding: 2px; border-radius: 6px; background: rgba(0, 0, 0, .35); }
+.cal-tt-view { display: grid; place-items: center; width: 24px; height: 22px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--text-subtle); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.cal-tt-view .ic { width: 13px; height: 13px; }
+.cal-tt-view:hover { color: var(--text-strong); }
+.cal-tt-view[aria-pressed="true"] { background: var(--gray-btn-hover); color: var(--text-strong); }
+/* slices: callouts outside the thin ring */
+.cal-tt-dial .tt-leader { fill: none; stroke: color-mix(in srgb, var(--c) 60%, var(--text-subtle)); stroke-width: .8; }
+.cal-tt-dial .tt-leader-dot { fill: var(--c); }
+.cal-tt-dial .tt-co-name { font: 500 9.5px var(--font-sans); fill: var(--text-strong); }
+.cal-tt-dial .tt-co-pct { font: 400 8px var(--font-mono); fill: var(--text-muted); }
+.cal-tt-dial .tt-callout.done .tt-co-name { fill: var(--text-muted); }
+.cal-tt-dial .tt-callout, .cal-tt-dial .tt-legend { animation: tt-open .45s var(--ease-out) both; animation-delay: calc(380ms + var(--i, 0) * 60ms); }
+/* rings: one per category, planned share faint, done part solid */
+.cal-tt-rings .tt-ring-track { fill: none; stroke: var(--surface-solid); stroke-width: 7; }
+.cal-tt-rings .tt-ring { fill: none; stroke-width: 7; stroke-linecap: round; stroke-dasharray: var(--f) 1; animation: ring-draw .9s cubic-bezier(.2, .9, .25, 1) both; animation-delay: calc(80ms + var(--i, 0) * 90ms); }
+.cal-tt-rings .tt-ring.plan { stroke: color-mix(in srgb, var(--c) 35%, transparent); }
+/* the category colours are deep: the done part is lifted a little so it reads as the solid one */
+.cal-tt-rings .tt-ring.done { stroke: color-mix(in srgb, var(--c) 78%, white); animation-delay: calc(320ms + var(--i, 0) * 90ms); }
+@keyframes ring-draw { from { stroke-dasharray: 0 1; } }
+.cal-tt-rings .tt-legend-dot { fill: var(--c); }
 .cal-tt-dial .tt-bg { fill: var(--surface-solid); stroke: var(--line); stroke-width: 1; }
 .cal-tt-dial .tt-block { fill: var(--cf); stroke: var(--bg); stroke-width: 1.5; }
 .cal-tt-dial .tt-block.done { fill: color-mix(in srgb, var(--c) 70%, var(--cf)); }
-.cal-tt-dial .tt-pct { font: 600 22px var(--font-mono); fill: var(--accent); }
+.cal-tt-dial .tt-pct { font: 600 17px var(--font-mono); fill: var(--accent); }
 /* no scroll of its own (the panel scrolls); rows sliding in must not overflow it */
 .cal-tt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; overflow: hidden; }
 .cal-tt-list li { display: grid; grid-template-columns: auto 6px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 2px; font-size: 13px; }
