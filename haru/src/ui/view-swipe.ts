@@ -15,6 +15,8 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
   let running: Animation[] = [];
 
   onView((view, prev) => {
+    // exactly one page is "current"; the one sliding away keeps .leaving until it's off screen
+    for (const [name, el] of Object.entries(pages)) el.classList.toggle('current', name === view);
     if (!prev || prev === view) return;
     running.forEach((a) => a.finish());
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -54,7 +56,17 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
 
   let acc = 0;
   let reset = 0;
+  // one gesture turns at most one page: after a turn, wheel input is ignored until the gesture
+  // (including trackpad inertia) has gone quiet and the slide has finished
+  let locked = false;
+  let unlock = 0;
+  let unlockAt = 0;
+  const quiet = () => {
+    clearTimeout(unlock);
+    unlock = window.setTimeout(() => (locked = false), Math.max(250, unlockAt - performance.now()));
+  };
   addEventListener('wheel', (e) => {
+    if (locked) { quiet(); return; }
     const dir = e.deltaY > 0 ? 1 : -1;
     if (!canTurn(e.target, dir)) { acc = 0; return; }
     if (Math.sign(acc) !== dir) acc = 0;
@@ -63,6 +75,9 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
     reset = window.setTimeout(() => (acc = 0), 220);
     if (Math.abs(acc) > WHEEL_THRESHOLD) {
       acc = 0;
+      locked = true;
+      unlockAt = performance.now() + DURATION;
+      quiet();
       turn(dir);
     }
   }, { passive: true });
@@ -77,8 +92,8 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
     if (startY === null) return;
     const dy = startY - (e.changedTouches[0]?.clientY ?? startY);
     startY = null;
-    // the dial's ring is a drawing surface; drags there plan tasks, not pages
-    if (startTarget instanceof Element && startTarget.closest('#dial')) return;
+    // the dial's ring and the globe use drags themselves (planning tasks, spinning the earth)
+    if (startTarget instanceof Element && startTarget.closest('#dial, #globe')) return;
     const dir = dy > 0 ? 1 : -1;
     if (Math.abs(dy) > SWIPE_THRESHOLD && canTurn(startTarget, dir)) turn(dir);
   }, { passive: true });

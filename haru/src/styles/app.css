@@ -111,10 +111,10 @@ img, svg, a { -webkit-user-drag: none; }
 #orb-layer .orb-pct { font: 600 25px var(--font-mono); letter-spacing: -.03em; fill: var(--bg); font-variant-numeric: tabular-nums; }
 
 /* ---------- views: Today (the dial) and Calendar share the page */
-body[data-view="calendar"]:not(.switching) .stage { display: none; }
-body:not([data-view="calendar"]):not(.switching) .calendar-view { display: none; }
+/* pages: only the current one (and, mid-turn, the one sliding away) is on screen */
+.page:not(.current):not(.leaving) { display: none; }
 /* during a page turn both pages are on screen; the leaving one stays below the drawers */
-body.switching .stage, body.switching .calendar-view { will-change: transform; }
+body.switching .page { will-change: transform; }
 .leaving { pointer-events: none; }
 
 .icon-btn {
@@ -224,6 +224,26 @@ body.switching .stage, body.switching .calendar-view { will-change: transform; }
   .cal-evs [data-kind="note"] { background: var(--text-strong); }
   .cal-evs .more { display: none; }
   .cal-week div { padding: 0; text-align: center; }
+}
+
+/* ---------- news: the dot globe */
+.news-view {
+  position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr; gap: 8px;
+  padding: 28px 56px 24px; max-width: 1240px; margin: 0 auto;
+}
+.news-head { display: flex; align-items: baseline; gap: 14px; }
+.news-head h1 { margin: 0; font-size: clamp(40px, 5vw, 64px); font-weight: 400; line-height: 1; letter-spacing: var(--tracking-display); color: var(--text-strong); }
+.globe-wrap { position: relative; display: grid; place-items: center; min-height: 0; }
+#globe { width: min(100%, calc(100svh - 150px), 820px); aspect-ratio: 1; cursor: grab; touch-action: none; }
+#globe:active { cursor: grabbing; }
+.globe-readout {
+  position: absolute; left: 0; right: 0; bottom: 4px; margin: 0; text-align: center; text-transform: none; letter-spacing: .06em;
+  pointer-events: none; transition: color var(--dur-fast) var(--ease-out);
+}
+.globe-readout.pinned { color: var(--text-strong); }
+@media (max-width: 640px) {
+  .news-view { padding: max(16px, env(safe-area-inset-top)) 32px 16px; }
+  #globe { width: min(100%, calc(100svh - 140px)); }
 }
 
 /* ---------- drawers: panel + a tab; tucked off-screen so only the tab peeks out */

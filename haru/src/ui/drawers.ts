@@ -24,7 +24,13 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     const t = e.target as Element;
-    if (t.closest('.drawer, .time-pop, button, input, textarea, a, .cal-day')) return;
+    if (t.closest('.drawer, .time-pop, button, input, textarea, a, .cal-day, #globe')) return;
+    if (currentView() === 'news') {
+      // news: empty space splits at the globe's centre
+      const globe = document.getElementById('globe')!.getBoundingClientRect();
+      toggleDrawer(e.clientX < globe.left + globe.width / 2 ? 'left' : 'right');
+      return;
+    }
     if (currentView() === 'calendar') {
       // calendar: empty space splits at the month grid's centre
       const grid = document.querySelector('.cal-main')!.getBoundingClientRect();

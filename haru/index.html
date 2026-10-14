@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 </head>
 <body>
-  <main class="stage" id="stage">
+  <main class="stage page" id="stage">
     <div class="dial-wrap">
       <svg id="dial" viewBox="-520 -520 1040 1040" role="img" aria-label="24-hour timetable. Drag the ring to add a block."></svg>
       <canvas id="orb-canvas" aria-hidden="true"></canvas>
@@ -18,7 +18,7 @@
     </div>
   </main>
 
-  <main class="calendar-view" id="calendar" aria-label="Calendar">
+  <main class="calendar-view page" id="calendar" aria-label="Calendar">
     <header class="cal-head">
       <div class="cal-title"><h1 id="cal-month"></h1><span class="meta" id="cal-year"></span></div>
       <div class="cal-nav">
@@ -37,6 +37,14 @@
     </div>
   </main>
 
+  <main class="news-view page" id="news" aria-label="News">
+    <header class="news-head"><h1>News</h1><span class="meta" id="news-date"></span></header>
+    <div class="globe-wrap">
+      <canvas id="globe" role="img" aria-label="Interactive globe"></canvas>
+      <p class="globe-readout meta" id="globe-readout" aria-live="polite"></p>
+    </div>
+  </main>
+
   <!-- side drawers start tucked away; only their tab shows until it is clicked -->
   <aside class="drawer drawer-left" id="drawer-left">
     <div class="panel panel-left" id="panel-left" aria-label="Navigation and overview">
@@ -52,9 +60,9 @@
         <a class="nav-item" href="#/calendar" data-view="calendar">
           <i data-icon="calendar"></i>Calendar
         </a>
-        <span class="nav-item" aria-disabled="true">
-          <i data-icon="newspaper"></i>News<span class="badge">Soon</span>
-        </span>
+        <a class="nav-item" href="#/news" data-view="news">
+          <i data-icon="newspaper"></i>News
+        </a>
       </nav>
 
       <label class="search">

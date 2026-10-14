@@ -13,10 +13,11 @@ import { hydrateIcons } from './ui/icons';
 import { mountRouter } from './ui/router';
 import { mountViewSwipe } from './ui/view-swipe';
 import { mountCalendar } from './calendar/calendar';
+import { mountNews } from './news/news';
 import { mountWinBarLink } from './ui/winbar';
 
 hydrateIcons();
-mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar') });
+mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news') });
 mountRouter();
 
 // labels, icons and links are not draggable content
@@ -48,6 +49,7 @@ mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
 mountBulk(byId('bulk'));
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountWinBarLink();
+mountNews(byId<HTMLCanvasElement>('globe'), byId('globe-readout'), byId('news-date'));
 mountCalendar({
   month: byId('cal-month'),
   year: byId('cal-year'),

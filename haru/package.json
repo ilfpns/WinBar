@@ -9,11 +9,15 @@
     "preview": "vite preview",
     "typecheck": "tsc",
     "deploy": "node scripts/deploy.mjs",
-    "calendar": "node scripts/fetch-calendar.mjs"
+    "calendar": "node scripts/fetch-calendar.mjs",
+    "globe": "node scripts/build-globe.mjs"
   },
   "devDependencies": {
+    "d3-geo": "^3.1.1",
+    "topojson-client": "^3.1.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "world-atlas": "^2.0.2"
   },
   "dependencies": {
     "lucide": "^1.56.0"
