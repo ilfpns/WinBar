@@ -49,6 +49,9 @@ internal sealed class AppSettings
     public const int MaxIconSpacing = 24;
     public int IconSpacing { get; set; } = 4;
 
+    // 초절전 모드 검은 화면 가운데 문구(기본은 비어 있음)
+    public string SleepMessage { get; set; } = "";
+
     // WinBar 표시 언어: ko(한국어) · zh(中文) · ja(日本語) · en(English)
     public string Language { get; set; } = "ko";
 
@@ -76,7 +79,8 @@ internal sealed class AppSettings
                     property.SetValue(settings, flag);
                 else if (property.PropertyType == typeof(int) && int.TryParse(text, out int number))
                     property.SetValue(settings, number);
-                else if (property.PropertyType == typeof(string) && text.Length is > 0 and <= 16)
+                else if (property.PropertyType == typeof(string) && text.Length > 0
+                    && text.Length <= (name == nameof(SleepMessage) ? SleepGuard.MaxMessageLength : 16))
                     property.SetValue(settings, text);
             }
         }

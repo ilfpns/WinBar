@@ -1316,6 +1316,7 @@ internal sealed class WinBarContext : ApplicationContext
         sensors.Changed -= OnStatusChanged;
         NowPlaying.Changed -= OnNowPlayingChanged;
         NowPlaying.Stop();
+        SleepGuard.Stop();
         DesktopFlame.CloseAll();
         AppSettings.Current.Changed -= OnSettingsChanged;
         timer.Dispose();

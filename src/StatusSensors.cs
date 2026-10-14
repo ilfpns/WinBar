@@ -19,6 +19,15 @@ internal sealed record StatusSnapshot(
         : quality >= 80 ? 5 : quality >= 60 ? 4 : quality >= 40 ? 3 : quality >= 20 ? 2 : 1;
 }
 
+// 주변 Wi-Fi 하나(네트워크 모달에서 "다른 네트워크 찾기"를 눌렀을 때만 읽는다).
+// Auth: Windows 인증 방식 번호(1 개방, 4 WPA-개인, 7 WPA2-개인, 9 WPA3-개인 …), Cipher: 암호화 방식 번호(2 TKIP, 4 AES …)
+internal sealed record WifiNetwork(string Name, byte[] Ssid, int Quality, bool Secured, string? Profile, uint Auth, uint Cipher, bool Connected)
+{
+    public int Bars => Quality >= 80 ? 5 : Quality >= 60 ? 4 : Quality >= 40 ? 3 : Quality >= 20 ? 2 : 1;
+    // WinBar가 비밀번호로 프로필을 만들 수 있는 개인용 보안 방식. 회사용(802.1X) 등은 Windows 연결 창에 맡긴다.
+    public string? PersonalAuth => Auth switch { 4 => "WPAPSK", 7 => "WPA2PSK", 9 => "WPA3SAE", _ => null };
+}
+
 // 재생 중인 곡 하나(Spotify·브라우저 등이 Windows 미디어 정보로 알려 주는 값). 앨범 그림은 96×96으로 줄여 둔다.
 // Id: 앱 ID(세션 구분), Icon: 그 앱의 Windows 아이콘(작업 표시줄과 같은 그림), YouTube: 브라우저 창 제목으로 YouTube를 알아낸 경우
 internal sealed record NowPlayingInfo(string Id, string Title, string Artist, string Album, string App, bool Playing,
@@ -417,10 +426,12 @@ internal sealed class StatusSensors : IDisposable
         {
             int source = Marshal.ReadInt32(data, 0);
             int code = Marshal.ReadInt32(data, 4);
-            if (source == 0x08) // ACM: 연결 시작(9) · 완료(10) · 실패(11) · 끊김(21)
+            if (source == 0x08) // ACM: 검색 완료(7) · 검색 실패(8) · 연결 시작(9) · 완료(10) · 실패(11) · 끊김(21)
             {
+                if (code is 7 or 8) scanDone?.TrySetResult();
                 if (code == 9) wifiConnecting = true;
                 else if (code is 10 or 11 or 21) wifiConnecting = false;
+                if (code is 10 or 11) OnConnectResult(Marshal.ReadIntPtr(data, 32), code == 10);
             }
             else if (source == 0x10) // MSM: 연결 중(1,3) · 연결됨(4) · 끊김(10) · 신호 변화(8)
             {
@@ -452,6 +463,156 @@ internal sealed class StatusSensors : IDisposable
         }
         catch (Exception) { return []; }
         finally { if (list != IntPtr.Zero) WlanFreeMemory(list); }
+    }
+
+    private TaskCompletionSource? scanDone;
+    // WinBar가 비밀번호로 막 만든 프로필. 연결에 실패하면(비밀번호 틀림 등) 지워서 잘못된 프로필이 남지 않게 한다.
+    private volatile string? pendingProfile;
+
+    // 마지막 새 연결이 실패한 네트워크 이름(네트워크 모달에 "연결하지 못함"으로 보인다).
+    public string? ConnectFailed { get; private set; }
+
+    // 주변 Wi-Fi를 새로 검색한다. 검색 완료 알림을 최대 4초 기다린 뒤 목록을 읽는다.
+    // Denied: Windows 위치 권한이 꺼져 있어 주변 네트워크 이름을 읽을 수 없음(Windows 11 24H2 이후)
+    public async Task<(WifiNetwork[] Networks, bool Denied)> ScanNetworksAsync()
+    {
+        if (wlanHandle == IntPtr.Zero || wifiInterface == Guid.Empty) return ([], false);
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        scanDone = done;
+        try
+        {
+            Guid id = wifiInterface;
+            if (WlanScan(wlanHandle, ref id, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero) == 0)
+                await Task.WhenAny(done.Task, Task.Delay(4000));
+        }
+        catch (Exception) { }
+        finally { scanDone = null; }
+        return await Task.Run(ReadAvailableNetworks);
+    }
+
+    private (WifiNetwork[] Networks, bool Denied) ReadAvailableNetworks()
+    {
+        IntPtr list = IntPtr.Zero;
+        try
+        {
+            Guid id = wifiInterface;
+            uint result = WlanGetAvailableNetworkList(wlanHandle, ref id, 0, IntPtr.Zero, out list);
+            if (result == 5) return ([], true); // ERROR_ACCESS_DENIED
+            if (result != 0) return ([], false);
+            int count = Marshal.ReadInt32(list, 0);
+            var found = new Dictionary<string, WifiNetwork>();
+            for (int index = 0; index < count && index < 128; index++)
+            {
+                IntPtr item = IntPtr.Add(list, 8 + index * 628); // WLAN_AVAILABLE_NETWORK
+                int ssidLength = Math.Clamp(Marshal.ReadInt32(item, 512), 0, 32);
+                if (ssidLength == 0 || Marshal.ReadInt32(item, 548) != 1) continue; // 숨은 네트워크·애드혹 제외
+                if (Marshal.ReadInt32(item, 556) == 0) continue;                      // 연결할 수 없는 네트워크
+                byte[] ssid = new byte[ssidLength];
+                Marshal.Copy(IntPtr.Add(item, 516), ssid, 0, ssidLength);
+                string name = System.Text.Encoding.UTF8.GetString(ssid);
+                int flags = Marshal.ReadInt32(item, 620);
+                string? profile = (flags & 2) != 0 ? Marshal.PtrToStringUni(item) : null;
+                var network = new WifiNetwork(name, ssid, Math.Clamp(Marshal.ReadInt32(item, 604), 0, 100),
+                    Marshal.ReadInt32(item, 608) != 0, string.IsNullOrEmpty(profile) ? null : profile,
+                    (uint)Marshal.ReadInt32(item, 612), (uint)Marshal.ReadInt32(item, 616), (flags & 1) != 0);
+                // 같은 이름이 여러 번 오면 연결됨 · 프로필 있음 · 신호 센 쪽을 남긴다.
+                if (found.TryGetValue(name, out WifiNetwork? before)
+                    && (before.Connected, before.Profile is not null, before.Quality).CompareTo((network.Connected, network.Profile is not null, network.Quality)) >= 0)
+                    continue;
+                found[name] = network;
+            }
+            return ([.. found.Values.OrderByDescending(network => network.Connected).ThenByDescending(network => network.Quality)], false);
+        }
+        catch (Exception) { return ([], false); }
+        finally { if (list != IntPtr.Zero) WlanFreeMemory(list); }
+    }
+
+    // 저장된 프로필이 있거나 개방형이면 바로 연결한다. 비밀번호가 필요하면 password로 프로필을 만든 뒤 연결한다.
+    // 비밀번호는 Windows Wi-Fi 프로필에만 넘기고 WinBar는 저장하지 않는다.
+    public bool ConnectNetwork(WifiNetwork network, string? password = null)
+    {
+        if (wlanHandle == IntPtr.Zero || wifiInterface == Guid.Empty) return false;
+        ConnectFailed = null;
+        try
+        {
+            Guid id = wifiInterface;
+            if (network.Profile is string profile) return Connect(id, 0, profile, null);
+            if (!network.Secured) return Connect(id, 2, null, network.Ssid); // 개방형: 프로필 없이 연결
+            if (password is null || network.PersonalAuth is not string auth) return false;
+            string escapedName = System.Security.SecurityElement.Escape(network.Name);
+            bool hexKey = password.Length == 64 && password.All(Uri.IsHexDigit);
+            string xml =
+                "<?xml version=\"1.0\"?>" +
+                "<WLANProfile xmlns=\"http://www.microsoft.com/networking/WLAN/profile/v1\">" +
+                $"<name>{escapedName}</name>" +
+                $"<SSIDConfig><SSID><hex>{Convert.ToHexString(network.Ssid)}</hex><name>{escapedName}</name></SSID></SSIDConfig>" +
+                "<connectionType>ESS</connectionType><connectionMode>auto</connectionMode>" +
+                $"<MSM><security><authEncryption><authentication>{auth}</authentication><encryption>{(network.Cipher == 2 ? "TKIP" : "AES")}</encryption><useOneX>false</useOneX></authEncryption>" +
+                $"<sharedKey><keyType>{(hexKey ? "networkKey" : "passPhrase")}</keyType><protected>false</protected><keyMaterial>{System.Security.SecurityElement.Escape(password)}</keyMaterial></sharedKey></security></MSM>" +
+                "</WLANProfile>";
+            if (WlanSetProfile(wlanHandle, ref id, 0, xml, null, true, IntPtr.Zero, out _) != 0) return false;
+            pendingProfile = network.Name;
+            if (Connect(id, 0, network.Name, null)) return true;
+            WlanDeleteProfile(wlanHandle, ref id, network.Name, IntPtr.Zero);
+            pendingProfile = null;
+            return false;
+        }
+        catch (Exception) { return false; }
+    }
+
+    private bool Connect(Guid id, int mode, string? profile, byte[]? ssid)
+    {
+        IntPtr profileText = profile is null ? IntPtr.Zero : Marshal.StringToHGlobalUni(profile);
+        IntPtr ssidData = IntPtr.Zero;
+        try
+        {
+            if (ssid is not null)
+            {
+                ssidData = Marshal.AllocHGlobal(36); // DOT11_SSID: 길이 + 32바이트
+                Marshal.Copy(new byte[36], 0, ssidData, 36);
+                Marshal.WriteInt32(ssidData, ssid.Length);
+                Marshal.Copy(ssid, 0, IntPtr.Add(ssidData, 4), ssid.Length);
+            }
+            var parameters = new WlanConnectionParameters
+            {
+                Mode = mode, Profile = profileText, Ssid = ssidData, BssType = 1 // 인프라(공유기)
+            };
+            return WlanConnect(wlanHandle, ref id, ref parameters, IntPtr.Zero) == 0;
+        }
+        finally
+        {
+            if (profileText != IntPtr.Zero) Marshal.FreeHGlobal(profileText);
+            if (ssidData != IntPtr.Zero) Marshal.FreeHGlobal(ssidData);
+        }
+    }
+
+    // 연결 완료·실패 알림(WLAN_CONNECTION_NOTIFICATION_DATA: 프로필 이름은 4바이트, 실패 이유는 560바이트 위치)
+    private void OnConnectResult(IntPtr info, bool completed)
+    {
+        string? pending = pendingProfile;
+        if (pending is null || info == IntPtr.Zero) return;
+        if (Marshal.PtrToStringUni(IntPtr.Add(info, 4)) != pending) return;
+        bool failed = !completed || Marshal.ReadInt32(info, 560) != 0;
+        pendingProfile = null;
+        if (!failed) return;
+        ConnectFailed = pending;
+        try
+        {
+            Guid id = wifiInterface;
+            WlanDeleteProfile(wlanHandle, ref id, pending, IntPtr.Zero);
+        }
+        catch (Exception) { }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WlanConnectionParameters
+    {
+        public int Mode;
+        public IntPtr Profile;
+        public IntPtr Ssid;
+        public IntPtr BssidList;
+        public int BssType;
+        public uint Flags;
     }
 
     // 지금 Wi-Fi(없으면 유선) 인터페이스로 주고받은 누적 바이트. 1초 간격 차이로 실제 Mbps를 구한다.
@@ -885,6 +1046,11 @@ internal sealed class StatusSensors : IDisposable
     [DllImport("wlanapi.dll")] private static extern void WlanFreeMemory(IntPtr memory);
     private delegate void WlanNotificationCallback(IntPtr data, IntPtr context);
     [DllImport("wlanapi.dll")] private static extern uint WlanRegisterNotification(IntPtr clientHandle, uint source, bool ignoreDuplicate, WlanNotificationCallback? callback, IntPtr context, IntPtr reserved, out uint previousSource);
+    [DllImport("wlanapi.dll")] private static extern uint WlanScan(IntPtr clientHandle, ref Guid interfaceId, IntPtr ssid, IntPtr ieData, IntPtr reserved);
+    [DllImport("wlanapi.dll")] private static extern uint WlanGetAvailableNetworkList(IntPtr clientHandle, ref Guid interfaceId, uint flags, IntPtr reserved, out IntPtr networkList);
+    [DllImport("wlanapi.dll", CharSet = CharSet.Unicode)] private static extern uint WlanSetProfile(IntPtr clientHandle, ref Guid interfaceId, uint flags, string profileXml, string? allUserProfileSecurity, bool overwrite, IntPtr reserved, out uint reasonCode);
+    [DllImport("wlanapi.dll", CharSet = CharSet.Unicode)] private static extern uint WlanDeleteProfile(IntPtr clientHandle, ref Guid interfaceId, string profileName, IntPtr reserved);
+    [DllImport("wlanapi.dll")] private static extern uint WlanConnect(IntPtr clientHandle, ref Guid interfaceId, ref WlanConnectionParameters parameters, IntPtr reserved);
     [DllImport("wlanapi.dll")] private static extern uint WlanGetProfileList(IntPtr clientHandle, ref Guid interfaceId, IntPtr reserved, out IntPtr profileList);
     [DllImport("bthprops.cpl")] private static extern IntPtr BluetoothFindFirstRadio(ref BluetoothFindRadioParams parameters, out IntPtr radio);
     [DllImport("bthprops.cpl")] private static extern bool BluetoothFindRadioClose(IntPtr find);

@@ -106,7 +106,11 @@ internal sealed class SettingsForm : Form
             new("일반", "",
             [
                 new("시작", [autoStartOption]),
-                new("시계", [Toggle("24시간 형식", "", s => s.Use24HourClock, (s, v) => s.Use24HourClock = v)])
+                new("시계", [Toggle("24시간 형식", "", s => s.Use24HourClock, (s, v) => s.Use24HourClock = v)]),
+                // 초절전 모드(더 보기 > 빠른 동작)의 검은 화면 가운데 문구
+                new("초절전 모드", [new("화면 문구", "", () => false, _ => SleepGuard.EditMessage(), IsLink: true,
+                    Text: () => settings.SleepMessage.Length == 0 ? L.T("화면 문구: 없음") : L.F("화면 문구: {0}", settings.SleepMessage))],
+                    Note: "입력이 오면 Windows 잠금 화면으로 넘어감")
             ]),
             new("모양", "",
             [

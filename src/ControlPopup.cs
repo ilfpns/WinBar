@@ -69,6 +69,12 @@ internal sealed class GlassPanel : Form
     private StatusSnapshot status = new();
     private IReadOnlyList<AudioDevice> outputs = [];
     private string[] savedNetworks = [];
+    // 네트워크 모달 "다른 네트워크 찾기" 결과, 검색 중 여부, 위치 권한 거부, 마지막으로 연결을 시도한 네트워크
+    private WifiNetwork[] nearby = [];
+    private long nearbyAt;
+    private bool scanning, scanDenied;
+    private string? connectTarget;
+    private long connectAt;
     private (long Received, long Sent)? lastTraffic;
     private long lastTrafficAt;
     private double? downMbps, upMbps;
@@ -245,6 +251,85 @@ internal sealed class GlassPanel : Form
         else if (now - sideLeftAt > 150) { side.HidePanel(); sideTimer.Stop(); }
     }
 
+    private async void StartScan()
+    {
+        if (scanning) return;
+        scanning = true;
+        scanDenied = false;
+        Invalidate();
+        try
+        {
+            (WifiNetwork[] networks, bool denied) = await sensors.ScanNetworksAsync();
+            nearby = networks;
+            nearbyAt = Environment.TickCount64;
+            scanDenied = denied;
+        }
+        catch (Exception) { }
+        scanning = false;
+        if (IsDisposed) return;
+        if (Visible && Current == Kind.Network) Height = MeasureHeight();
+        Invalidate();
+    }
+
+    // 저장된 프로필·개방형은 바로 연결하고, 개인용 보안 네트워크는 비밀번호를 물은 뒤 연결한다.
+    // 회사용(802.1X) 등 WinBar가 다루지 않는 방식은 Windows 네트워크 연결 창을 연다.
+    private void ConnectTo(WifiNetwork network)
+    {
+        string? password = null;
+        if (network.Profile is null && network.Secured)
+        {
+            if (network.PersonalAuth is null) { OpenSettings("ms-availablenetworks:"); return; }
+            HidePanel();
+            password = AskWifiPassword(network.Name);
+            if (password is null) return;
+        }
+        connectTarget = network.Name;
+        connectAt = Environment.TickCount64;
+        if (!sensors.ConnectNetwork(network, password))
+        {
+            OpenSettings("ms-availablenetworks:");
+            return;
+        }
+        // 연결 상태가 바뀌므로 검색 결과는 비우고, 연결 중 표시는 메뉴바 Wi-Fi 아이콘이 맡는다.
+        nearby = [];
+        if (Visible) { Height = MeasureHeight(); Invalidate(); }
+    }
+
+    // Wi-Fi 비밀번호 입력 창. 입력한 비밀번호는 Windows Wi-Fi 프로필로만 넘기고 WinBar는 저장하지 않는다.
+    private static string? AskWifiPassword(string networkName)
+    {
+        using var font = new Font("Segoe UI", 9.5f, FontStyle.Regular, GraphicsUnit.Point);
+        using var form = new Form
+        {
+            Text = networkName,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            StartPosition = FormStartPosition.CenterScreen,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            TopMost = true,
+            ClientSize = new Size(360, 132),
+            Font = font
+        };
+        var note = new Label { Text = L.F("'{0}' 네트워크 보안 키", networkName), AutoEllipsis = true };
+        note.SetBounds(12, 10, 336, 22);
+        var input = new TextBox { UseSystemPasswordChar = true, MaxLength = 64 };
+        input.SetBounds(12, 36, 336, 26);
+        var reveal = new CheckBox { Text = L.T("문자 표시") };
+        reveal.SetBounds(12, 68, 160, 24);
+        reveal.CheckedChanged += (_, _) => input.UseSystemPasswordChar = !reveal.Checked;
+        var ok = new Button { Text = L.T("연결"), DialogResult = DialogResult.OK, Enabled = false };
+        ok.SetBounds(186, 96, 78, 28);
+        var cancel = new Button { Text = L.T("취소"), DialogResult = DialogResult.Cancel };
+        cancel.SetBounds(270, 96, 78, 28);
+        // WPA 비밀번호는 8~63자(또는 16진수 64자)
+        input.TextChanged += (_, _) => ok.Enabled = input.TextLength >= 8;
+        form.Controls.AddRange([note, input, reveal, ok, cancel]);
+        form.AcceptButton = ok;
+        form.CancelButton = cancel;
+        return form.ShowDialog() == DialogResult.OK && input.TextLength >= 8 ? input.Text : null;
+    }
+
     private void ToggleSavedNetworks()
     {
         savedExpanded = !savedExpanded;
@@ -314,6 +399,9 @@ internal sealed class GlassPanel : Form
                 savedExpanded = false;
                 savedLevel = 0;
                 savedNetworks = sensors.GetSavedNetworks();
+                // 검색 결과는 1분까지만 다시 보여 준다(그 뒤에는 신호·연결 상태가 달라졌을 수 있음).
+                if (Environment.TickCount64 - nearbyAt > 60_000) nearby = [];
+                scanDenied = false;
                 lastTraffic = sensors.ReadTraffic();
                 lastTrafficAt = Environment.TickCount64;
                 downMbps = upMbps = null;
@@ -733,6 +821,31 @@ internal sealed class GlassPanel : Form
                 y += 24;
             }
         }
+        // 다른 네트워크: 누를 때만 주변 Wi-Fi를 검색한다(주기 검색 없음).
+        if (status.WifiAvailable)
+        {
+            Separator(g, ref y);
+            ActionRow(g, ref y, "", L.T("다른 네트워크 찾기"), scanning ? L.T("검색 중…") : null, StartScan);
+            if (scanDenied)
+                ActionRow(g, ref y, "", L.T("위치 권한 켜기 (주변 네트워크 보기)"), null, () => OpenSettings("ms-settings:privacy-location"));
+            foreach (WifiNetwork network in nearby.Take(8))
+            {
+                var line = new Rectangle(Edge, y, Width - Edge * 2, RowHeight);
+                float hover = network.Connected ? 0 : HoverLevel(line);
+                Highlight(g, line, hover, accent: true);
+                Color text = Mix(Theme.Primary, Color.White, hover), soft = Mix(Theme.Secondary, Color.White, hover);
+                WifiIcon.Draw(g, new Rectangle(line.Left + 6, line.Top + 8, 20, 14), network.Bars, text, Color.FromArgb(70, text));
+                DrawText(g, network.Name, network.Connected ? boldFont : rowFont, new Rectangle(TextLeft, line.Top, line.Width - TextLeft - 90, line.Height), text);
+                string tag = network.Connected ? L.T("연결됨") : network.Profile is not null ? L.T("저장됨") : "";
+                DrawText(g, tag, smallFont, new Rectangle(line.Right - 26 - 64, line.Top, 64, line.Height), soft, StringAlignment.Far);
+                if (network.Secured) Icons.DrawBold(g, "", new Rectangle(line.Right - 24, line.Top, 16, line.Height), soft, 8);
+                if (!network.Connected) targets.Add((line, () => ConnectTo(network)));
+                y += RowHeight;
+            }
+            // 비밀번호 창을 띄우며 모달을 닫으므로, 실패 안내는 다시 열었을 때 2분 동안 보여 준다.
+            if (connectTarget is string target && sensors.ConnectFailed == target && Environment.TickCount64 - connectAt < 120_000)
+                InfoRow(g, ref y, "", L.T("연결하지 못함 (비밀번호 확인)"), null);
+        }
         Separator(g, ref y);
         string uri = status.WifiAvailable ? "ms-settings:network-wifi" : "ms-settings:network-status";
         ActionRow(g, ref y, Icons.Settings, L.T("네트워크 설정…"), null, () => OpenSettings(uri));
@@ -827,6 +940,12 @@ internal sealed class GlassPanel : Form
             L.T("방해 금지"), doNotDisturb ? L.T("켜짐 · 알림 꺼짐") : L.T("꺼짐"), () => OpenSettings("ms-settings:notifications"));
         Icons.DrawMoved(g, Icons.Chevron, new Rectangle(dndRow.Right - 26, dndRow.Top, 16, dndRow.Height), Theme.Secondary, 7,
             dx: 2 * Icons.Ease(HoverLevel(dndRow)));
+
+        // 꺼지지 않기: 켜 두면 화면이 꺼지지 않고 자동 절전으로도 넘어가지 않는다. 줄을 누르면 켜고 끈다.
+        bool awake = SleepGuard.KeepAwake;
+        var awakeRow = ModuleRow(g, ref y, awake, (gr, circle, color) => Icons.DrawBold(gr, Icons.Power, Rectangle.Inflate(circle, -7, -7), color, 8),
+            L.T("꺼지지 않기"), awake ? L.T("켜짐 · 화면·절전 꺼지지 않음") : L.T("꺼짐"), () => { SleepGuard.SetKeepAwake(!SleepGuard.KeepAwake); Invalidate(); });
+        DrawSwitch(g, new Rectangle(awakeRow.Right - 44, awakeRow.Top + (awakeRow.Height - 18) / 2, 32, 18), awake ? 1 : 0);
         Separator(g, ref y);
 
         // 디스플레이 밝기: macOS 제어 센터처럼 캡슐 슬라이더. 밝기를 바꿀 수 없는 화면(외부 모니터 등)은 디스플레이 설정으로 이동.
@@ -1180,6 +1299,8 @@ internal sealed class GlassPanel : Form
         ActionRow(g, ref y, "", L.T("절전"), null, () => { HidePanel(); SetSuspendState(false, false, false); });
         // 휴지통 비우기는 Windows가 직접 한 번 더 확인한다.
         ActionRow(g, ref y, "", L.T("휴지통 비우기"), null, () => { HidePanel(); _ = SHEmptyRecycleBin(IntPtr.Zero, null, 0); });
+        // 초절전 모드: 화면만 검게 가리고 컴퓨터는 깨어 있게 한다. 아무 입력이면 Windows 잠금 화면으로 넘어간다.
+        ActionRow(g, ref y, "", L.T("초절전 모드로 전환"), null, () => { HidePanel(); SleepGuard.Start(metrics, snapshot.BrightnessPercent); });
     }
 
     // 더 보기를 열 때만 드라이브·다운로드 폴더를 읽는다.
