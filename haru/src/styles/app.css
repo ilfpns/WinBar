@@ -87,7 +87,7 @@ img, svg, a { -webkit-user-drag: none; }
 /* slices (Today's second view): a numbered donut on a black disk — the day so far lit in its colours,
    names around the rim, the now edge glowing, the current task as the title */
 #dial.thin { overflow: visible; }
-#dial .disk { fill: #030304; filter: drop-shadow(0 30px 60px rgba(0, 0, 0, .55)); }
+#dial .disk { fill: url(#disk-fade); }
 #dial.thin .ring-bg { fill: rgba(255, 255, 255, 0.018); }
 #dial .slice { fill: #1c1c20; stroke: #030304; stroke-width: 2; transition: fill var(--dur-fast) var(--ease-out); }
 #dial .slice.sel { fill: #2c2c31; stroke: var(--text-strong); stroke-width: 2.5; }
@@ -95,13 +95,16 @@ img, svg, a { -webkit-user-drag: none; }
 #dial .slice-glow { fill: var(--c); opacity: .17; pointer-events: none; }
 #dial .slice-num { font: 400 22px var(--font-mono); fill: rgba(255, 255, 255, .3); pointer-events: none; }
 #dial .slice-num.now, #dial .slice-num.sel { fill: var(--text-strong); }
-#dial .rim-name { font: 400 15px var(--font-sans); fill: var(--text-subtle); pointer-events: none; }
-#dial .rim-name.done { fill: var(--text-muted); }
-#dial .rim-name.sel { fill: var(--text-strong); }
+/* tasks named outside the ring on leader lines */
+#dial .callout { pointer-events: none; }
+#dial .callout-line { fill: none; stroke: color-mix(in srgb, var(--c) 65%, var(--text-subtle)); stroke-width: 1.6; }
+#dial .callout-dot { fill: var(--c); }
+#dial .callout-name { font: 500 22px var(--font-sans); fill: var(--text-strong); }
+#dial .callout-detail { font: 400 15px var(--font-mono); fill: var(--text-muted); }
+#dial .callout.done .callout-name { fill: var(--text-muted); }
+#dial .callout.now .callout-name, #dial .callout.sel .callout-name { fill: var(--accent); }
 #dial .now-edge { stroke: color-mix(in srgb, var(--accent) 55%, #b8fff0); stroke-width: 3; stroke-linecap: round; pointer-events: none;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 80%, transparent)); }
-#dial .now-time { font: 400 30px var(--font-sans); letter-spacing: -.02em; fill: var(--text-strong); pointer-events: none; }
-#dial .now-name { font: 400 15px var(--font-sans); fill: var(--text-muted); pointer-events: none; }
 #dial .slice-title { font: 500 44px var(--font-sans); letter-spacing: -.03em; fill: var(--text-strong); pointer-events: none; }
 #dial .slice-sub { font: 400 16px var(--font-mono); fill: var(--text-muted); pointer-events: none; }
 /* the dot emblem belongs to the full dial; slices put the title in the middle instead */
@@ -167,7 +170,8 @@ img, svg, a { -webkit-user-drag: none; }
 .page { will-change: transform; }
 /* while pages slide, a backdrop blur would be recomputed over the whole moving page every frame:
    swap it for a near-identical solid fill for those 0.38 s */
-body.switching :is(.panel, .drawer-tab, .rail) { backdrop-filter: none; background: #1b1b20; }
+/* (the glass is nearly opaque, so dropping the blur doesn't change its colour: no darkening mid-turn) */
+body.switching :is(.panel, .drawer-tab, .rail) { backdrop-filter: none; }
 .leaving { pointer-events: none; }
 
 .icon-btn {
@@ -478,7 +482,11 @@ body.switching .globe-wrap { transition: none; }
 /* heatmap toggle: bottom-left of the globe's box */
 .globe-heat { position: absolute; left: calc(50% - 170px); bottom: 0; width: 28px; height: 28px; }
 .globe-heat .ic { width: 16px; height: 16px; }
-.globe-heat[aria-pressed="true"] { color: var(--bg); background: var(--accent); }
+.globe-heat[aria-pressed="true"] { color: var(--bg); background: var(--accent); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent); }
+/* the flame flares as the globe catches */
+.globe-heat .ic { transition: transform var(--dur-base) var(--ease-out); }
+.globe-heat[aria-pressed="true"] .ic { animation: flame-flare .55s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes flame-flare { 0% { transform: scale(.7) rotate(-12deg); } 50% { transform: scale(1.25) rotate(8deg); } 100% { transform: none; } }
 #globe:active { cursor: grabbing; }
 .globe-readout {
   position: absolute; left: 0; right: 0; bottom: 4px; margin: 0; text-align: center; text-transform: none; letter-spacing: .06em;

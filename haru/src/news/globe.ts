@@ -24,6 +24,8 @@ const ZOOM_IN = 2.4;         // double-click zoom
 const ZOOM_MS = 180;         // zoom easing time constant
 const ANNOUNCE_MS = 3200;    // a fresh headline floats over its country this long
 const HEAT_BUCKETS = 5;      // heatmap shades
+const HEAT_WAVE_MS = 900;    // switching the heatmap: a sweep across the globe, left to right
+const HEAT_POP_MS = 320;     // …each dot popping as the sweep reaches it
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 /** 0 → 1 → 0 hump peaking at `peak` (the Today emblem's "pop"). */
@@ -84,7 +86,11 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
   let litMask = new Uint8Array(n);
   /** Heatmap: each land dot's share (0..1) of its country's news, 0 where none. */
   let heatOn = false;
+  /** When the heatmap was last switched (the sweep runs from there). */
+  let heatAt = -1e9;
   const heat = new Float32Array(n);
+  /** A fixed scatter (0..160 ms) per dot, so the sweep sparkles instead of moving as a straight line. */
+  const scatter = (i: number) => ((Math.imul(i, 2654435761) >>> 0) % 997) / 997 * 160;
   function computeHeat(): void {
     const byIso = new Map<string, number>();
     for (const m of markers) for (const c of m.iso) byIso.set(c, Math.max(byIso.get(c) ?? 0, m.heat ?? 0));
@@ -427,8 +433,15 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       }
       const dx = sx - hx, dy = sy - hy;
       const near = Math.max(0, 1 - Math.sqrt(dx * dx + dy * dy) / reach);
-      const h = heatOn ? heat[i]! : 0;
-      const r = base * (0.6 + 0.55 * z2) * (1 + 0.9 * near * near) * (h ? 1.15 : 1);
+      let h = heat[i]!;
+      let pop = 0;
+      if (h) {
+        // the sweep: a dot turns (or stops being) green as it passes, swelling for a moment
+        const t = (now - heatAt - ((sx - (cx - R)) / (2 * R)) * HEAT_WAVE_MS - scatter(i)) / HEAT_POP_MS;
+        if (t > 0 && t < 1) pop = Math.sin(t * Math.PI);
+        if (heatOn ? t < 0 : t >= 0) h = 0;
+      }
+      const r = base * (0.6 + 0.55 * z2) * (1 + 0.9 * near * near) * (h ? 1.15 : 1) * (1 + 0.9 * pop);
       const path = near > 0.25 ? lit
         : h ? hot[Math.min(HEAT_BUCKETS - 1, Math.floor(h * HEAT_BUCKETS))]!
         : front[Math.min(SHADES - 1, Math.floor(z2 * SHADES))]!;
@@ -443,8 +456,8 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       ctx.globalAlpha = 0.18 + 0.82 * ((b + 0.5) / SHADES) ** 1.3;
       ctx.fill(front[b]!);
     }
-    if (heatOn) {
-      // more news, deeper green
+    {
+      // more news, deeper green (empty while the heatmap is off)
       ctx.fillStyle = colors.accent;
       for (let b = 0; b < HEAT_BUCKETS; b++) {
         ctx.globalAlpha = 0.22 + 0.78 * ((b + 1) / HEAT_BUCKETS) ** 1.2;
@@ -622,6 +635,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       computeHeat();
     },
     setHeat(on) {
+      if (on !== heatOn) heatAt = performance.now();
       heatOn = on;
       computeHeat();
     },

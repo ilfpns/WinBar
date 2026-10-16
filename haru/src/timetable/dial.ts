@@ -257,7 +257,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
   }
 
   /**
-   * Thin style: task names around the rim, the current time and task beside the now edge, the current task
+   * Thin style: every task named outside the ring — a leader line from its middle out past the rim to its
+   * name, share of the day and time (labels spread per side so they never overlap) — and the current task
    * as the title in the middle.
    */
   function renderCallouts(blocks: (Block | Draft)[], picked: Set<string>, now: number): void {
@@ -265,26 +266,38 @@ export function mountDial(svg: SVGSVGElement): Dial {
       gCallouts.replaceChildren();
       return;
     }
-    const cur = state.blocks.find((b) => contains(b, now));
-    const out: SVGElement[] = [];
-    const RIM = R_OUT + 34;
-    for (const b of blocks) {
-      if (b === cur || b.dur < 30) continue;
-      // names are 15 units against the 21 the fitter measures in
-      const label = fitLabel(labelOf(b), ((b.dur / DAY) * Math.PI * 2 * RIM - 16) * 1.4);
-      if (!label) continue;
-      const sel = b === state.draft || (b.id !== null && picked.has(b.id));
-      out.push(textAlong(`rim-name${sel ? ' sel' : ''}${b.done ? ' done' : ''}`, RIM, b.start + b.dur / 2, label));
+    const NAME = 22, DETAIL = 15, GAP = NAME + DETAIL + 10, LIMIT = 500;
+    const items = [...blocks].sort((a, b) => b.dur - a.dur).slice(0, 14).map((b) => {
+      const a = angleOf(b.start + b.dur / 2);
+      return { b, dx: Math.cos(a), dy: Math.sin(a), side: Math.cos(a) >= 0 ? 1 : -1, y: (R_OUT + 70) * Math.sin(a) };
+    });
+    for (const side of [1, -1]) {
+      const col = items.filter((it) => it.side === side).sort((a, b) => a.y - b.y);
+      for (let k = 1; k < col.length; k++) col[k]!.y = Math.max(col[k]!.y, col[k - 1]!.y + GAP);
+      const over = (col.at(-1)?.y ?? 0) - LIMIT;
+      if (over > 0) col.forEach((it) => (it.y -= over));
+      for (let k = col.length - 2; k >= 0; k--) col[k]!.y = Math.min(col[k]!.y, col[k + 1]!.y - GAP);
     }
-    // beside the now edge: the time, and what is on
-    const [nx, ny] = pointAt(R_OUT + 46, now);
-    const anchor = nx >= 0 ? 'start' : 'end';
-    const shift = nx >= 0 ? 6 : -6;
-    out.push(
-      svgEl('text', { class: 'now-time', x: nx + shift, y: ny, 'text-anchor': anchor, 'dominant-baseline': 'central' }, hhmm(now)),
-      svgEl('text', { class: 'now-name', x: nx + shift, y: ny + 30, 'text-anchor': anchor, 'dominant-baseline': 'central' }, cur ? labelOf(cur) : 'Free time'),
-    );
+    const legX = R_OUT + 112;
+    const out: SVGElement[] = items.map(({ b, dx, dy, side, y }) => {
+      const sel = b === state.draft || (b.id !== null && picked.has(b.id));
+      const cls = `callout${b.done ? ' done' : ''}${sel ? ' sel' : ''}${contains(b, now) ? ' now' : ''}`;
+      const g = svgEl('g', { class: cls, style: `--c:var(--cat-${b.cat})` });
+      const p0 = [(R_OUT + 4) * dx, (R_OUT + 4) * dy];
+      const p1 = [(R_OUT + 70) * dx, y];
+      const p2 = [side * (legX - 8), y];
+      const anchor = side > 0 ? 'start' : 'end';
+      g.append(
+        svgEl('polyline', { class: 'callout-line', points: `${p0.join(',')} ${p1.join(',')} ${p2.join(',')}` }),
+        svgEl('circle', { class: 'callout-dot', cx: p0[0]!, cy: p0[1]!, r: 3.5 }),
+        svgEl('text', { class: 'callout-name', x: side * legX, y: y - 3, 'text-anchor': anchor }, labelOf(b)),
+        svgEl('text', { class: 'callout-detail', x: side * legX, y: y + DETAIL + 3, 'text-anchor': anchor },
+          `${hhmm(b.start)}–${hhmm(b.start + b.dur)} · ${Math.round((b.dur / DAY) * 100)}%`),
+      );
+      return g;
+    });
     // the middle: the current task, and how long it still runs (or when the next one starts)
+    const cur = state.blocks.find((b) => contains(b, now));
     const next = [...state.blocks].sort((a, b) => mod(a.start - now) - mod(b.start - now))[0];
     out.push(
       centeredText('slice-title', 0, -10, fitLabel(cur ? labelOf(cur) : 'Free time', (R_IN - 30) * 2 * (21 / 44) * 1.9) || '…'),
@@ -464,7 +477,13 @@ export function mountDial(svg: SVGSVGElement): Dial {
 function drawBase(g: SVGGElement, style: DialStyle = 'full'): void {
   if (style === 'thin') {
     // slices sit on a black disk with only a faint track: no hour numbers, the slices carry the day
-    g.append(svgEl('circle', { class: 'disk', r: R_OUT + 92 }), svgEl('path', { class: 'ring-bg', d: sectorPath(0, DAY) }));
+    // the disk's rim melts into the page instead of ending on a hard edge
+    const fade = svgEl('radialGradient', { id: 'disk-fade' });
+    for (const [offset, opacity] of [[0.7, 1], [0.82, 0.85], [0.9, 0.55], [0.96, 0.2], [1, 0]] as const) {
+      fade.append(svgEl('stop', { offset, 'stop-color': '#030304', 'stop-opacity': opacity }));
+    }
+    g.append(svgEl('defs'), svgEl('circle', { class: 'disk', r: R_OUT + 110 }), svgEl('path', { class: 'ring-bg', d: sectorPath(0, DAY) }));
+    g.firstElementChild!.append(fade);
     for (let h = 0; h < 24; h += 3) {
       const [x0, y0] = pointAt(R_OUT + 8, h * 60);
       const [x1, y1] = pointAt(R_OUT + (h % 6 ? 13 : 18), h * 60);
