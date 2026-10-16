@@ -565,18 +565,18 @@ body.resizing .panel > * { animation: none; }
   backdrop-filter: blur(var(--blur-glass));
   border: 1px solid var(--panel-border); border-radius: var(--radius-sm);
 }
-.panel-left { width: var(--panel-left-w); }
+.panel-left { width: var(--panel-left-w); gap: 16px; }
 .panel-right { width: var(--panel-right-w); }
 .panel > * { flex-shrink: 0; }
 
 /* rings: a stat is how full the circle around its icon is; the exact value is in the tooltip */
-.rings { display: grid; gap: 12px 8px; padding: 0 4px; }
+.rings { display: grid; gap: 10px 8px; padding: 0 4px; }
 .rings-lg { grid-template-columns: repeat(3, 1fr); }
-.rings-sm { grid-template-columns: repeat(3, 1fr); padding: 0 14px; gap: 10px 18px; }
+.rings-sm { grid-template-columns: repeat(3, 1fr); padding: 0 14px; gap: 8px 18px; }
 .ring { display: grid; justify-items: center; gap: 6px; margin: 0; }
 .ring figcaption { font: 400 11px/1 var(--font-mono); letter-spacing: .02em; color: var(--text-subtle); white-space: nowrap; }
-.ring-dial { position: relative; width: 100%; max-width: 72px; aspect-ratio: 1; display: grid; place-items: center; }
-.rings-sm .ring-dial { max-width: 52px; }
+.ring-dial { position: relative; width: 100%; max-width: 60px; aspect-ratio: 1; display: grid; place-items: center; }
+.rings-sm .ring-dial { max-width: 42px; }
 .ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring-track { fill: none; stroke: var(--well); stroke-width: 7; }
 .ring-fill {
@@ -686,6 +686,19 @@ body.resizing .panel > * { animation: none; }
 .acct-list li { position: relative; padding: 6px 30px 6px 10px; border-radius: var(--radius-sm); background: var(--well); font-size: 12.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acct-list li:hover .tpl-del { opacity: 1; }
 .acct-list .tpl-del { top: 4px; }
+.acct-list li.tpl-empty { padding: 2px 6px; background: none; color: var(--text-subtle); }
+/* settings group (Account, Templates, Backup) sits below a rule, apart from the day's status */
+.panel-left .acct { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--line-strong); }
+.acct-more summary {
+  display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px; border-radius: var(--radius-sm);
+  list-style: none; cursor: pointer; font-size: 12.5px; color: var(--text-muted);
+}
+.acct-more summary::-webkit-details-marker { display: none; }
+.acct-more summary:hover { background: var(--surface-2); color: var(--text); }
+.acct-more summary .ic { width: 13px; height: 13px; transition: transform var(--dur-base) var(--ease-out); }
+.acct-more[open] summary .ic { transform: rotate(90deg); }
+.acct-more summary .meta { margin-left: auto; }
+.acct-more[open] { display: grid; gap: 6px; }
 /* sign-in gate: covers the app until an invited account is confirmed */
 .gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--bg); animation: fade-in .3s var(--ease-out) both; }
 .gate[hidden] { display: none; }

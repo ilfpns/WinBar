@@ -164,7 +164,15 @@ export function mountAccount(refs: AccountRefs): void {
     const input = form.querySelector('input')!;
     const list = document.createElement('ul');
     list.className = 'acct-list';
-    invites.replaceChildren(form, list);
+    // tucked behind a one-line toggle so the drawer stays short
+    const more = document.createElement('details');
+    more.className = 'acct-more';
+    const summary = document.createElement('summary');
+    const count = document.createElement('span');
+    count.className = 'meta';
+    summary.append(icon('chevron-right'), 'Invites', count);
+    more.append(summary, form, list);
+    invites.replaceChildren(more);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = input.value.trim().toLowerCase();
@@ -174,6 +182,7 @@ export function mountAccount(refs: AccountRefs): void {
     });
     const unsub = fs.onSnapshot(fs.collection(db, 'allow'), (snap) => {
       const rows = snap.docs.map((d) => d.id).sort();
+      count.textContent = String(rows.length);
       if (!rows.length) {
         const li = document.createElement('li');
         li.className = 'tpl-empty';
