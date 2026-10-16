@@ -11,7 +11,10 @@ const config = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
 };
 
-export const cloudConfigured = Boolean(config.apiKey && config.projectId && config.authDomain);
+/** Sign-in and cloud sync, off during development: the app runs local-only with no gate. Set true to bring them back. */
+const SIGN_IN_ENABLED = false;
+
+export const cloudConfigured = SIGN_IN_ENABLED && Boolean(config.apiKey && config.projectId && config.authDomain);
 
 export type Fb = Awaited<ReturnType<typeof loadFirebase>>;
 

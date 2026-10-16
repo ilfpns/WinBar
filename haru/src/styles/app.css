@@ -832,7 +832,7 @@ body.left-open .rail { opacity: 0; transform: translate3d(-10px, 0, 0); pointer-
 .acct-list .tpl-del { top: 4px; }
 .acct-list li.tpl-empty { padding: 2px 6px; background: none; color: var(--text-subtle); }
 /* settings group (Account, Templates, Backup) sits below a rule, apart from the day's status */
-.panel-left .acct { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--line-strong); }
+.panel-left .acct, .panel-left .acct[hidden] + .section { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--line-strong); }
 .acct-more summary {
   display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px; border-radius: var(--radius-sm);
   list-style: none; cursor: pointer; font-size: 12.5px; color: var(--text-muted);
