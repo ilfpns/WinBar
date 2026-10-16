@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <script type="module" crossorigin src="/WinBar/assets/index-BrpnOEQt.js"></script>
-  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-DAgi9GqI.css">
+  <script type="module" crossorigin src="/WinBar/assets/index-BNeBSJfQ.js"></script>
+  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-aJs-z17J.css">
 </head>
 <body>
   <main class="stage page" id="stage">
@@ -35,6 +35,7 @@
       <div class="cal-main">
         <div class="cal-week" id="cal-week"></div>
         <div class="cal-grid" id="cal-grid"></div>
+        <section class="cal-attend" id="cal-attend" aria-label="Attendance"></section>
       </div>
       <aside class="cal-day" id="cal-day" aria-live="polite"></aside>
     </div>
@@ -47,12 +48,25 @@
     </div>
   </main>
 
-  <!-- side drawers start tucked away; only their tab shows until it is clicked -->
+  <!-- the closed overview: a slim glass rail (logo, pages, search); the open panel slides over it -->
+  <nav class="rail" id="rail" aria-label="Pages">
+    <button type="button" class="rail-btn rail-brand" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" title="Overview  ["><i data-icon="circle-dot"></i></button>
+    <span class="rail-rule" aria-hidden="true"></span>
+    <a class="rail-btn" href="#/" data-view="today" aria-label="Today" title="Today"><i data-icon="clock"></i></a>
+    <a class="rail-btn" href="#/calendar" data-view="calendar" aria-label="Calendar" title="Calendar"><i data-icon="calendar"></i></a>
+    <a class="rail-btn" href="#/news" data-view="news" aria-label="News" title="News"><i data-icon="newspaper"></i></a>
+    <button type="button" class="rail-btn" id="rail-search" aria-label="Search tasks" title="Search  /"><i data-icon="search"></i></button>
+    <span class="rail-fill"></span>
+    <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" title="Overview  ["><i data-icon="chevron-right"></i></button>
+  </nav>
+
+  <!-- side drawers start tucked away; only their tab (or, on the left, the rail) shows until it is clicked -->
   <aside class="drawer drawer-left" id="drawer-left">
     <div class="panel panel-left" id="panel-left" aria-label="Navigation and overview">
       <div class="brand">
         <i data-icon="circle-dot" class="brand-mark"></i>
         <span class="brand-name">Haru</span>
+        <button type="button" class="panel-collapse" data-drawer="left" aria-controls="panel-left" aria-label="Close overview" title="Close  ["><i data-icon="chevron-left"></i></button>
       </div>
 
       <nav class="nav" aria-label="Main">
@@ -115,9 +129,6 @@
         <button type="button" class="btn-text danger" id="clear">Clear all</button>
       </div>
     </div>
-    <button type="button" class="drawer-tab" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Toggle overview" title="Overview  [">
-      <i data-icon="chevron-right"></i><span class="tab-label">Overview</span>
-    </button>
   </aside>
 
   <aside class="drawer drawer-right" id="drawer-right">
@@ -204,8 +215,10 @@
         <span class="meta news-updated" id="news-updated"></span>
       </div>
       <section class="news-week" id="news-week" aria-label="This week"></section>
-      <div class="news-scope" id="news-scope"></div>
-      <div class="news-topics" id="news-topics" role="group" aria-label="Topics"></div>
+      <section class="news-filters" aria-label="Filters">
+        <div class="news-scope" id="news-scope"></div>
+        <div class="news-topics" id="news-topics" role="group" aria-label="Topics"></div>
+      </section>
       <ol class="news-list" id="news-list"></ol>
     </div>
   </aside>
