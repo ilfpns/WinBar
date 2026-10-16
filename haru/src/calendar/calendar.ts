@@ -2,6 +2,7 @@ import { currentView, onView } from '../ui/router';
 import { createNotes } from './notes';
 import { createImages } from './images';
 import { mountStats } from './stats';
+import { mountAttendance } from './attendance';
 import { ringsChart, slicesChart } from './day-charts';
 import { icon } from '../ui/icons';
 import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
@@ -38,6 +39,7 @@ export interface CalendarRefs {
   week: HTMLElement;
   grid: HTMLElement;
   day: HTMLElement;
+  attend: HTMLElement;
 }
 
 export function mountCalendar(refs: CalendarRefs): void {
@@ -414,6 +416,7 @@ export function mountCalendar(refs: CalendarRefs): void {
   }
   refs.prev.addEventListener('click', () => go(-1));
   mountStats(refs.stats, () => month);
+  mountAttendance(refs.attend);
   refs.next.addEventListener('click', () => go(1));
   refs.today.addEventListener('click', () => {
     const now = new Date();

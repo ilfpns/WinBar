@@ -22,6 +22,19 @@ function fitLabel(text: string, room: number): string {
   return chars.length > 2 ? `${chars.join('').trimEnd()}…` : '';
 }
 
+/** Rotation (degrees) that runs text along the circle at minute `m`, turned so it never reads upside down. */
+function along(m: number): number {
+  const a = angleOf(m);
+  const deg = (a * 180) / Math.PI + 90;
+  return Math.sin(a) > 0.0001 ? deg + 180 : deg;
+}
+
+/** Text centred on the circle at radius `r`, minute `m`, running along it. */
+const textAlong = (cls: string, r: number, m: number, text: string): SVGTextElement => {
+  const [x, y] = pointAt(r, m);
+  return svgEl('text', { class: cls, x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central', transform: `rotate(${along(m).toFixed(2)} ${x} ${y})` }, text);
+};
+
 /** Within this many minutes of the clock hand, pointing means "now": snap to the hand, not the grid. */
 const NOW_MAGNET = 5;
 
@@ -47,12 +60,12 @@ function dragRange(delta: number, start: number): { start: number; dur: number }
 
 export type DialStyle = 'full' | 'thin';
 export interface Dial {
-  /** full: the wide ring with names inside; thin: a slimmer ring with every task named outside on a leader line. */
+  /** full: the wide ring with names inside; thin: slices — a numbered donut, the day so far lit, names around the rim. */
   setStyle(style: DialStyle): void;
 }
 
 /** Ring radii per style (dial units). */
-const RINGS: Record<DialStyle, [number, number]> = { full: [170, 400], thin: [318, 400] };
+const RINGS: Record<DialStyle, [number, number]> = { full: [170, 400], thin: [212, 400] };
 
 export function mountDial(svg: SVGSVGElement): Dial {
   const layer = (name: string) => svg.appendChild(svgEl('g', { class: `layer-${name}` }));
@@ -91,7 +104,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
     const picked = new Set(state.selected);
 
     gBlocks.replaceChildren();
-    for (const b of visibleBlocks()) {
+    if (dialStyle === 'thin') renderSlices(picked, now);
+    else for (const b of visibleBlocks()) {
       const isSel = b === draft || (b.id !== null && picked.has(b.id));
       const isNow = !isSel && contains(b, now);
       const style = `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)`;
@@ -99,7 +113,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
         svgEl('path', { class: `block${isSel ? ' sel' : ''}`, d: sectorPath(b.start, b.dur), style }),
         svgEl('path', { class: `block-arc${b.done ? ' done' : ''}`, d: arcPath(b.start, b.dur, R_OUT - 3.5), style }),
       );
-      if (dialStyle === 'thin' || b.dur < 45) continue;
+      if (b.dur < 45) continue;
       const [x, y] = pointAt(R_MID, b.start + b.dur / 2);
       const room = Math.min((b.dur / DAY) * Math.PI * 2 * R_MID - 12, 210);
       const name = labelOf(b);
@@ -120,12 +134,19 @@ export function mountDial(svg: SVGSVGElement): Dial {
       gGhost.append(svgEl('path', { class: 'ghost', d: sectorPath(r.start, r.dur) }));
     }
 
-    const [x0, y0] = pointAt(R_IN - 14, now);
-    const [x1, y1] = pointAt(R_OUT + 14, now);
-    gNow.replaceChildren(
-      svgEl('line', { class: 'now-hand', x1: x0, y1: y0, x2: x1, y2: y1 }),
-      svgEl('circle', { class: 'now-dot', cx: x1, cy: y1, r: 6 }),
-    );
+    if (dialStyle === 'thin') {
+      // slices: the edge between the day so far and the rest, lit
+      const [x0, y0] = pointAt(R_IN, now);
+      const [x1, y1] = pointAt(R_OUT + 8, now);
+      gNow.replaceChildren(svgEl('line', { class: 'now-edge', x1: x0, y1: y0, x2: x1, y2: y1 }));
+    } else {
+      const [x0, y0] = pointAt(R_IN - 14, now);
+      const [x1, y1] = pointAt(R_OUT + 14, now);
+      gNow.replaceChildren(
+        svgEl('line', { class: 'now-hand', x1: x0, y1: y0, x2: x1, y2: y1 }),
+        svgEl('circle', { class: 'now-dot', cx: x1, cy: y1, r: 6 }),
+      );
+    }
 
     renderCenter();
   }
@@ -210,44 +231,66 @@ export function mountDial(svg: SVGSVGElement): Dial {
   }
 
   /**
-   * Thin style: every task named outside the ring — a leader line from its middle out past the hour labels to its
-   * name, share of the day and time. Labels are spread per side so they never overlap.
+   * Slices: every task a numbered slice in time order. What has passed is lit in its category colour (brightest
+   * just behind now), what is still ahead stays gray.
+   */
+  function renderSlices(picked: Set<string>, now: number): void {
+    const list = [...visibleBlocks()].sort((a, b) => a.start - b.start);
+    list.forEach((b, i) => {
+      const sel = b === state.draft || (b.id !== null && picked.has(b.id));
+      const live = contains(b, now);
+      const passed = live ? mod(now - b.start) : b.start + b.dur <= now ? b.dur : 0;
+      const style = `--c:var(--cat-${b.cat})`;
+      gBlocks.append(svgEl('path', { class: `slice${sel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }));
+      if (passed > 0) gBlocks.append(svgEl('path', { class: 'slice-past', d: sectorPath(b.start, passed), style }));
+      // the running task glows toward the now edge (stacked washes: a gradient along the arc)
+      if (live) {
+        for (const span of [120, 60, 25]) {
+          const from = Math.max(0, passed - span);
+          if (passed - from > 0) gBlocks.append(svgEl('path', { class: 'slice-glow', d: sectorPath(b.start + from, passed - from), style }));
+        }
+      }
+      if (b.dur >= 30) {
+        gBlocks.append(textAlong(`slice-num${live ? ' now' : ''}${sel ? ' sel' : ''}`, R_MID, b.start + b.dur / 2, String(i + 1).padStart(2, '0')));
+      }
+    });
+  }
+
+  /**
+   * Thin style: task names around the rim, the current time and task beside the now edge, the current task
+   * as the title in the middle.
    */
   function renderCallouts(blocks: (Block | Draft)[], picked: Set<string>, now: number): void {
     if (dialStyle !== 'thin') {
       gCallouts.replaceChildren();
       return;
     }
-    const NAME = 22, DETAIL = 15, GAP = NAME + DETAIL + 10, LIMIT = 500;
-    const items = [...blocks].sort((a, b) => b.dur - a.dur).slice(0, 14).map((b) => {
-      const a = angleOf(b.start + b.dur / 2);
-      return { b, dx: Math.cos(a), dy: Math.sin(a), side: Math.cos(a) >= 0 ? 1 : -1, y: (R_OUT + 70) * Math.sin(a) };
-    });
-    for (const side of [1, -1]) {
-      const col = items.filter((it) => it.side === side).sort((a, b) => a.y - b.y);
-      for (let k = 1; k < col.length; k++) col[k]!.y = Math.max(col[k]!.y, col[k - 1]!.y + GAP);
-      const over = (col.at(-1)?.y ?? 0) - LIMIT;
-      if (over > 0) col.forEach((it) => (it.y -= over));
-      for (let k = col.length - 2; k >= 0; k--) col[k]!.y = Math.min(col[k]!.y, col[k + 1]!.y - GAP);
-    }
-    const legX = R_OUT + 112;
-    gCallouts.replaceChildren(...items.map(({ b, dx, dy, side, y }) => {
+    const cur = state.blocks.find((b) => contains(b, now));
+    const out: SVGElement[] = [];
+    const RIM = R_OUT + 34;
+    for (const b of blocks) {
+      if (b === cur || b.dur < 30) continue;
+      // names are 15 units against the 21 the fitter measures in
+      const label = fitLabel(labelOf(b), ((b.dur / DAY) * Math.PI * 2 * RIM - 16) * 1.4);
+      if (!label) continue;
       const sel = b === state.draft || (b.id !== null && picked.has(b.id));
-      const cls = `callout${b.done ? ' done' : ''}${sel ? ' sel' : ''}${contains(b, now) ? ' now' : ''}`;
-      const g = svgEl('g', { class: cls, style: `--c:var(--cat-${b.cat})` });
-      const p0 = [(R_OUT + 4) * dx, (R_OUT + 4) * dy];
-      const p1 = [(R_OUT + 70) * dx, y];
-      const p2 = [side * (legX - 8), y];
-      const anchor = side > 0 ? 'start' : 'end';
-      g.append(
-        svgEl('polyline', { class: 'callout-line', points: `${p0.join(',')} ${p1.join(',')} ${p2.join(',')}` }),
-        svgEl('circle', { class: 'callout-dot', cx: p0[0]!, cy: p0[1]!, r: 3.5 }),
-        svgEl('text', { class: 'callout-name', x: side * legX, y: y - 3, 'text-anchor': anchor }, labelOf(b)),
-        svgEl('text', { class: 'callout-detail', x: side * legX, y: y + DETAIL + 3, 'text-anchor': anchor },
-          `${hhmm(b.start)}–${hhmm(b.start + b.dur)} · ${Math.round((b.dur / DAY) * 100)}%`),
-      );
-      return g;
-    }));
+      out.push(textAlong(`rim-name${sel ? ' sel' : ''}${b.done ? ' done' : ''}`, RIM, b.start + b.dur / 2, label));
+    }
+    // beside the now edge: the time, and what is on
+    const [nx, ny] = pointAt(R_OUT + 46, now);
+    const anchor = nx >= 0 ? 'start' : 'end';
+    const shift = nx >= 0 ? 6 : -6;
+    out.push(
+      svgEl('text', { class: 'now-time', x: nx + shift, y: ny, 'text-anchor': anchor, 'dominant-baseline': 'central' }, hhmm(now)),
+      svgEl('text', { class: 'now-name', x: nx + shift, y: ny + 30, 'text-anchor': anchor, 'dominant-baseline': 'central' }, cur ? labelOf(cur) : 'Free time'),
+    );
+    // the middle: the current task, and how long it still runs (or when the next one starts)
+    const next = [...state.blocks].sort((a, b) => mod(a.start - now) - mod(b.start - now))[0];
+    out.push(
+      centeredText('slice-title', 0, -10, fitLabel(cur ? labelOf(cur) : 'Free time', (R_IN - 30) * 2 * (21 / 44) * 1.9) || '…'),
+      centeredText('slice-sub', 0, 34, cur ? `${formatDuration(Math.ceil(cur.dur - mod(now - cur.start)))} left` : next ? `next ${hhmm(next.start)}` : ''),
+    );
+    gCallouts.replaceChildren(...out);
   }
 
   /** While a new task is being dragged out: the time under the pointer (and where it started), on the ring. */
@@ -412,13 +455,23 @@ export function mountDial(svg: SVGSVGElement): Dial {
       setRing(...RINGS[next]);
       svg.classList.toggle('thin', next === 'thin');
       gBase.replaceChildren();
-      drawBase(gBase);
+      drawBase(gBase, next);
       render();
     },
   };
 }
 
-function drawBase(g: SVGGElement): void {
+function drawBase(g: SVGGElement, style: DialStyle = 'full'): void {
+  if (style === 'thin') {
+    // slices sit on a black disk with only a faint track: no hour numbers, the slices carry the day
+    g.append(svgEl('circle', { class: 'disk', r: R_OUT + 92 }), svgEl('path', { class: 'ring-bg', d: sectorPath(0, DAY) }));
+    for (let h = 0; h < 24; h += 3) {
+      const [x0, y0] = pointAt(R_OUT + 8, h * 60);
+      const [x1, y1] = pointAt(R_OUT + (h % 6 ? 13 : 18), h * 60);
+      g.append(svgEl('line', { class: 'tick', x1: x0, y1: y0, x2: x1, y2: y1 }));
+    }
+    return;
+  }
   g.append(svgEl('path', { class: 'ring-bg', d: sectorPath(0, DAY) }));
   for (let h = 0; h < 24; h++) {
     const m = h * 60;

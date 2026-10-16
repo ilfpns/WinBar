@@ -7,7 +7,7 @@ import { mountDial } from './timetable/dial';
 import { mountEditor } from './timetable/editor';
 import { mountOverview } from './timetable/overview';
 import { mountSchedule } from './timetable/schedule';
-import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, setState, state } from './timetable/state';
+import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, setState, state, toggleDrawer } from './timetable/state';
 import { mountDrawers } from './ui/drawers';
 import { hydrateIcons } from './ui/icons';
 import { mountRouter } from './ui/router';
@@ -84,6 +84,7 @@ mountCalendar({
   week: byId('cal-week'),
   grid: byId('cal-grid'),
   day: byId('cal-day'),
+  attend: byId('cal-attend'),
 });
 
 document.addEventListener('keydown', (e) => {
@@ -110,7 +111,9 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === '/') {
     e.preventDefault();
-    search.focus();
+    // the search lives in the overview panel: bring it out of the rail first
+    toggleDrawer('left', true);
+    search.focus({ preventScroll: true });
   }
 });
 

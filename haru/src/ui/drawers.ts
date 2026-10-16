@@ -4,6 +4,7 @@ import { type View, currentView, onView } from './router';
 const WIDE = 1000;   // above this the dial makes room for open drawers; below, drawers overlay it
 const GUTTER = 40;   // space kept between an open drawer and the dial
 const EDGE = 56;     // stage side padding when a drawer is closed (its tab sits there)
+const RAIL_GAP = 24; // space kept between the left rail and the dial
 const MIN_W = 220;   // narrowest a drawer can be dragged
 const WIDTHS_KEY = 'haru:drawer-widths';
 
@@ -16,19 +17,26 @@ const DRAWERS: { id: string; side: Side; views: View[] }[] = [
   { id: 'drawer-news', side: 'right', views: ['news'] },    // news feed (empty for now)
 ];
 
-/** Side drawers: tucked off-screen with a tab peeking out; the tab slides them in and out. */
+/** Side drawers: tucked off-screen with a tab peeking out (on the left, the rail); either slides them in and out. */
 export function mountDrawers(dialWrap: HTMLElement): void {
   const drawers = DRAWERS.map((d) => {
     const el = document.getElementById(d.id)!;
-    return { ...d, el, tab: el.querySelector<HTMLButtonElement>('.drawer-tab')!, panel: el.querySelector<HTMLElement>('.panel')! };
+    return { ...d, el, panel: el.querySelector<HTMLElement>('.panel')! };
   });
+  const rail = document.getElementById('rail')!;
+  // every toggle of a side: its tab, the rail's buttons, the panel's own close button
+  const toggles = [...document.querySelectorAll<HTMLButtonElement>('button[data-drawer]')];
   const hasDrawer = (side: Side, view = currentView()) => drawers.some((d) => d.side === side && d.views.includes(view));
   const pull = (side: Side) => {
     if (hasDrawer(side)) toggleDrawer(side);
   };
 
-  for (const { side, tab, panel } of drawers) {
-    tab.addEventListener('click', () => toggleDrawer(side));
+  for (const t of toggles) t.addEventListener('click', () => toggleDrawer(t.dataset.drawer as Side));
+  document.getElementById('rail-search')!.addEventListener('click', () => {
+    toggleDrawer('left', true);
+    document.getElementById('search')!.focus({ preventScroll: true });
+  });
+  for (const { panel } of drawers) {
     // stagger index for the contents' entrance animation
     [...panel.children].forEach((child, k) => (child as HTMLElement).style.setProperty('--k', String(k)));
   }
@@ -150,7 +158,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
       dialWrap.style.setProperty('--dial-s', '1');
       return;
     }
-    const left = state.drawers.left ? px('--panel-left-w') + 2 * inset + GUTTER : EDGE;
+    const left = state.drawers.left ? px('--panel-left-w') + 2 * inset + GUTTER : rail.offsetWidth + inset + RAIL_GAP;
     const right = state.drawers.right && hasDrawer('right', 'today') ? px('--panel-right-w') + 2 * inset + GUTTER : EDGE;
     const room = innerWidth - left - right;
     const base = dialWrap.offsetWidth; // layout size, unaffected by the transform
@@ -177,10 +185,14 @@ export function mountDrawers(dialWrap: HTMLElement): void {
       const open = state.drawers[d.side] && here;
       // a page's own drawer (tab included) comes and goes with the page; an open one first slides away
       if (here || !closing.has(d.id)) d.el.hidden = !here;
-      d.tab.setAttribute('aria-expanded', String(open));
+      for (const t of d.el.querySelectorAll('button[data-drawer]')) t.setAttribute('aria-expanded', String(open));
       // a tucked-away panel must not take focus
       d.panel.inert = !open;
     }
+    const leftOpen = state.drawers.left;
+    for (const t of rail.querySelectorAll('button[data-drawer]')) t.setAttribute('aria-expanded', String(leftOpen));
+    // the rail sits under the open panel: out of the tab order while covered
+    rail.inert = leftOpen;
     if (key === last) return;
     last = key;
     // pause busy decorations for the length of the slide so every frame stays cheap

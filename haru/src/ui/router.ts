@@ -24,7 +24,7 @@ export function mountRouter(): void {
     const view = currentView();
     if (view === prev) return;
     document.body.dataset.view = view;
-    document.querySelectorAll<HTMLElement>('.nav-item[data-view]').forEach((a) => {
+    document.querySelectorAll<HTMLElement>('a[data-view]').forEach((a) => {
       if (a.dataset.view === view) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     });

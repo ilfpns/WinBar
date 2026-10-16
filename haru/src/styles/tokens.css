@@ -5,7 +5,13 @@
   color-scheme: dark;
 
   /* base — black page; panels are cregg's light translucent gray, inner wells a darker gray (neoconda) */
-  --bg: #0a0a0a;
+  --bg: #08080a;
+  /* the page behind the glass: soft light from the top-left, a faint accent glow bottom-right */
+  --backdrop:
+    radial-gradient(1100px 760px at 8% -12%, rgba(255, 255, 255, 0.11), transparent 62%),
+    radial-gradient(900px 700px at 104% 112%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%),
+    radial-gradient(760px 560px at 58% 46%, rgba(130, 130, 150, 0.06), transparent 70%),
+    var(--bg);
   --surface: rgba(10, 10, 10, 0.6);
   --surface-solid: #111111;
   --surface-2: rgba(169, 169, 169, 0.08);
@@ -18,6 +24,12 @@
 
   --panel: rgba(169, 169, 169, 0.1);          /* light gray aside (cregg nav button tone) */
   --panel-border: rgba(255, 255, 255, 0.06);
+  /* frosted glass: a cool gray sheet, a lit top edge, grain, and a soft drop shadow */
+  --glass-fill: linear-gradient(180deg, rgba(56, 56, 64, 0.5) 0%, rgba(26, 26, 31, 0.58) 55%, rgba(18, 18, 22, 0.66) 100%);
+  --glass-edge: rgba(255, 255, 255, 0.085);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.09), inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+  --glass-drop: 0 24px 60px -16px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .055 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   --well: rgba(0, 0, 0, 0.32);                /* darker gray inset: cards, inputs, search */
   --well-border: rgba(255, 255, 255, 0.05);
   --gray-btn: rgba(169, 169, 169, 0.19);      /* cregg nav-button */
@@ -81,7 +93,8 @@
   --header-h: 58px;
   --reading-w: 680px;
   --radius: 0px;
-  --radius-sm: 4px;
+  --radius-sm: 8px;
+  --radius-panel: 20px;
 
   /* motion */
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -89,5 +102,5 @@
   --dur-fast: 0.2s;
   --dur-base: 0.3s;
   --dur-slow: 0.4s;
-  --blur-glass: 24px;
+  --blur-glass: 28px;
 }
