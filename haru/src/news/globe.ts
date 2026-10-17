@@ -1,3 +1,5 @@
+import { onTheme } from '../ui/theme';
+
 /**
  * Dot-matrix globe on a 2D canvas: land is ~4.6k points (Natural Earth, generated at build time),
  * projected orthographically every frame. No images, no WebGL — the "3D" is depth-shaded dots,
@@ -188,6 +190,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
   /** Radius of the visible disc: the sphere, or the round window onto it while zoomed in. */
   const disc = () => Math.min(R, canvas.width / 2 - dpr);
   new ResizeObserver(fit).observe(canvas);
+  onTheme(() => (colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong'), accent: css('--accent') }));
   fit();
 
   /** Screen (device px) → lat/lon on the front face, or null off the globe. */

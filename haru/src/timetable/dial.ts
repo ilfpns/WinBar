@@ -5,6 +5,7 @@ import { clearSelection, closeDraft, onCancelled, onRemoved, onSaved, openDraft,
 import { centeredText, svgEl } from './svg';
 import { createOrb } from './orb';
 import { onHover, setHover } from './hover';
+import { onTheme } from '../ui/theme';
 
 /** Pointer counts as "on the ring" a little inside the hole and out over the hour labels. */
 const onRing = (r: number): boolean => r >= R_IN - 10 && r <= R_OUT + 60;
@@ -21,19 +22,6 @@ function fitLabel(text: string, room: number): string {
   while (chars.length > 2 && textWidth(chars.join('')) + 12 > room) chars.pop();
   return chars.length > 2 ? `${chars.join('').trimEnd()}…` : '';
 }
-
-/** Rotation (degrees) that runs text along the circle at minute `m`, turned so it never reads upside down. */
-function along(m: number): number {
-  const a = angleOf(m);
-  const deg = (a * 180) / Math.PI + 90;
-  return Math.sin(a) > 0.0001 ? deg + 180 : deg;
-}
-
-/** Text centred on the circle at radius `r`, minute `m`, running along it. */
-const textAlong = (cls: string, r: number, m: number, text: string): SVGTextElement => {
-  const [x, y] = pointAt(r, m);
-  return svgEl('text', { class: cls, x, y, 'text-anchor': 'middle', 'dominant-baseline': 'central', transform: `rotate(${along(m).toFixed(2)} ${x} ${y})` }, text);
-};
 
 /** Within this many minutes of the clock hand, pointing means "now": snap to the hand, not the grid. */
 const NOW_MAGNET = 5;
@@ -65,7 +53,7 @@ export interface Dial {
 }
 
 /** Ring radii per style (dial units). */
-const RINGS: Record<DialStyle, [number, number]> = { full: [170, 400], thin: [212, 400] };
+const RINGS: Record<DialStyle, [number, number]> = { full: [170, 400], thin: [335, 400] };
 
 export function mountDial(svg: SVGSVGElement): Dial {
   const layer = (name: string) => svg.appendChild(svgEl('g', { class: `layer-${name}` }));
@@ -137,7 +125,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
     if (dialStyle === 'thin') {
       // slices: the edge between the day so far and the rest, lit
       const [x0, y0] = pointAt(R_IN, now);
-      const [x1, y1] = pointAt(R_OUT + 8, now);
+      const [x1, y1] = pointAt(R_OUT - 1.5, now);
       gNow.replaceChildren(svgEl('line', { class: 'now-edge', x1: x0, y1: y0, x2: x1, y2: y1 }));
     } else {
       const [x0, y0] = pointAt(R_IN - 14, now);
@@ -215,6 +203,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
     const { done } = progressOf(blocks);
     const pct = Math.round((done / DAY) * 100);
     orb.focus(null);
+    // slices: the emblem carries the slices' colours inward, with a radar trail behind the hand
+    orb.setSlices(dialStyle === 'thin' ? blocks.map((b) => ({ start: b.start, dur: b.dur, color: catColor(b) })) : null, nowMinutes());
     orb.setDone(blocks.filter((b) => b.done).map((b) => ({ start: b.start, dur: b.dur, color: catColor(b) })));
     // finishing something makes the core bounce once
     gInfo.replaceChildren(...core(`${pct}%`, 'var(--accent)', 'var(--bg)', lastPct >= 0 && pct > lastPct));
@@ -236,7 +226,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
    */
   function renderSlices(picked: Set<string>, now: number): void {
     const list = [...visibleBlocks()].sort((a, b) => a.start - b.start);
-    list.forEach((b, i) => {
+    list.forEach((b) => {
       const sel = b === state.draft || (b.id !== null && picked.has(b.id));
       const live = contains(b, now);
       const passed = live ? mod(now - b.start) : b.start + b.dur <= now ? b.dur : 0;
@@ -249,9 +239,6 @@ export function mountDial(svg: SVGSVGElement): Dial {
           const from = Math.max(0, passed - span);
           if (passed - from > 0) gBlocks.append(svgEl('path', { class: 'slice-glow', d: sectorPath(b.start + from, passed - from), style }));
         }
-      }
-      if (b.dur >= 30) {
-        gBlocks.append(textAlong(`slice-num${live ? ' now' : ''}${sel ? ' sel' : ''}`, R_MID, b.start + b.dur / 2, String(i + 1).padStart(2, '0')));
       }
     });
   }
@@ -296,12 +283,14 @@ export function mountDial(svg: SVGSVGElement): Dial {
       );
       return g;
     });
-    // the middle: the current task, and how long it still runs (or when the next one starts)
+    // the middle keeps the dot emblem; either side of it, on its channel's line, what is on and how long it still runs
     const cur = state.blocks.find((b) => contains(b, now));
     const next = [...state.blocks].sort((a, b) => mod(a.start - now) - mod(b.start - now))[0];
+    const name = cur ? fitLabel(labelOf(cur), 104) || '…' : 'free';
+    const rest = cur ? `${formatDuration(Math.ceil(cur.dur - mod(now - cur.start)))} left` : next ? `next ${hhmm(next.start)}` : '';
     out.push(
-      centeredText('slice-title', 0, -10, fitLabel(cur ? labelOf(cur) : 'Free time', (R_IN - 30) * 2 * (21 / 44) * 1.9) || '…'),
-      centeredText('slice-sub', 0, 34, cur ? `${formatDuration(Math.ceil(cur.dur - mod(now - cur.start)))} left` : next ? `next ${hhmm(next.start)}` : ''),
+      svgEl('text', { class: `slice-sub${cur ? ' on' : ''}`, x: -172, y: 1, 'text-anchor': 'end', 'dominant-baseline': 'central' }, name),
+      svgEl('text', { class: 'slice-sub', x: 172, y: 1, 'text-anchor': 'start', 'dominant-baseline': 'central' }, rest),
     );
     gCallouts.replaceChildren(...out);
   }
@@ -455,6 +444,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
   });
 
   subscribe(render);
+  // the emblem's resting dots take the new theme's line colour
+  onTheme(render);
   render();
   // keep the clock hand moving
   setInterval(() => {
@@ -476,19 +467,14 @@ export function mountDial(svg: SVGSVGElement): Dial {
 
 function drawBase(g: SVGGElement, style: DialStyle = 'full'): void {
   if (style === 'thin') {
-    // slices sit on a black disk with only a faint track: no hour numbers, the slices carry the day
-    // the disk's rim melts into the page instead of ending on a hard edge
-    const fade = svgEl('radialGradient', { id: 'disk-fade' });
-    for (const [offset, opacity] of [[0.7, 1], [0.82, 0.85], [0.9, 0.55], [0.96, 0.2], [1, 0]] as const) {
-      fade.append(svgEl('stop', { offset, 'stop-color': '#030304', 'stop-opacity': opacity }));
-    }
-    g.append(svgEl('defs'), svgEl('circle', { class: 'disk', r: R_OUT + 110 }), svgEl('path', { class: 'ring-bg', d: sectorPath(0, DAY) }));
-    g.firstElementChild!.append(fade);
-    for (let h = 0; h < 24; h += 3) {
-      const [x0, y0] = pointAt(R_OUT + 8, h * 60);
-      const [x1, y1] = pointAt(R_OUT + (h % 6 ? 13 : 18), h * 60);
-      g.append(svgEl('line', { class: 'tick', x1: x0, y1: y0, x2: x1, y2: y1 }));
-    }
+    // slices sit on a black disk with only a faint track: no hour numbers or ticks, the slices carry the day.
+    // Disk and slices end on one clean rim, a hair inside the ring: the slices' dividing strokes are
+    // clipped there, so no dark line runs round the outside or pokes out past it.
+    const rim = R_OUT - 1.5;
+    const clip = svgEl('clipPath', { id: 'ring-clip' });
+    clip.append(svgEl('path', { d: sectorPath(0, DAY, R_IN, rim) }));
+    g.append(svgEl('defs'), svgEl('circle', { class: 'disk', r: rim }), svgEl('path', { class: 'ring-bg', d: sectorPath(0, DAY, R_IN, rim) }));
+    g.firstElementChild!.append(clip);
     return;
   }
   g.append(svgEl('path', { class: 'ring-bg', d: sectorPath(0, DAY) }));

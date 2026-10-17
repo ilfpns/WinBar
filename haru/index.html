@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Haru — Today</title>
+  <script>
+    // theme and language before the first paint: no flash of the other one
+    try {
+      var t = localStorage.getItem('haru:theme') || 'dark';
+      if (t === 'system') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = t;
+      document.documentElement.lang = localStorage.getItem('haru:lang') === 'ko' ? 'ko' : 'en';
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" rel="stylesheet">
@@ -33,7 +42,6 @@
       <div class="cal-main">
         <div class="cal-week" id="cal-week"></div>
         <div class="cal-grid" id="cal-grid"></div>
-        <section class="cal-attend" id="cal-attend" aria-label="Attendance"></section>
       </div>
       <aside class="cal-day" id="cal-day" aria-live="polite"></aside>
     </div>
@@ -46,23 +54,36 @@
     </div>
   </main>
 
+  <main class="words-view text-page page" id="words" aria-label="Words">
+    <header class="pg-head"><h1>Words</h1><span class="meta" id="words-sum"></span></header>
+    <div class="pg-body words-body" id="words-body"></div>
+  </main>
+
+  <main class="journal-view text-page page" id="journal" aria-label="Journal">
+    <header class="pg-head"><h1>Journal</h1><span class="meta" id="journal-sum"></span></header>
+    <div class="pg-body journal-body" id="journal-body"></div>
+  </main>
+
   <!-- the closed overview: a slim glass rail (logo, pages, search); the open panel slides over it -->
   <nav class="rail" id="rail" aria-label="Pages">
-    <button type="button" class="rail-btn rail-brand" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" title="Overview  ["><i data-icon="circle-dot"></i></button>
+    <button type="button" class="rail-btn rail-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" data-tip="Haru · settings and more"><i data-icon="circle-dot"></i></button>
     <span class="rail-rule" aria-hidden="true"></span>
-    <a class="rail-btn" href="#/" data-view="today" aria-label="Today" title="Today"><i data-icon="clock"></i></a>
-    <a class="rail-btn" href="#/calendar" data-view="calendar" aria-label="Calendar" title="Calendar"><i data-icon="calendar"></i></a>
-    <a class="rail-btn" href="#/news" data-view="news" aria-label="News" title="News"><i data-icon="newspaper"></i></a>
-    <button type="button" class="rail-btn" id="rail-search" aria-label="Search tasks" title="Search  /"><i data-icon="search"></i></button>
+    <a class="rail-btn" href="#/" data-view="today" aria-label="Today" data-tip="Today · the day's timetable"><i data-icon="clock"></i></a>
+    <a class="rail-btn" href="#/calendar" data-view="calendar" aria-label="Calendar" data-tip="Calendar · month, notes, stats"><i data-icon="calendar"></i></a>
+    <span class="rail-rule" aria-hidden="true"></span>
+    <a class="rail-btn" href="#/news" data-view="news" aria-label="News" data-tip="News · headlines on the globe, attendance"><i data-icon="newspaper"></i></a>
+    <a class="rail-btn" href="#/words" data-view="words" aria-label="Words" data-tip="Words · learn English vocabulary"><i data-icon="languages"></i></a>
+    <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
+    <button type="button" class="rail-btn" id="rail-search" aria-label="Search tasks" data-tip="Search tasks  /"><i data-icon="search"></i></button>
     <span class="rail-fill"></span>
-    <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" title="Overview  ["><i data-icon="chevron-right"></i></button>
+    <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
   </nav>
 
   <!-- side drawers start tucked away; only their tab (or, on the left, the rail) shows until it is clicked -->
   <aside class="drawer drawer-left" id="drawer-left">
     <div class="panel panel-left" id="panel-left" aria-label="Navigation and overview">
       <div class="brand">
-        <i data-icon="circle-dot" class="brand-mark"></i>
+        <button type="button" class="brand-mark-btn" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu"><i data-icon="circle-dot" class="brand-mark"></i></button>
         <span class="brand-name">Haru</span>
         <button type="button" class="panel-collapse" data-drawer="left" aria-controls="panel-left" aria-label="Close overview" title="Close  ["><i data-icon="chevron-left"></i></button>
       </div>
@@ -74,8 +95,15 @@
         <a class="nav-item" href="#/calendar" data-view="calendar">
           <i data-icon="calendar"></i>Calendar
         </a>
+        <span class="nav-rule" aria-hidden="true"></span>
         <a class="nav-item" href="#/news" data-view="news">
           <i data-icon="newspaper"></i>News
+        </a>
+        <a class="nav-item" href="#/words" data-view="words">
+          <i data-icon="languages"></i>Words
+        </a>
+        <a class="nav-item" href="#/journal" data-view="journal">
+          <i data-icon="notebook-pen"></i>Journal
         </a>
       </nav>
 
@@ -100,31 +128,11 @@
         <div class="rings rings-sm" id="cat-rings"></div>
       </section>
 
-      <section class="section acct" id="account">
-        <div class="section-head"><span>Account</span></div>
-      </section>
 
-      <section class="section">
-        <div class="section-head"><span>Templates</span><span class="meta tpl-status" id="tpl-status"></span></div>
-        <ul class="tpl-list" id="tpl-list"></ul>
-        <form class="tpl-save" id="tpl-save" autocomplete="off">
-          <input name="name" placeholder="Save today as…" maxlength="32" aria-label="Template name">
-          <button type="submit" class="icon-btn" aria-label="Save template"><i data-icon="plus"></i></button>
-        </form>
-      </section>
 
-      <section class="section">
-        <div class="section-head"><span>Backup</span><span class="meta backup-status" id="backup-status"></span></div>
-        <div class="backup-row">
-          <button type="button" class="btn-sm" id="backup-auto" aria-pressed="false">Auto-backup</button>
-          <button type="button" class="btn-text" id="backup-export">Export</button>
-          <button type="button" class="btn-text" id="backup-import">Import</button>
-          <input type="file" id="backup-file" accept="application/json,.json" hidden>
-        </div>
-      </section>
 
       <div class="panel-foot">
-        <button type="button" class="btn-text danger" id="clear">Clear all</button>
+        <button type="button" class="btn-text settings-open" id="settings-open"><i data-icon="settings"></i>Settings</button>
       </div>
     </div>
   </aside>
@@ -135,12 +143,28 @@
     </button>
     <div class="panel panel-right" id="panel-right" aria-label="Tasks">
     <div class="panel-head">
-      <span class="panel-title">Tasks</span>
-      <span class="badge" id="count">0</span>
+      <div class="seg rp-tabs" role="tablist" aria-label="Tasks panel">
+        <button type="button" role="tab" id="rp-tab-today" data-rtab="today" aria-selected="true" aria-controls="list">Today <span class="badge" id="count">0</span></button>
+        <button type="button" role="tab" id="rp-tab-templates" data-rtab="templates" aria-selected="false" aria-controls="tpl-pane">Templates</button>
+      </div>
       <button type="button" class="btn-sm" id="new">
         <i data-icon="plus"></i>New
       </button>
     </div>
+
+    <!-- the Templates tab: day templates to build, edit and put on Today -->
+    <section class="tpl-pane" id="tpl-pane" role="tabpanel" aria-labelledby="rp-tab-templates" hidden>
+      <div class="tpl-browse" id="tpl-browse">
+        <form class="tpl-save" id="tpl-save" autocomplete="off">
+          <input name="name" placeholder="New template name" maxlength="32" aria-label="Template name">
+          <button type="submit" class="btn-sm" title="An empty template to fill in">New</button>
+          <button type="button" class="btn-text" id="tpl-from-today" title="A template of Today's tasks">From today</button>
+        </form>
+        <span class="meta tpl-status" id="tpl-status" aria-live="polite"></span>
+        <ul class="tpl-list" id="tpl-list"></ul>
+      </div>
+      <div class="tpl-edit" id="tpl-edit" hidden></div>
+    </section>
 
     <form id="editor" class="card editor" hidden autocomplete="off">
       <div class="editor-head">
@@ -220,6 +244,60 @@
       <ol class="news-list" id="news-list"></ol>
     </div>
   </aside>
+
+  <!-- the logo's menu: Settings, the overview, the theme -->
+  <div class="logo-menu" id="logo-menu" role="menu" aria-label="Haru menu" hidden>
+    <button type="button" role="menuitem" data-menu="settings"><i data-icon="settings"></i><span>Settings</span></button>
+    <button type="button" role="menuitem" data-menu="overview"><i data-icon="panel-left"></i><span>Overview</span></button>
+    <button type="button" role="menuitem" data-menu="theme"><i data-icon="sun"></i><span class="logo-menu-theme">Light mode</span></button>
+  </div>
+
+  <!-- settings: from the logo's menu (or Settings at the overview's foot) -->
+  <dialog class="settings" id="settings" aria-label="Settings">
+    <header class="settings-head">
+      <span class="brand-mark-sm"><i data-icon="circle-dot"></i></span>
+      <h2>Settings</h2>
+      <button type="button" class="icon-btn" id="settings-close" aria-label="Close"><i data-icon="x"></i></button>
+    </header>
+    <section class="set-section">
+      <div class="section-head"><span>Appearance</span></div>
+      <div class="set-row">
+        <span>Theme</span>
+        <div class="seg set-seg" id="set-theme" role="radiogroup" aria-label="Theme">
+          <button type="button" role="radio" data-theme-pick="dark"><i data-icon="moon"></i>Dark</button>
+          <button type="button" role="radio" data-theme-pick="light"><i data-icon="sun"></i>Light</button>
+          <button type="button" role="radio" data-theme-pick="system"><i data-icon="monitor"></i>System</button>
+        </div>
+      </div>
+      <div class="set-row">
+        <span>Language</span>
+        <div class="seg set-seg" id="set-lang" role="radiogroup" aria-label="Language">
+          <button type="button" role="radio" data-lang-pick="en">English</button>
+          <button type="button" role="radio" data-lang-pick="ko">한국어</button>
+        </div>
+      </div>
+    </section>
+    <section class="set-section acct" id="account">
+      <div class="section-head"><span>Account</span></div>
+    </section>
+    <section class="set-section">
+      <div class="section-head"><span>Backup</span><span class="meta backup-status" id="backup-status"></span></div>
+      <div class="backup-row">
+        <button type="button" class="btn-sm" id="backup-auto" aria-pressed="false">Auto-backup</button>
+        <button type="button" class="btn-text" id="backup-export">Export</button>
+        <button type="button" class="btn-text" id="backup-import">Import</button>
+        <input type="file" id="backup-file" accept="application/json,.json" hidden>
+      </div>
+    </section>
+    <section class="set-section">
+      <div class="section-head"><span>Today</span></div>
+      <div class="set-row">
+        <span>Clear every task on today's timetable</span>
+        <button type="button" class="btn-text danger" id="clear">Clear all</button>
+      </div>
+    </section>
+    <p class="settings-foot meta" id="settings-build"></p>
+  </dialog>
 
   <script type="module" src="/src/main.ts"></script>
 </body>

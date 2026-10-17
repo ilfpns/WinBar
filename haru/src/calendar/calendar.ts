@@ -2,7 +2,8 @@ import { currentView, onView } from '../ui/router';
 import { createNotes } from './notes';
 import { createImages } from './images';
 import { mountStats } from './stats';
-import { mountAttendance } from './attendance';
+import { mdPad } from '../ui/md-pad';
+import { printPdf } from '../ui/print';
 import { ringsChart, slicesChart } from './day-charts';
 import { icon } from '../ui/icons';
 import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
@@ -39,7 +40,6 @@ export interface CalendarRefs {
   week: HTMLElement;
   grid: HTMLElement;
   day: HTMLElement;
-  attend: HTMLElement;
 }
 
 export function mountCalendar(refs: CalendarRefs): void {
@@ -91,7 +91,9 @@ export function mountCalendar(refs: CalendarRefs): void {
   hint.textContent = QUICK_ADD_HINT;
   note.rows = 5;
   note.spellcheck = false;
-  note.setAttribute('aria-label', 'Note for the selected day');
+  note.setAttribute('aria-label', 'Note for the selected day (Markdown)');
+  // Markdown: plain text while writing, the rendered page once you click away
+  const pad = mdPad(note, 'cal-pad');
   let noteDate = '';
   const status = document.createElement('p');
   status.className = 'cal-note-status';
@@ -272,7 +274,14 @@ export function mountCalendar(refs: CalendarRefs): void {
       });
       foot.append(use);
     }
-    ttView.replaceChildren(views, svg, list, foot);
+    // the switch gets its own row above the chart, so it never sits on a callout
+    const top = document.createElement('div');
+    top.className = 'cal-tt-top';
+    const title = document.createElement('span');
+    title.className = 'meta';
+    title.textContent = 'Timetable';
+    top.append(title, views);
+    ttView.replaceChildren(top, svg, list, foot);
     resizeFrom(from);
   }
   // Today changes show up live while today's timetable is open
@@ -406,9 +415,18 @@ export function mountCalendar(refs: CalendarRefs): void {
   note.addEventListener('blur', moveScheduledLines);
   // memos load asynchronously (IndexedDB): fill the open day's pad once they arrive, unless already typing
   void notes.ready.then(() => {
-    if (document.activeElement !== note) note.value = notes.get(noteDate);
+    if (document.activeElement !== note) {
+      note.value = notes.get(noteDate);
+      pad.refresh();
+    }
   });
-  const firstLine = (text: string) => text.trim().split(/\r?\n/)[0]!.trim();
+  /** The memo's first line as plain text for the month grid (Markdown marks dropped). */
+  const firstLine = (text: string) =>
+    (text.trim().split(/\r?\n/)[0] ?? '')
+      .replace(/^\s*(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s+)?|\d+[.)]\s+)/, '')
+      .replace(/\*\*|__|~~|`/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .trim();
 
   function go(delta: number): void {
     month = new Date(month.getFullYear(), month.getMonth() + delta, 1);
@@ -416,7 +434,6 @@ export function mountCalendar(refs: CalendarRefs): void {
   }
   refs.prev.addEventListener('click', () => go(-1));
   mountStats(refs.stats, () => month);
-  mountAttendance(refs.attend);
   refs.next.addEventListener('click', () => go(1));
   refs.today.addEventListener('click', () => {
     const now = new Date();
@@ -436,8 +453,11 @@ export function mountCalendar(refs: CalendarRefs): void {
 
   refs.grid.addEventListener('click', (e) => {
     const cell = (e.target as Element).closest<HTMLElement>('.cal-cell');
-    if (!cell?.dataset.date) return;
-    selected = cell.dataset.date;
+    if (cell?.dataset.date) pickDate(cell.dataset.date);
+  });
+
+  function pickDate(date: string): void {
+    selected = date;
     const d = new Date(`${selected}T00:00`);
     // picking a day from the neighbouring month turns the page to it
     if (d.getMonth() !== month.getMonth()) {
@@ -447,20 +467,40 @@ export function mountCalendar(refs: CalendarRefs): void {
     } else {
       render(0);
     }
+  }
+
+  // PDF of the selected day (its events and memo), from the memo's corner
+  const pdfBtn = document.createElement('button');
+  pdfBtn.type = 'button';
+  pdfBtn.className = 'pad-pdf';
+  pdfBtn.setAttribute('aria-label', 'Export this day as PDF');
+  pdfBtn.title = 'Export this day as PDF';
+  pdfBtn.append(icon('file-down'), 'PDF');
+  pad.el.append(pdfBtn);
+  pdfBtn.addEventListener('click', () => {
+    const d = new Date(`${selected}T00:00`);
+    const events = eventsOn(selected).map((ev) => `- **${ev.title}** · ${ev.off ? 'Day off' : KIND_LABEL[ev.kind]}`);
+    const body = [events.length ? `## Events\n\n${events.join('\n')}` : '', notes.get(selected).trim() ? `## Note\n\n${notes.get(selected)}` : '']
+      .filter(Boolean).join('\n\n') || '_Nothing written for this day._';
+    printPdf(`Haru ${selected}`, 'Calendar', [{ title: d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }), body }]);
   });
+  const tools = document.createElement('div');
+  tools.className = 'cal-day-tools';
+  tools.append(ttBtn);
 
   function renderDay(): void {
     const d = new Date(`${selected}T00:00`);
     const head = document.createElement('div');
     head.className = 'cal-day-head';
     head.innerHTML = `<span class="cal-day-num"></span><span class="meta"></span>`;
-    head.append(ttBtn);
+    head.append(tools);
     head.querySelector('.cal-day-num')!.textContent = String(d.getDate());
     head.querySelector('.meta')!.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     // keep the textarea itself (and the caret) — only swap its contents when the day changes
     if (noteDate !== selected) {
       noteDate = selected;
       note.value = notes.get(selected);
+      pad.refresh();
     }
     renderImages();
     const list = document.createElement('ul');
@@ -474,7 +514,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       list.append(li);
     }
     // events first, then the memo pad, which takes the rest of the panel
-    refs.day.replaceChildren(head, ttView, list, note, gallery, status, hint);
+    refs.day.replaceChildren(head, ttView, list, pad.el, gallery, status, hint);
     void renderTimetable();
   }
 

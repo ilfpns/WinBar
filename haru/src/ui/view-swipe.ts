@@ -6,9 +6,11 @@ const WHEEL_TRIGGER = 40;      // accumulated wheel/trackpad px that turns the p
 const SWIPE_TRIGGER = 50;      // touch travel in px
 const NOTCH_GAP = 110;         // a mouse-wheel notch this long after the last turn turns again
 const STREAM_GAP = 120;        // silence that ends a trackpad stream (its inertia) for sure
+/** Only these pages turn by wheel or swipe; the rest are opened from the rail. */
+const SWIPE_PAGES: View[] = ['today', 'calendar'];
 
 /**
- * Today, Calendar and News are stacked pages. A gesture past a small threshold turns exactly one
+ * The pages are stacked (Today on top). Between Today and Calendar, a gesture past a small threshold turns exactly one
  * page with a crisp, short slide (transform only, on the compositor). The next gesture is taken
  * as soon as the previous one's trackpad inertia stops — even while the slide is finishing.
  */
@@ -54,12 +56,12 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
       if (oy !== 'auto' && oy !== 'scroll') continue;
       if (dir > 0 ? n.scrollTop + n.clientHeight < n.scrollHeight - 1 : n.scrollTop > 0) return false;
     }
-    const i = VIEW_ORDER.indexOf(currentView()) + dir;
-    if (i < 0 || i >= VIEW_ORDER.length) return false;
+    const i = SWIPE_PAGES.indexOf(currentView());
+    if (i < 0 || i + dir < 0 || i + dir >= SWIPE_PAGES.length) return false;
     // only once the current page is scrolled to its edge in that direction
     return dir > 0 ? page.scrollTop + page.clientHeight >= page.scrollHeight - 2 : page.scrollTop <= 0;
   };
-  const turn = (dir: 1 | -1) => goTo(VIEW_ORDER[VIEW_ORDER.indexOf(currentView()) + dir]!);
+  const turn = (dir: 1 | -1) => goTo(SWIPE_PAGES[SWIPE_PAGES.indexOf(currentView()) + dir]!);
 
   // ---------- wheel / trackpad: one gesture, one page
   let acc = 0;

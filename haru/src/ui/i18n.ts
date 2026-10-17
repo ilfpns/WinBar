@@ -1,0 +1,233 @@
+/**
+ * Korean for the interface (Settings → Language). The app is written in English; with Korean picked, every
+ * label, button, hint and tooltip is swapped for its Korean on the way into the page — static markup and
+ * whatever the pages render later (a MutationObserver) — and dates use Korean formats. What you write
+ * (tasks, memos, journal, your words) and the vocabulary itself are never touched. Switching reloads.
+ */
+const LANG_KEY = 'haru:lang';
+
+export const lang = (): 'en' | 'ko' => {
+  try {
+    return localStorage.getItem(LANG_KEY) === 'ko' ? 'ko' : 'en';
+  } catch {
+    return 'en';
+  }
+};
+
+const KO: Record<string, string> = {
+  // pages and navigation
+  Today: '오늘', Calendar: '캘린더', News: '뉴스', Words: '단어', Journal: '일기', Settings: '설정', Overview: '개요',
+  'Search tasks': '할 일 검색', 'Search tasks  /': '할 일 검색  /', Pages: '페이지', Main: '메인',
+  'Open overview': '개요 열기', 'Open overview  [': '개요 열기  [', 'Close overview': '개요 닫기', 'Close  [': '닫기  [',
+  'Navigation and overview': '탐색과 개요', 'Haru menu': 'Haru 메뉴', 'Haru · settings and more': 'Haru · 설정 등',
+  'Today · the day\'s timetable': '오늘 · 하루 시간표', 'Calendar · month, notes, stats': '캘린더 · 월간, 메모, 통계',
+  'News · headlines on the globe, attendance': '뉴스 · 지구본 헤드라인, 출석', 'Words · learn English vocabulary': '단어 · 영어 단어 학습',
+  'Journal · write and keep entries': '일기 · 기록하고 보관하기', 'Light mode': '라이트 모드', 'Dark mode': '다크 모드',
+  // overview drawer
+  Now: '지금', Day: '하루', Categories: '카테고리', Done: '완료', Planned: '계획', Free: '여유', 'Free time': '여유 시간',
+  Work: '업무', Study: '공부', Health: '건강', Personal: '개인', Sleep: '수면', Other: '기타',
+  'Nothing planned yet': '아직 계획이 없어요', 'Not planned yet': '아직 계획 없음',
+  // tasks drawer
+  Tasks: '할 일', 'Tasks  ]': '할 일  ]', 'Toggle tasks': '할 일 열고 닫기', 'Tasks panel': '할 일 패널', New: '새로 만들기',
+  'New task': '새 할 일', 'Edit task': '할 일 편집', 'What are you doing?': '무엇을 하나요?', Start: '시작', End: '끝',
+  'Start time': '시작 시간', 'End time': '끝 시간', Save: '저장', Cancel: '취소', Delete: '삭제', Category: '카테고리',
+  'Batch actions': '일괄 작업', Clear: '해제', 'Mark done': '완료로 표시', 'Mark not done': '미완료로 표시', Move: '이동',
+  Length: '길이', 'Overlaps another task': '다른 할 일과 겹쳐요', 'Would overlap another task': '다른 할 일과 겹쳐요',
+  'Start and end are the same': '시작과 끝이 같아요', 'Start and end can’t be the same': '시작과 끝이 같을 수 없어요',
+  'Too short': '너무 짧아요', 'Too long': '너무 길어요', 'Check the times': '시간을 확인하세요', 'Resize panel': '패널 크기 조절',
+  'Drag to resize · double-click to reset': '드래그해 크기 조절 · 더블클릭하면 원래대로', Undo: '되돌리기', Restored: '복원했어요',
+  // templates
+  Templates: '템플릿', 'Template name': '템플릿 이름', 'New template name': '새 템플릿 이름', 'From today': '오늘에서',
+  'An empty template to fill in': '빈 템플릿을 만들어 채워요', "A template of Today's tasks": '오늘 할 일로 템플릿 만들기',
+  'Name it first': '이름을 먼저 적어 주세요', 'Today is empty': '오늘이 비어 있어요', 'Saved from Today': '오늘에서 저장했어요',
+  'No tasks yet: add the first below': '아직 할 일이 없어요. 아래에서 추가하세요', Use: '적용', 'Use on Today': '오늘에 적용',
+  'Back to templates': '템플릿 목록으로', 'Task name': '할 일 이름', Task: '할 일', Add: '추가', 'Times look like 09:00': '시간은 09:00처럼 적어요',
+  'No templates yet. Name one above, then New to build it or From today to copy today.': '아직 템플릿이 없어요. 위에 이름을 적고 새로 만들기나 오늘에서를 누르세요.',
+  // today views
+  Dial: '다이얼', Slices: '조각', Chart: '차트', View: '보기', 'Today, live': '오늘, 실시간', free: '비어 있음',
+  '24-hour timetable. Drag the ring to add a block.': '24시간 시간표. 링을 드래그해 할 일을 추가하세요.',
+  // calendar
+  'Previous month': '이전 달', 'Next month': '다음 달', Statistics: '통계', Show: '표시', Holidays: '공휴일', Observances: '기념일',
+  School: '학교', Holiday: '공휴일', Observance: '기념일', 'Day off': '쉬는 날', Note: '메모', Timetable: '시간표',
+  'Note for the selected day (Markdown)': '선택한 날의 메모 (마크다운)', 'Rendered note — click to edit': '메모 보기 — 클릭해 편집',
+  'Export this day as PDF': '이 날을 PDF로 내보내기', 'Export as PDF': 'PDF로 내보내기', 'Timetable of this day': '이 날의 시간표',
+  'No timetable saved for this day': '이 날 저장된 시간표가 없어요', 'Use for Today': '오늘에 사용', 'Today set from this day': '이 날 시간표로 오늘을 채웠어요',
+  'Saved that day': '그날 저장됨', 'By category': '카테고리별', Sun: '일', Mon: '월', Tue: '화', Wed: '수', Thu: '목', Fri: '금', Sat: '토',
+  'Write it as  ! 12:00~12:30 category title': '이렇게 적어요  ! 12:00~12:30 카테고리 제목',
+  // stats
+  Month: '월', 'All time': '전체', 'Avg. done': '평균 완료', 'Plan hit': '계획 달성', 'Done per day': '하루 완료량', 'Done by time': '시간대별 완료',
+  'Focus time': '집중 시간', 'No days recorded yet': '아직 기록된 날이 없어요',
+  // news and attendance
+  'Interactive globe': '인터랙티브 지구본', Heatmap: '히트맵', 'Heatmap: countries by amount of news': '히트맵: 뉴스 양에 따른 국가',
+  'Toggle news': '뉴스 열고 닫기', 'News  ]': '뉴스  ]', Live: '실시간', 'This week': '이번 주', 'Hottest keyword': '가장 뜨거운 키워드',
+  'Most covered': '가장 많이 다룬 기사', Topics: '주제', 'All countries': '모든 나라', 'No headlines right now': '지금은 헤드라인이 없어요',
+  Attendance: '출석', 'Check in': '출석하기', 'Checked in today': '오늘 출석 완료', 'Mark today as attended': '오늘 출석으로 표시',
+  'Click to undo today’s check-in': '클릭하면 오늘 출석을 취소해요', 'Today · not checked in yet': '오늘 · 아직 출석 전',
+  Low: '낮음', Medium: '보통', High: '높음', Best: '최고',
+  // words
+  'Add your word': '내 단어 추가', Word: '단어', Meaning: '뜻', 'Meaning (Korean is fine)': '뜻 (한국어 가능)',
+  Example: '예문', Filters: '필터', 'done / planned': '완료 / 계획', 'TOEIC · new': 'TOEIC · 새 단어',
+  'one per line\nresilient - 회복력 있는\nubiquitous: 어디에나 있는': '한 줄에 하나씩\nresilient - 회복력 있는\nubiquitous: 어디에나 있는',
+  Robotics: '로보틱스', Chips: '반도체', Embedded: '임베디드', Software: '소프트웨어', Hardware: '하드웨어',
+  'Example sentence (optional)': '예문 (선택)', 'Paste a list': '목록 붙여넣기', 'Add all': '모두 추가', 'Word list': '단어 목록',
+  Cards: '카드', Search: '검색', 'Search cards': '카드 검색', 'Your cards': '내 카드', 'Your cards will show up here': '카드가 여기에 표시돼요',
+  'No match': '일치하는 항목 없음', Again: '다시', Flip: '뒤집기', 'Got it': '알아요', 'Space to flip': '스페이스로 뒤집기',
+  'I already know this word': '이미 아는 단어예요', 'All caught up': '다 끝냈어요', 'Review all words': '모든 단어 복습',
+  'Turn on a deck or add your own words': '덱을 켜거나 단어를 추가하세요', All: '전체', 'My words': '내 단어', 'My word': '내 단어',
+  Decks: '덱', Added: '추가했어요', 'Already in your cards': '이미 카드에 있어요',
+  'Added · turn on My words to study it': '추가했어요 · 내 단어를 켜면 공부할 수 있어요', 'Pronounce (p)': '발음 듣기 (p)',
+  'Pronounce  p': '발음 듣기  p', 'English definition  e': '영어 뜻풀이  e',
+  // journal
+  'New page': '새 페이지', 'Search this folder': '이 폴더에서 검색', 'Move to folder': '폴더 이동', 'Delete page': '페이지 삭제',
+  'Export this page as PDF': '이 페이지를 PDF로 내보내기', 'Page (Markdown)': '본문 (마크다운)', 'No pages in this folder yet': '이 폴더에 아직 페이지가 없어요',
+  'Page deleted': '페이지를 삭제했어요', Folders: '폴더',
+  Entries: '글 목록', 'Search entries': '글 검색', 'Nothing written yet': '아직 쓴 글이 없어요', 'Nothing in this folder yet': '이 폴더는 비어 있어요',
+  Title: '제목', Date: '날짜', Folder: '폴더', 'No folder': '폴더 없음', 'New folder': '새 폴더', 'Folder name': '폴더 이름',
+  'Delete folder': '폴더 삭제', 'Delete entry': '글 삭제', 'Delete this entry?': '이 글을 삭제할까요?', 'Export this entry as PDF': '이 글을 PDF로 내보내기',
+  'Saved as you type': '입력하면 자동 저장돼요', 'Editing…': '편집 중…', Untitled: '제목 없음', 'Entry (Markdown)': '본문 (마크다운)',
+  'Write about your day…  (Markdown: # heading, **bold**, - list, - [ ] to-do)': '오늘 하루를 적어 보세요…  (마크다운: # 제목, **굵게**, - 목록, - [ ] 할 일)',
+  // settings
+  Appearance: '화면', Theme: '테마', Dark: '다크', Light: '라이트', System: '시스템', Language: '언어', Account: '계정',
+  Backup: '백업', 'Auto-backup': '자동 백업', 'Auto-backup on': '자동 백업 켜짐', Export: '내보내기', Import: '가져오기',
+  'Reconnect backup': '백업 다시 연결', 'Not a Haru backup': 'Haru 백업 파일이 아니에요', 'Clear all': '모두 지우기',
+  'Clear every task on today\'s timetable': '오늘 시간표의 할 일을 모두 지워요', 'Clear every block?': '할 일을 모두 지울까요?',
+  'Replace today’s tasks and all memos with this backup?': '오늘 할 일과 모든 메모를 이 백업으로 바꿀까요?', Close: '닫기',
+  'Sign-in is off for now. Everything stays on this device; use Backup to keep a copy.': '지금은 로그인이 꺼져 있어요. 모든 데이터는 이 기기에만 있으니 백업으로 사본을 남기세요.',
+  'Sign out': '로그아웃', 'Sign in with Google': 'Google로 로그인', 'Use another account': '다른 계정 사용', Synced: '동기화됨',
+  'Syncing…': '동기화 중…', Offline: '오프라인', 'Sync error': '동기화 오류', 'Checking access…': '접근 권한 확인 중…',
+  'Sign in with an invited Google account.': '초대된 Google 계정으로 로그인하세요.', 'Sign-in failed. Try again.': '로그인에 실패했어요. 다시 시도하세요.',
+  Invites: '초대', 'Only you so far': '아직 나만 있어요',
+};
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const LEVEL_KO: Record<string, string> = { Low: '낮음', Medium: '보통', High: '높음', Best: '최고' };
+const t = (s: string) => KO[s] ?? s;
+
+/** Strings with numbers or names in them. */
+const PATTERNS: [RegExp, (...m: string[]) => string][] = [
+  // the calendar memo's quick-add hint (the syntax itself stays)
+  [/^! 12:00~12:30 work Title\n {2}→ moves to Today\n\ncategories\n([\s\S]*)$/, (_, cats) => `! 12:00~12:30 work 제목\n  → 오늘 시간표로 옮겨져요\n\n카테고리\n${cats}`],
+  // dates as JavaScript writes them (calendar cells), weekday · hour blocks (stats), ring tooltips, done toggles
+  [/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{2}) (\d{4})(?:: ([\s\S]*))?$/, (_, wd, mo, d, y, rest) =>
+    `${y}년 ${MONTHS.indexOf(mo) + 1}월 ${Number(d)}일 (${t(wd)})${rest ? `: ${rest}` : ''}`],
+  [/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (\d+–\d+h) · (.+)$/, (_, wd, h, v) => `${t(wd)} ${h} · ${v}`],
+  [/^(Done|Planned|Free|Work|Study|Health|Personal|Sleep|Other) · (.+)$/, (_, k, v) => `${t(k)} · ${v}`],
+  [/^Mark (.+) not done$/, (_, n) => `${n} 미완료로 표시`],
+  [/^Mark (.+) done$/, (_, n) => `${n} 완료로 표시`],
+  [/^(.+)\. Flip to see the meaning$/, (_, w) => `${w}. 뒤집어서 뜻 보기`],
+  [/^TOEIC · box (\d+) of (\d+) · next (.+) · right (\d+) · missed (\d+)$/, (_, b, m, n, r, w) => `TOEIC · ${b}/${m}단계 · 다음 ${n === 'today' ? '오늘' : n} · 맞힘 ${r} · 틀림 ${w}`],
+  [/^My words · box (\d+) of (\d+) · next (.+) · right (\d+) · missed (\d+)$/, (_, b, m, n, r, w) => `내 단어 · ${b}/${m}단계 · 다음 ${n === 'today' ? '오늘' : n} · 맞힘 ${r} · 틀림 ${w}`],
+  [/^Attendance: (\d+) days in the last (\d+) weeks, current streak (\d+) days$/, (_, n, w, s) => `출석: 최근 ${w}주 동안 ${n}일, 현재 ${s}일 연속`],
+  [/^(\d+) left$/, (_, n) => `${n}개 남음`],
+  [/^(.+) left$/, (_, d) => `${d} 남음`],
+  [/^next (.+)$/, (_, h) => `다음 ${h}`],
+  [/^(\d+)-day streak$/, (_, n) => `${n}일 연속`],
+  [/^(\d+) selected$/, (_, n) => `${n}개 선택됨`],
+  [/^Delete (\d+)$/, (_, n) => `${n}개 삭제`],
+  [/^(\d+) due · (\d+) \/ (\d+) new today · (\d+) learning · (\d+) mastered$/, (_, a, b, c, d, e) => `복습 ${a} · 오늘 새 단어 ${b}/${c} · 학습 중 ${d} · 마스터 ${e}`],
+  [/^(\d+) new today · come back tomorrow for the next (\d+)$/, (_, a, b) => `오늘 새 단어 ${a}개 · 내일 ${b}개가 더 나와요`],
+  [/^(\d+) folders? · (\d+) pages? · (\d+) words?$/, (_, f, n, w) => `폴더 ${f}개 · 페이지 ${n}개 · ${w}단어`],
+  [/^Moved to (.+)$/, (_, n) => `${n}(으)로 옮겼어요`],
+  [/^Deleted (.+)$/, (_, n) => `${n} 삭제함`],
+  [/^(.+) · drop a page here to move it$/, (_, n) => `${n} · 페이지를 끌어다 놓으면 옮겨져요`],
+  [/^Delete the page “(.+)”\?$/, (_, n) => `“${n}” 페이지를 삭제할까요?`],
+  [/^(\d+) (?:entry|entries) · (\d+) words?$/, (_, a, b) => `글 ${a}개 · ${b}단어`],
+  [/^(\d+) words? · (\d+) min read$/, (_, a, b) => `${a}단어 · ${b}분 분량`],
+  [/^Saved (\d\d:\d\d)$/, (_, h) => `${h} 저장됨`],
+  [/^(.+) · ahead$/, (_, w) => `${t(w)} · 예정`],
+  [/^(.+) · missed$/, (_, w) => `${t(w)} · 결석`],
+  [/^(.+) · (Low|Medium|High|Best) · (\d+)% of plan$/, (_, w, l, p) => `${t(w)} · ${LEVEL_KO[l]} · 계획의 ${p}%`],
+  [/^(.+) · (\d+)% of plan done$/, (_, w, p) => `${w} · 계획 ${p}% 달성`],
+  [/^(.+) is on Today$/, (_, n) => `${n}을(를) 오늘에 적용했어요`],
+  [/^Overlaps (.+)$/, (_, n) => `${n}와(과) 겹쳐요`],
+  [/^Edit “(.+)”$/, (_, n) => `“${n}” 편집`],
+  [/^Set Today to “(.+)”$/, (_, n) => `오늘을 “${n}”(으)로`],
+  [/^Remove (.+)$/, (_, n) => `${n} 빼기`],
+  [/^Delete (.+)$/, (_, n) => `${n} 삭제`],
+  [/^(\d+) stories$/, (_, n) => `기사 ${n}개`],
+  [/^(\d+) outlets$/, (_, n) => `언론사 ${n}곳`],
+  [/^Updated (.+)$/, (_, w) => `${w} 업데이트`],
+  [/^Added (\d+)(.*)$/, (_, n, rest) => `${n}개 추가${rest.replace(/ · (\d+) already there/, ' · $1개는 이미 있음').replace(/ · (\d+) unreadable/, ' · $1개는 읽을 수 없음')}`],
+];
+
+function translate(s: string): string | null {
+  const key = s.trim();
+  if (!key || !/[A-Za-z]/.test(key)) return null;
+  const hit = KO[key];
+  if (hit) return s.replace(key, hit);
+  for (const [re, fn] of PATTERNS) {
+    const m = re.exec(key);
+    if (m) return s.replace(key, fn(...m));
+  }
+  return null;
+}
+
+/** Where the words are yours (or the vocabulary itself): left as written. */
+const KEEP = [
+  '[data-no-i18n]', 'script', 'style', '.md-view', '.w-word', '.w-word-sm', '.w-def', '.w-ko', '.w-example',
+  '.w-l-word', '.w-l-mean', '.j-list', '.j-tab span:first-child', '.cal-evs', '.cal-day-list .t', '#list .n', '.callout-name',
+  '.slice-sub.on', '#dial .block-label', '.news-list', '.news-hot .kw', '.news-hot-rest', '.globe-readout', '.tpl-name', '.now-card .title', '.cal-tt-legend', '.tt-name',
+].join(', ');
+const ATTRS = ['placeholder', 'aria-label', 'title', 'data-tip'];
+
+function translateText(n: Text): void {
+  if (!n.parentElement || n.parentElement.closest(KEEP)) return;
+  const next = translate(n.data);
+  if (next !== null && next !== n.data) n.data = next;
+}
+/** Text outside what you wrote; attributes (labels, tooltips) everywhere — even on buttons inside your content. */
+function translateNode(node: Node): void {
+  if (node.nodeType === Node.TEXT_NODE) return translateText(node as Text);
+  if (!(node instanceof Element)) return;
+  translateAttrs(node);
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (n instanceof Element) translateAttrs(n);
+    else translateText(n as Text);
+  }
+}
+function translateAttrs(el: Element): void {
+  for (const a of ATTRS) {
+    const v = el.getAttribute(a);
+    if (!v) continue;
+    const next = translate(v);
+    if (next !== null && next !== v) el.setAttribute(a, next);
+  }
+}
+
+/** Korean dates and times wherever the app formats them for English. */
+function koreanDates(): void {
+  const swap = (locales: Intl.LocalesArgument) => (typeof locales === 'string' && locales.startsWith('en') ? 'ko-KR' : locales);
+  const date = Date.prototype.toLocaleDateString;
+  const time = Date.prototype.toLocaleTimeString;
+  Date.prototype.toLocaleDateString = function (locales?: Intl.LocalesArgument, options?: Intl.DateTimeFormatOptions) {
+    return date.call(this, swap(locales), options);
+  };
+  Date.prototype.toLocaleTimeString = function (locales?: Intl.LocalesArgument, options?: Intl.DateTimeFormatOptions) {
+    // 24-hour clock, as the app shows times
+    return time.call(this, swap(locales), { hourCycle: 'h23', ...options });
+  };
+}
+
+/** Call before the pages mount: translates the static page now and everything rendered from then on. */
+export function mountI18n(): void {
+  if (lang() !== 'ko') return;
+  document.documentElement.lang = 'ko';
+  koreanDates();
+  translateNode(document.body);
+  // the tab's title too (the router sets it per page)
+  const title = () => {
+    const m = /^Haru — (.+)$/.exec(document.title);
+    if (m && KO[m[1]!]) document.title = `Haru — ${KO[m[1]!]}`;
+  };
+  title();
+  const head = document.querySelector('title');
+  if (head) new MutationObserver(title).observe(head, { childList: true, characterData: true, subtree: true });
+  new MutationObserver((records) => {
+    for (const r of records) {
+      if (r.type === 'childList') r.addedNodes.forEach(translateNode);
+      else if (r.type === 'characterData') translateNode(r.target);
+      else if (r.type === 'attributes' && r.target instanceof Element) translateAttrs(r.target);
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+}

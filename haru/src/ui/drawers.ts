@@ -12,7 +12,7 @@ type Side = 'left' | 'right';
 
 /** Which drawer lives on which side of which page. The open/closed state is per side. */
 const DRAWERS: { id: string; side: Side; views: View[] }[] = [
-  { id: 'drawer-left', side: 'left', views: ['today', 'calendar', 'news'] },
+  { id: 'drawer-left', side: 'left', views: ['today', 'calendar', 'news', 'words', 'journal'] },
   { id: 'drawer-right', side: 'right', views: ['today'] },  // tasks
   { id: 'drawer-news', side: 'right', views: ['news'] },    // news feed (empty for now)
 ];
@@ -113,8 +113,15 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     const t = e.target as Element;
-    if (t.closest('.drawer, .time-pop, button, input, textarea, a, .cal-day')) return;
+    // controls and cards (the attendance bar, menus) are not background
+    if (t.closest('.drawer, .time-pop, button, input, textarea, select, a, .cal-day, .attend, .glass-card, .logo-menu, dialog')) return;
     const view = currentView();
+    if (view === 'words' || view === 'journal') {
+      // text pages: only the margin around the content pulls the overview out
+      if (t.closest('.pg-body')) return;
+      pull(e.clientX < innerWidth / 2 ? 'left' : 'right');
+      return;
+    }
     if (view === 'news') {
       const globe = document.getElementById('globe')!.getBoundingClientRect();
       const gx = globe.left + globe.width / 2;

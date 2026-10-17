@@ -346,7 +346,8 @@ export function mountNews(refs: NewsRefs): void {
         }
       };
       heatBtn.addEventListener('click', () => setHeat(heatBtn.getAttribute('aria-pressed') !== 'true'));
-      refs.canvas.parentElement!.append(heatBtn);
+      // it lives in the attendance bar under the globe (beside the streak); the globe's box if that is missing
+      (document.querySelector('.attend .att-head') ?? refs.canvas.parentElement!).append(heatBtn);
       let heatSaved = false;
       try {
         heatSaved = localStorage.getItem(HEAT_KEY) === '1';

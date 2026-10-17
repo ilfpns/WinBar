@@ -5,6 +5,9 @@ import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { type ImageRecord, fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
 import { type Template, allTemplates, onTemplates, replaceTemplates } from '../timetable/templates';
 import { type DaySnapshot, allDays, restoreDays } from '../timetable/history';
+import { type Word, wordsStore } from '../words/words';
+import { type Entry, type Folder, folderStore, journalStore } from '../journal/journal';
+import { checkinStore } from '../calendar/attendance';
 
 /**
  * Keeping data no matter what:
@@ -25,6 +28,12 @@ interface BackupFile {
   templates?: Template[];
   /** Each day's timetable as it was. Missing in older backups. */
   days?: DaySnapshot[];
+  /** Vocabulary cards and journal entries. Missing in older backups. */
+  words?: Word[];
+  journal?: Entry[];
+  journalFolders?: Folder[];
+  /** Days checked in on (attendance). Missing in older backups. */
+  checkins?: string[];
 }
 
 // File System Access API (Chromium); not in TypeScript's DOM lib yet
@@ -46,7 +55,7 @@ export interface BackupRefs {
 
 async function snapshot(): Promise<BackupFile> {
   const images = await Promise.all((imagesStore()?.all() ?? []).map(async (r) => ({ id: r.id, date: r.date, created: r.created, data: await toDataUrl(r.blob) })));
-  return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [], images, templates: allTemplates(), days: await allDays().catch(() => []) };
+  return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [], images, templates: allTemplates(), days: await allDays().catch(() => []), words: wordsStore.all(), journal: journalStore.all(), journalFolders: folderStore.all(), checkins: checkinStore.all() };
 }
 
 export function mountBackup(refs: BackupRefs): void {
@@ -81,6 +90,10 @@ export function mountBackup(refs: BackupRefs): void {
   onNotesChanged(() => scheduleFileSave());
   onImagesChanged(() => scheduleFileSave());
   onTemplates(() => scheduleFileSave());
+  wordsStore.onChange(() => scheduleFileSave());
+  journalStore.onChange(() => scheduleFileSave());
+  folderStore.onChange(() => scheduleFileSave());
+  checkinStore.onChange(() => scheduleFileSave());
 
   // ---- 3a. Export / Import
   refs.exportBtn.addEventListener('click', async () => {
@@ -107,6 +120,12 @@ export function mountBackup(refs: BackupRefs): void {
       notesStore()?.replace(notes);
       if (Array.isArray(data.templates)) replaceTemplates(data.templates);
       if (Array.isArray(data.days)) await restoreDays(data.days);
+      // older backups have no words or journal: keep the current ones then (the stores drop malformed entries)
+      if (Array.isArray(data.words)) wordsStore.set(data.words.filter((w) => typeof w?.id === 'string' && typeof w.word === 'string' && typeof w.meaning === 'string'));
+      if (Array.isArray(data.journal)) journalStore.set(data.journal.filter((e) => typeof e?.id === 'string' && typeof e.date === 'string' && typeof e.body === 'string'));
+      if (Array.isArray(data.journalFolders)) folderStore.set(data.journalFolders.filter((f) => typeof f?.id === 'string' && typeof f.name === 'string'));
+      // check-ins are only ever added: keep today's and the backup's together
+      if (Array.isArray(data.checkins)) checkinStore.set([...new Set([...checkinStore.all(), ...data.checkins.filter((k) => typeof k === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(k))])].sort());
       // older backups have no images: leave the current ones alone then
       if (Array.isArray(data.images)) {
         const imgs: ImageRecord[] = [];

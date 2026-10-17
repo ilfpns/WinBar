@@ -34,6 +34,9 @@ interface Dot {
   // targets
   doneRgb: RGB | null;
   hlRgb: RGB | null;
+  /** Slices view: the colour of the task at this dot's minute, and whether that time has passed. */
+  sliceRgb: RGB | null;
+  slicePast: boolean;
 }
 
 /** A time range to tint on the emblem; `color` is any CSS colour (custom properties allowed). */
@@ -111,7 +114,14 @@ export interface Orb {
   attract(p: { x: number; y: number } | null): void;
   /** One-off effect for a moment (task saved, task done) over that task's own dots. */
   play(moment: OrbMoment, color: string, range: { start: number; dur: number }): void;
+  /**
+   * Slices view: every dot takes the colour of the task at its minute — lit where the day has passed, faint
+   * ahead — and a radar trail glows just behind the clock hand. null returns to the plain emblem.
+   */
+  setSlices(ranges: OrbRange[] | null, now: number): void;
 }
+
+const SWEEP_TRAIL = 150; // minutes of afterglow behind the hand
 
 export function createOrb(canvas: HTMLCanvasElement): Orb {
   const ctx = canvas.getContext('2d')!;
@@ -138,12 +148,16 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       // smooth pseudo-noise so dot sizes swell and shrink across the field
       const base = 2.2 + 4.6 * (0.5 + 0.5 * Math.sin(x * 0.043 + 1.3) * Math.cos(y * 0.051 - 0.7));
       const minute = (((Math.atan2(x, -y) / (Math.PI * 2)) + 1) % 1) * DAY;
-      dots.push({ x, y, d, base, minute, phase: (d / R) * 2400, rgb: [...restRgb], alpha: 1, swell: 0, doneRgb: null, hlRgb: null });
+      dots.push({ x, y, d, base, minute, phase: (d / R) * 2400, rgb: [...restRgb], alpha: 1, swell: 0, doneRgb: null, hlRgb: null, sliceRgb: null, slicePast: false });
     }
   }
   const inRange = (dot: Dot, r: { start: number; dur: number }) => mod(dot.minute - r.start) < r.dur;
 
   let focused = false;
+  let slices = false;
+  let sliceNow = 0;
+  let sliceAt = 0; // when sliceNow was taken, so the hand keeps moving between updates
+  const glow: RGB = [235, 255, 245];
   let pointer: { x: number; y: number } | null = null;
   const effects: Effect[] = [];
 
@@ -198,17 +212,25 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(scale, 0, 0, scale, canvas.width / 2, canvas.height / 2);
+    const hand = slices ? mod(sliceNow + (now - sliceAt) / 60_000) : 0;
     for (const dot of dots) {
-      const target = dot.hlRgb ? mix(restRgb, dot.hlRgb, 0.55) : dot.doneRgb ? mix(restRgb, dot.doneRgb, 0.4) : restRgb;
+      // slices: the trail behind the hand (1 right at it, 0 after SWEEP_TRAIL minutes)
+      const trail = slices ? Math.max(0, 1 - mod(hand - dot.minute) / SWEEP_TRAIL) : 0;
+      const sliced = slices && dot.sliceRgb ? mix(restRgb, dot.sliceRgb, dot.slicePast ? 0.85 : 0.3) : null;
+      const target = dot.hlRgb ? mix(restRgb, dot.hlRgb, 0.55)
+        : sliced ? mix(sliced, glow, 0.45 * trail * trail)
+        : slices ? mix(restRgb, glow, 0.25 * trail * trail)
+        : dot.doneRgb ? mix(restRgb, dot.doneRgb, 0.4) : restRgb;
       dot.rgb = mix(dot.rgb, target, ease);
-      dot.alpha += ((focused && !dot.hlRgb ? 0.45 : 1) - dot.alpha) * ease;
+      const restAlpha = slices && !dot.sliceRgb ? 0.4 + 0.6 * trail : 1;
+      dot.alpha += ((focused && !dot.hlRgb ? 0.45 : restAlpha) - dot.alpha) * ease;
       const k = pointer ? Math.max(0, 1 - Math.hypot(dot.x - pointer.x, dot.y - pointer.y) / REACH) : 0;
       dot.swell += (0.35 * k * k - dot.swell) * Math.min(1, ease * 1.6);
 
       const effect = fx.get(dot);
       const idle = breathing ? 1 - 0.4 * (0.5 - 0.5 * Math.cos(((now + dot.phase) / BREATH_MS) * Math.PI * 2)) : 1;
       const breath = effect ? idle + (1 - idle) * effect.env : idle;
-      const r = dot.base * breath * (1 + dot.swell) * (effect?.scale ?? 1);
+      const r = dot.base * breath * (1 + dot.swell + 0.45 * trail * trail) * (effect?.scale ?? 1);
       // radial push: dots ride outward (or sink inward) along their spoke from the centre
       const push = effect ? effect.push / (dot.d || 1) : 0;
       // effects only lean toward the task's own softened tone — never a colour that wasn't there
@@ -244,6 +266,21 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
     attract(p) {
       pointer = p;
+    },
+
+    setSlices(ranges, now) {
+      slices = !!ranges;
+      sliceNow = now;
+      sliceAt = performance.now();
+      const colors = new Map((ranges ?? []).map((r) => [r, rgbOf(r.color)]));
+      for (const dot of dots) {
+        const hit = ranges?.find((r) => inRange(dot, r));
+        dot.sliceRgb = hit ? colors.get(hit)! : null;
+        // passed: like the ring — all of a task that ended, the elapsed part of the one running
+        const off = hit ? mod(now - hit.start) : 0;
+        const passed = !hit ? 0 : off < hit.dur ? off : hit.start + hit.dur <= now ? hit.dur : 0;
+        dot.slicePast = !!hit && mod(dot.minute - hit.start) < passed;
+      }
     },
 
     play(moment, color, range) {

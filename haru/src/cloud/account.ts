@@ -15,7 +15,11 @@ export interface AccountRefs {
 
 export function mountAccount(refs: AccountRefs): void {
   if (!cloudConfigured) {
-    refs.section.hidden = true;
+    // sign-in is switched off (development): say so where the account would be
+    const note = document.createElement('p');
+    note.className = 'set-note';
+    note.textContent = 'Sign-in is off for now. Everything stays on this device; use Backup to keep a copy.';
+    refs.section.append(note);
     return;
   }
 
@@ -51,23 +55,22 @@ export function mountAccount(refs: AccountRefs): void {
   };
   showGate('', false);
 
-  // ---------- the drawer section
+  // ---------- the section in Settings
   const who = document.createElement('div');
   who.className = 'acct-who';
   const status = document.createElement('span');
   status.className = 'meta acct-sync';
   refs.section.querySelector('.section-head')!.append(status);
-  // the bottom row of the drawer: Sign out (or Sign in) at its right end
+  // Sign out sits at the end of the section
   const signOut = document.createElement('button');
   signOut.type = 'button';
   signOut.className = 'btn-text acct-foot';
   signOut.append(icon('log-out'), 'Sign out');
-  refs.section.closest('.panel')?.querySelector('.panel-foot')?.append(signOut);
   signOut.hidden = true;
   const invites = document.createElement('div');
   invites.className = 'acct-invites';
   invites.hidden = true;
-  refs.section.append(who, invites);
+  refs.section.append(who, invites, signOut);
 
   const labels: Record<SyncStatus, string> = { syncing: 'Syncing…', synced: 'Synced', offline: 'Offline', error: 'Sync error' };
   let stopSync: (() => void) | null = null;

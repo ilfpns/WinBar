@@ -75,6 +75,24 @@ export function saveTemplate(name: string): Template {
   return t;
 }
 
+/** A new, empty template to fill in (a template with the same name is returned as is). */
+export function createTemplate(name: string): Template {
+  const same = templates.find((t) => t.name.toLowerCase() === name.toLowerCase());
+  if (same) return same;
+  const t: Template = { id: newId(), name, blocks: [], updated: Date.now() };
+  templates = [...templates, t];
+  save();
+  return t;
+}
+
+/** Renames a template or replaces its tasks (kept in start order). */
+export function updateTemplate(id: string, patch: Partial<Pick<Template, 'name' | 'blocks'>>): void {
+  templates = templates.map((t) => (t.id === id
+    ? { ...t, ...patch, blocks: [...(patch.blocks ?? t.blocks)].sort((a, b) => a.start - b.start), updated: Date.now() }
+    : t));
+  save();
+}
+
 export function removeTemplate(id: string): void {
   templates = templates.filter((t) => t.id !== id);
   save();

@@ -20,14 +20,21 @@ import { mountTemplates } from './timetable/templates-ui';
 import { trackHistory } from './timetable/history';
 import { mountTodayViews } from './timetable/today-views';
 import { mountAccount } from './cloud/account';
+import { mountWords } from './words/words';
+import { mountJournal } from './journal/journal';
+import { mountSettings } from './ui/settings';
+import { mountI18n } from './ui/i18n';
+import { mountAttendance } from './calendar/attendance';
 
 hydrateIcons();
-mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news') });
+// Korean labels (if picked) go on before the pages render, and follow everything they render later
+mountI18n();
+mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal') });
 mountRouter();
 
 // labels, icons and links are not draggable content
 document.addEventListener('dragstart', (e) => {
-  if (!(e.target instanceof Element && e.target.closest('input, textarea'))) e.preventDefault();
+  if (!(e.target instanceof Element && e.target.closest('input, textarea, [draggable="true"]'))) e.preventDefault();
 });
 
 const byId = <T extends HTMLElement>(id: string): T => {
@@ -55,6 +62,9 @@ trackHistory();
 mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'), dial);
 mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
+mountSettings();
+mountWords(byId('words-body'), byId('words-sum'));
+mountJournal(byId('journal-body'), byId('journal-sum'));
 mountWinBarLink();
 mountBackup({
   status: byId('backup-status'),
@@ -73,6 +83,7 @@ mountNews({
   topics: byId('news-topics'),
   list: byId('news-list'),
 });
+mountAttendance(byId('news'));
 mountCalendar({
   month: byId('cal-month'),
   year: byId('cal-year'),
@@ -84,7 +95,6 @@ mountCalendar({
   week: byId('cal-week'),
   grid: byId('cal-grid'),
   day: byId('cal-day'),
-  attend: byId('cal-attend'),
 });
 
 document.addEventListener('keydown', (e) => {

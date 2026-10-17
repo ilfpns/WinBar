@@ -1,13 +1,14 @@
-export type View = 'today' | 'calendar' | 'news';
+export type View = 'today' | 'calendar' | 'news' | 'words' | 'journal';
 
-/** Views are stacked like pages: Today on top, then Calendar, then News. */
-export const VIEW_ORDER: View[] = ['today', 'calendar', 'news'];
+/** Views are stacked like pages: Today on top, then Calendar, News, Words and Journal. */
+export const VIEW_ORDER: View[] = ['today', 'calendar', 'news', 'words', 'journal'];
+
+const TITLES: Record<View, string> = { today: 'Today', calendar: 'Calendar', news: 'News', words: 'Words', journal: 'Journal' };
 
 type Listener = (view: View, prev: View | null) => void;
 const listeners = new Set<Listener>();
 
-export const currentView = (): View =>
-  location.hash.startsWith('#/calendar') ? 'calendar' : location.hash.startsWith('#/news') ? 'news' : 'today';
+export const currentView = (): View => VIEW_ORDER.find((v) => v !== 'today' && location.hash.startsWith(`#/${v}`)) ?? 'today';
 
 export function onView(fn: Listener): void {
   listeners.add(fn);
@@ -24,6 +25,7 @@ export function mountRouter(): void {
     const view = currentView();
     if (view === prev) return;
     document.body.dataset.view = view;
+    document.title = `Haru — ${TITLES[view]}`;
     document.querySelectorAll<HTMLElement>('a[data-view]').forEach((a) => {
       if (a.dataset.view === view) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
