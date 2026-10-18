@@ -479,6 +479,14 @@ export function mountJournal(body: HTMLElement): void {
       b.querySelector('.j-i-date')!.textContent = fmtDay(e.date);
       b.querySelector('.j-i-prev')!.textContent = (e.title ? lines : lines.slice(1)).join(' · ').slice(0, 140);
       b.addEventListener('click', () => open(e.id));
+      // right-click: delete it, or move it to another folder
+      b.addEventListener('contextmenu', (ev) => {
+        ev.preventDefault();
+        showMenu({ x: ev.clientX, y: ev.clientY }, [
+          ...folders().filter((f) => f.id !== e.folder).map((f) => ({ label: `Move to ${f.name}`, icon: 'arrow-right', run: () => moveTo([e.id], f.id) })),
+          { label: 'Delete page', icon: 'trash', danger: true, run: () => void removePage(e.id) },
+        ]);
+      });
       // drag onto a folder tab to move it there
       b.addEventListener('dragstart', (ev) => {
         if (e.id === openId) flush();

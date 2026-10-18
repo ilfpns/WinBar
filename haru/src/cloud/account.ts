@@ -43,22 +43,50 @@ export function mountAccount(refs: AccountRefs): void {
   const msg = gate.querySelector<HTMLElement>('.gate-msg')!;
   const signInBtn = gate.querySelector<HTMLButtonElement>('.gate-google')!;
   const otherBtn = gate.querySelector<HTMLButtonElement>('.gate-out')!;
+  // reconnecting a known session (a reload): its own quiet screen, not the sign-in card
+  const connect = document.createElement('div');
+  connect.className = 'connect';
+  connect.setAttribute('role', 'status');
+  connect.innerHTML = '<span class="connect-mark"></span><p class="connect-msg"></p>';
+  connect.querySelector('.connect-mark')!.append(icon('circle-dot'));
+  connect.hidden = true;
+  document.body.append(connect);
+  const connectMsg = connect.querySelector<HTMLElement>('.connect-msg')!;
+
   const showGate = (text: string, canSignIn: boolean, canSwitch = false) => {
+    connect.hidden = true;
     gate.hidden = false;
     document.body.classList.add('gated');
     msg.textContent = text;
     signInBtn.hidden = !canSignIn;
     otherBtn.hidden = !canSwitch;
   };
-  const hideGate = () => {
-    gate.classList.add('leaving');
-    document.body.classList.remove('gated');
-    setTimeout(() => {
-      gate.hidden = true;
-      gate.classList.remove('leaving');
-    }, 350);
+  const showConnecting = (text = 'Connecting…') => {
+    gate.hidden = true;
+    connect.hidden = false;
+    document.body.classList.add('gated');
+    connectMsg.textContent = text;
   };
-  showGate('', false);
+  const hideGate = () => {
+    document.body.classList.remove('gated');
+    for (const el of [gate, connect]) {
+      if (el.hidden) continue;
+      el.classList.add('leaving');
+      setTimeout(() => {
+        el.hidden = true;
+        el.classList.remove('leaving');
+      }, 350);
+    }
+  };
+  // signed in before on this device: most likely still is, so start on the connecting screen
+  let known = false;
+  try {
+    known = !!localStorage.getItem(INVITED_KEY);
+  } catch {
+    // unknown: the sign-in card
+  }
+  if (known) showConnecting();
+  else showGate('', false);
 
   // ---------- the section in Settings
   const who = document.createElement('div');
@@ -102,12 +130,18 @@ export function mountAccount(refs: AccountRefs): void {
         signOut.hidden = true;
         who.replaceChildren();
         status.textContent = '';
+        // signed out: the next visit starts on the sign-in card, not the connecting screen
+        try {
+          localStorage.removeItem(INVITED_KEY);
+        } catch {
+          // ignore
+        }
         showGate('Sign in with an invited Google account.', true);
         return;
       }
       const email = (user.email ?? '').toLowerCase();
       // invited? (the owner is always allowed by the rules; reading the own allow entry is permitted to everyone)
-      showGate('Checking access…', false);
+      showConnecting(known ? 'Connecting…' : 'Checking access…');
       let allowed = false;
       let owner = false;
       try {
@@ -140,7 +174,7 @@ export function mountAccount(refs: AccountRefs): void {
         // ignore
       }
       if (dataOwner && dataOwner !== user.uid) {
-        showGate('Getting your Haru ready…', false);
+        showConnecting('Getting your Haru ready…');
         await switchAccountData(dataOwner, user.uid);
       }
       try {
@@ -154,7 +188,8 @@ export function mountAccount(refs: AccountRefs): void {
       stopSync = startSync(fb, user.uid, (s) => (status.textContent = labels[s]));
       if (owner) mountInvites(fb, email);
       // how the others see this account (the Today switcher, the Archive)
-      void fs.setDoc(fs.doc(db, 'profiles', user.uid), { uid: user.uid, name, email, photo: user.photoURL ?? null, updated: Date.now() }).catch(() => {});
+      // (merged, so what else the profile holds — the Notion name — stays)
+      void fs.setDoc(fs.doc(db, 'profiles', user.uid), { uid: user.uid, name, email, photo: user.photoURL ?? null, updated: Date.now() }, { merge: true }).catch(() => {});
       setSession({ fb, uid: user.uid, email, name, photo: user.photoURL ?? null, owner });
     });
   }).catch(() => {

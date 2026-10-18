@@ -141,7 +141,13 @@ const KO: Record<string, string> = {
   'Share to Archive': '아카이브에 공유', 'Shared to Archive': '아카이브에 공유했어요', 'Write something to share first': '먼저 내용을 써 주세요',
   'Couldn’t share. Check your connection.': '공유하지 못했어요. 연결을 확인하세요.', 'Remove from Archive': '아카이브에서 내리기',
   'The page stays in its author’s Journal.': '페이지는 작성자의 일기에 그대로 남아요.', 'The Archive couldn’t be loaded. Check your connection.': '아카이브를 불러오지 못했어요. 연결을 확인하세요.',
-  'See someone’s Today': '다른 사람의 오늘 보기', 'Someone’s Today (read only)': '다른 사람의 오늘 (보기 전용)', 'Back to my Today': '내 오늘로 돌아가기', 'My Today': '내 오늘',
+  'See someone’s Today': '다른 사람의 오늘 보기', 'Someone’s Today (read only)': '다른 사람의 오늘 (보기 전용)', 'Back to my Today': '내 오늘로 돌아가기', 'Back to my Today (Esc)': '내 오늘로 돌아가기 (Esc)', 'My Today': '내 오늘',
+  'Connecting…': '연결하는 중…', 'Back to my words (Esc)': '내 단어장으로 돌아가기 (Esc)', 'See someone’s words': '다른 사람의 단어장 보기',
+  'No words yet': '아직 단어가 없어요', 'See someone’s Haru': '다른 사람의 Haru 보기', 'Back to mine (Esc)': '내 화면으로 돌아가기 (Esc)',
+  'Back to mine  Esc': '내 화면으로  Esc', 'No pages yet': '아직 페이지가 없어요', 'No memos yet': '아직 메모가 없어요',
+  'Their words couldn’t be loaded.': '단어장을 불러오지 못했어요.', 'Their pages couldn’t be loaded.': '페이지를 불러오지 못했어요.',
+  'Their memos couldn’t be loaded.': '메모를 불러오지 못했어요.', 'Notion name': 'Notion 이름',
+  'Your column in the Notion attendance database, so its check-ins fill your attendance too': 'Notion 출석 데이터베이스에서 내 열 이름이에요. 거기서 체크한 날도 내 출석에 채워져요', 'Their pages': '그 사람의 페이지', 'Their memos': '그 사람의 메모',
   'Read only': '보기 전용', 'No one else yet': '아직 다른 사람이 없어요', 'Loading…': '불러오는 중…',
   'Their Today couldn’t be loaded.': '오늘 시간표를 불러오지 못했어요.', Me: '나', 'Getting your Haru ready…': 'Haru를 준비하는 중…',
 };
@@ -154,6 +160,11 @@ const t = (s: string) => KO[s] ?? s;
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   // sharing and other people's Today
   [/^(.+)’s Today$/, (_, n) => `${n}의 오늘`],
+  [/^(.+)’s Today \(read only\)$/, (_, n) => `${n}의 오늘 (보기 전용)`],
+  [/^(.+)’s words$/, (_, n) => `${n}의 단어장`],
+  [/^(\d+) words$/, (_, n) => `단어 ${n}개`],
+  [/^(.+) checked in today$/, (_, n) => `${n}님은 오늘 출석했어요`],
+  [/^(.+) hasn’t checked in yet$/, (_, n) => `${n}님은 아직 출석 전이에요`],
   [/^(\d+) shared$/, (_, n) => `${n}개 공유됨`],
   [/^Remove “(.+)” from Archive\?$/, (_, n) => `“${n}”을(를) 아카이브에서 내릴까요?`],
   [/^(.+) planned · (\d+)% of the day done$/, (_, p, n) => `${p} 계획 · 하루의 ${n}% 완료`],

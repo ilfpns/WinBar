@@ -8,7 +8,7 @@ import { onHover, setHover } from './hover';
 import { onTheme } from '../ui/theme';
 import { icon } from '../ui/icons';
 import { lang } from '../ui/i18n';
-import { onResetAt, resetAt } from './day-reset';
+import { onResetAt, resetAt, setResetAt } from './day-reset';
 
 /** Pointer counts as "on the ring" a little inside the hole and out over the hour labels. */
 const onRing = (r: number): boolean => r >= R_IN - 10 && r <= R_OUT + 60;
@@ -99,23 +99,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
     if (dialStyle === 'thin') renderSlices(picked, now);
     else for (const b of visibleBlocks()) {
       const isSel = b === draft || (b.id !== null && picked.has(b.id));
-      const isNow = !isSel && contains(b, now);
-      const style = `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)`;
-      gBlocks.append(
-        svgEl('path', { class: `block${isSel ? ' sel' : ''}`, d: sectorPath(b.start, b.dur), style }),
-        svgEl('path', { class: `block-arc${b.done ? ' done' : ''}`, d: arcPath(b.start, b.dur, R_OUT - 3.5), style }),
-      );
-      if (b.dur < 45) continue;
-      const [x, y] = pointAt(R_MID, b.start + b.dur / 2);
-      const room = Math.min((b.dur / DAY) * Math.PI * 2 * R_MID - 12, 210);
-      const name = labelOf(b);
-      // done blocks read from their solid arc, muted label and glowing dots — no glyph needed
-      const label = fitLabel(name, room);
-      if (!label) continue;
-      const withTime = b.dur >= 90;
-      const cls = `block-label${isNow ? ' now' : ''}${isSel ? ' sel' : ''}${b.done ? ' done' : ''}`;
-      gBlocks.append(centeredText(cls, x, withTime ? y - 10 : y, label));
-      if (withTime) gBlocks.append(centeredText('block-time', x, y + 16, `${hhmm(b.start)}–${hhmm(b.start + b.dur)}`));
+      gBlocks.append(...blockShapes(b, isSel, !isSel && contains(b, now)));
     }
 
     renderCallouts(visibleBlocks(), picked, now);
@@ -144,9 +128,22 @@ export function mountDial(svg: SVGSVGElement): Dial {
     renderCenter();
   }
 
-  /** Where a new day begins (Settings → Today): a dashed cut across the ring, ending in a ↺ badge inside the rim. */
-  function renderReset(): void {
+  /** The ↺ badge being dragged round the ring to a new reset time (shown there until released). */
+  let resetDrag: { at: number; moved: boolean } | null = null;
+  /** Is a point (dial units) on the ↺ badge? */
+  const onResetBadge = (x: number, y: number): boolean => {
     const at = resetAt();
+    if (at === null) return false;
+    const [bx, by] = pointAt(R_OUT - 22, at);
+    return Math.hypot(x - bx, y - by) <= 22;
+  };
+
+  /**
+   * Where a new day begins (Settings → Today, or drag the badge round the ring): a dashed cut across the ring,
+   * ending in a ↺ badge inside the rim.
+   */
+  function renderReset(): void {
+    const at = resetDrag?.at ?? resetAt();
     if (at === null) {
       gReset.replaceChildren();
       return;
@@ -157,10 +154,10 @@ export function mountDial(svg: SVGSVGElement): Dial {
     const [x1, y1] = pointAt(R_OUT - 36, at);
     const badge = icon('rotate-ccw', 'reset-ic');
     for (const [k, v] of Object.entries({ x: bx - 8, y: by - 8, width: 16, height: 16 })) badge.setAttribute(k, String(v));
-    const label = svgEl('title', {}, lang() === 'ko' ? `${hhmm(at)}에 새 하루 시작` : `New day at ${hhmm(at)}`);
+    const label = svgEl('title', {}, lang() === 'ko' ? `${hhmm(at)}에 새 하루 시작 · 끌어서 바꾸기` : `New day at ${hhmm(at)} · drag to change`);
     gReset.replaceChildren(
       svgEl('line', { class: 'reset-cut', x1: x0, y1: y0, x2: x1, y2: y1 }),
-      svgEl('circle', { class: 'reset-badge', cx: bx, cy: by, r: 14 }),
+      svgEl('circle', { class: `reset-badge${resetDrag ? ' dragging' : ''}`, cx: bx, cy: by, r: 14 }),
       badge,
       label,
     );
@@ -355,7 +352,14 @@ export function mountDial(svg: SVGSVGElement): Dial {
   }
 
   svg.addEventListener('pointerdown', (e) => {
-    const { r, m } = toDial(e);
+    const { r, m, x, y } = toDial(e);
+    // the ↺ badge: drag it round the ring to move when the day starts over
+    if (e.button === 0 && dialStyle === 'full' && onResetBadge(x, y)) {
+      svg.setPointerCapture(e.pointerId);
+      resetDrag = { at: resetAt() ?? 0, moved: false };
+      gHover.replaceChildren();
+      return;
+    }
     if (!onRing(r)) {
       // clicking the centre hole closes the editor / drops the selection
       if (r < R_IN - 10) {
@@ -386,6 +390,16 @@ export function mountDial(svg: SVGSVGElement): Dial {
     const { r, m, x, y } = toDial(e);
     // dots near the pointer swell while it moves over the emblem
     orb.attract(r < R_IN - 10 ? { x, y } : null);
+    if (resetDrag) {
+      const at = mod(snap(m));
+      if (at !== resetDrag.at) {
+        resetDrag = { at, moved: true };
+        renderReset();
+      }
+      const [tx, ty] = pointAt(R_IN + 30, at);
+      gHover.replaceChildren(centeredText('hover-label', tx, ty, hhmm(at)));
+      return;
+    }
     if (sweep) {
       sweep.acc += stepBetween(sweep.prev, m);
       sweep.prev = m;
@@ -409,6 +423,12 @@ export function mountDial(svg: SVGSVGElement): Dial {
       setHover(null);
       return;
     }
+    if (dialStyle === 'full' && onResetBadge(x, y)) {
+      svg.style.cursor = 'grab';
+      gHover.replaceChildren();
+      setHover(null);
+      return;
+    }
     const over = blockAt(state.blocks, m);
     setHover(over?.id ?? null);
     svg.style.cursor = over ? 'pointer' : 'crosshair';
@@ -423,6 +443,15 @@ export function mountDial(svg: SVGSVGElement): Dial {
   });
 
   svg.addEventListener('pointerup', () => {
+    if (resetDrag) {
+      const { at, moved } = resetDrag;
+      resetDrag = null;
+      gHover.replaceChildren();
+      // the new time is kept (Settings shows it too); a plain click changes nothing
+      if (moved) setResetAt(at);
+      else renderReset();
+      return;
+    }
     if (sweep) {
       // a click without sweeping opens that task in the editor
       if (!sweep.moved) openDraft({ ...sweep.hit });
@@ -466,6 +495,10 @@ export function mountDial(svg: SVGSVGElement): Dial {
   });
 
   svg.addEventListener('pointercancel', () => {
+    if (resetDrag) {
+      resetDrag = null;
+      renderReset();
+    }
     sweep = null;
     gHover.replaceChildren();
     setState({ drag: null });
@@ -491,6 +524,50 @@ export function mountDial(svg: SVGSVGElement): Dial {
       render();
     },
   };
+}
+
+/** One task on the full dial: its slice, its arc on the rim, and (when it fits) its name and hours. */
+function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean): SVGElement[] {
+  const style = `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)`;
+  const out: SVGElement[] = [
+    svgEl('path', { class: `block${isSel ? ' sel' : ''}`, d: sectorPath(b.start, b.dur), style }),
+    svgEl('path', { class: `block-arc${b.done ? ' done' : ''}`, d: arcPath(b.start, b.dur, R_OUT - 3.5), style }),
+  ];
+  if (b.dur < 45) return out;
+  const [x, y] = pointAt(R_MID, b.start + b.dur / 2);
+  const room = Math.min((b.dur / DAY) * Math.PI * 2 * R_MID - 12, 210);
+  // done blocks read from their solid arc, muted label and glowing dots — no glyph needed
+  const label = fitLabel(labelOf(b), room);
+  if (!label) return out;
+  const withTime = b.dur >= 90;
+  const cls = `block-label${isNow ? ' now' : ''}${isSel ? ' sel' : ''}${b.done ? ' done' : ''}`;
+  out.push(centeredText(cls, x, withTime ? y - 10 : y, label));
+  if (withTime) out.push(centeredText('block-time', x, y + 16, `${hhmm(b.start)}–${hhmm(b.start + b.dur)}`));
+  return out;
+}
+
+/**
+ * Someone else's day drawn as a dial, read only (see peek): the same ring, tasks and clock hand as your
+ * own Today, with the done share of the day in the middle. `svg` uses the dial's viewBox.
+ */
+export function drawReadOnlyDial(svg: SVGSVGElement, blocks: Block[]): void {
+  const now = nowMinutes();
+  const g = (name: string) => svg.appendChild(svgEl('g', { class: `layer-${name}` }));
+  svg.replaceChildren();
+  drawBase(g('base'));
+  const gBlocks = g('blocks');
+  for (const b of blocks) gBlocks.append(...blockShapes(b, false, contains(b, now)));
+  const [x0, y0] = pointAt(R_IN - 14, now);
+  const [x1, y1] = pointAt(R_OUT + 14, now);
+  g('now').append(
+    svgEl('line', { class: 'now-hand', x1: x0, y1: y0, x2: x1, y2: y1 }),
+    svgEl('circle', { class: 'now-dot', cx: x1, cy: y1, r: 6 }),
+  );
+  const pct = Math.round((progressOf(blocks).done / DAY) * 100);
+  g('center').append(
+    svgEl('circle', { class: 'peek-core', r: 52 }),
+    centeredText('peek-pct', 0, 1, `${pct}%`),
+  );
 }
 
 function drawBase(g: SVGGElement, style: DialStyle = 'full'): void {

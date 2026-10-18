@@ -88,30 +88,30 @@ img, svg, a { -webkit-user-drag: none; }
 /* slices (Today's second view): a numbered donut on a black disk — the day so far lit in its colours,
    names around the rim, the now edge glowing, the current task as the title */
 #dial.thin { overflow: visible; }
-#dial .disk { fill: var(--disk); }
+:is(#dial, .peek-dial) .disk { fill: var(--disk); }
 #dial.thin .layer-blocks { clip-path: url(#ring-clip); }
 #dial.thin .ring-bg { fill: rgb(var(--ink) / 0.018); }
-#dial .slice { fill: var(--slice); stroke: var(--slice-gap); stroke-width: 2; transition: fill var(--dur-fast) var(--ease-out); }
-#dial .slice.sel { fill: var(--slice-sel); }
-#dial .slice-past { fill: color-mix(in srgb, var(--c) 48%, var(--slice-base)); stroke: var(--slice-gap); stroke-width: 2; pointer-events: none; }
-#dial .slice-glow { fill: var(--c); opacity: .17; pointer-events: none; }
+:is(#dial, .peek-dial) .slice { fill: var(--slice); stroke: var(--slice-gap); stroke-width: 2; transition: fill var(--dur-fast) var(--ease-out); }
+:is(#dial, .peek-dial) .slice.sel { fill: var(--slice-sel); }
+:is(#dial, .peek-dial) .slice-past { fill: color-mix(in srgb, var(--c) 48%, var(--slice-base)); stroke: var(--slice-gap); stroke-width: 2; pointer-events: none; }
+:is(#dial, .peek-dial) .slice-glow { fill: var(--c); opacity: .17; pointer-events: none; }
 /* tasks named outside the ring on leader lines */
-#dial .callout { pointer-events: none; }
+:is(#dial, .peek-dial) .callout { pointer-events: none; }
 /* phones: no room beside the ring for names (they would run off the screen); the middle names the current task */
-@media (max-width: 640px) { #dial .callout { display: none; } }
-#dial .callout-line { fill: none; stroke: color-mix(in srgb, var(--c) 65%, var(--text-subtle)); stroke-width: 1.6; }
-#dial .callout-dot { fill: var(--c); }
-#dial .callout-name { font: 500 22px var(--font-sans); fill: var(--text-strong); }
-#dial .callout-detail { font: 400 15px var(--font-mono); fill: var(--text-muted); }
-#dial .callout.done .callout-name { fill: var(--text-muted); }
-#dial .callout.now .callout-name, #dial .callout.sel .callout-name { fill: var(--accent); }
-#dial .now-edge { stroke: color-mix(in srgb, var(--accent) 55%, #b8fff0); stroke-width: 3; stroke-linecap: round; pointer-events: none;
+@media (max-width: 640px) { :is(#dial, .peek-dial) .callout { display: none; } }
+:is(#dial, .peek-dial) .callout-line { fill: none; stroke: color-mix(in srgb, var(--c) 65%, var(--text-subtle)); stroke-width: 1.6; }
+:is(#dial, .peek-dial) .callout-dot { fill: var(--c); }
+:is(#dial, .peek-dial) .callout-name { font: 500 22px var(--font-sans); fill: var(--text-strong); }
+:is(#dial, .peek-dial) .callout-detail { font: 400 15px var(--font-mono); fill: var(--text-muted); }
+:is(#dial, .peek-dial) .callout.done .callout-name { fill: var(--text-muted); }
+:is(#dial, .peek-dial) .callout.now .callout-name, :is(#dial, .peek-dial) .callout.sel .callout-name { fill: var(--accent); }
+:is(#dial, .peek-dial) .now-edge { stroke: color-mix(in srgb, var(--accent) 55%, #b8fff0); stroke-width: 3; stroke-linecap: round; pointer-events: none;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 80%, transparent)); }
-#dial .slice-sub { font: 400 15px var(--font-mono); fill: var(--text-muted); pointer-events: none; }
-#dial .slice-sub.on { font-family: var(--font-sans); font-weight: 500; fill: var(--text-strong); }
+:is(#dial, .peek-dial) .slice-sub { font: 400 15px var(--font-mono); fill: var(--text-muted); pointer-events: none; }
+:is(#dial, .peek-dial) .slice-sub.on { font-family: var(--font-sans); font-weight: 500; fill: var(--text-strong); }
 /* slices: the dot emblem sits small in the middle of the hole (its dots carry the slices' colours inward) */
 .dial-wrap.thin > #orb-canvas { left: 31%; top: 31%; width: 38%; height: 38%; }
-#dial .hover-label.drag-time { font-size: 20px; fill: var(--accent); }
+:is(#dial, .peek-dial) .hover-label.drag-time { font-size: 20px; fill: var(--accent); }
 .today-chart .cal-tt-dial { width: 100%; height: 100%; }
 .today-chart-empty { margin: 0; font-size: 15px; color: var(--text-subtle); }
 .today-views {
@@ -130,38 +130,38 @@ img, svg, a { -webkit-user-drag: none; }
 #orb-canvas { position: absolute; left: 36.5385%; top: 36.5385%; width: 26.923%; height: 26.923%; pointer-events: none; }
 #orb-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; will-change: transform; }
 #dial { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
-#dial .ring-bg { fill: var(--surface-solid); }
-#dial .tick { stroke: var(--line); stroke-width: 1.5; }
-#dial .tick.major { stroke: var(--line-strong); }
-#dial .edge { fill: none; stroke: var(--line); stroke-width: 1.5; }
-#dial .hour { font: 400 17px var(--font-mono); fill: var(--text-subtle); }
-#dial .hour.major { font-size: 20px; fill: var(--text); }
-#dial .block {
+:is(#dial, .peek-dial) .ring-bg { fill: var(--surface-solid); }
+:is(#dial, .peek-dial) .tick { stroke: var(--line); stroke-width: 1.5; }
+:is(#dial, .peek-dial) .tick.major { stroke: var(--line-strong); }
+:is(#dial, .peek-dial) .edge { fill: none; stroke: var(--line); stroke-width: 1.5; }
+:is(#dial, .peek-dial) .hour { font: 400 17px var(--font-mono); fill: var(--text-subtle); }
+:is(#dial, .peek-dial) .hour.major { font-size: 20px; fill: var(--text); }
+:is(#dial, .peek-dial) .block {
   fill: var(--cf); stroke: var(--bg); stroke-width: 3; cursor: pointer;
   transition: fill var(--dur-fast) var(--ease-out);
 }
-#dial .block:hover { fill: color-mix(in srgb, var(--c) 22%, var(--cf)); }
-#dial .block.sel { fill: color-mix(in srgb, var(--c) 45%, var(--cf)); }
-#dial .block-arc { fill: none; stroke: var(--c); stroke-width: 5; pointer-events: none; opacity: .5; }
-#dial .block-arc.done { opacity: 1; }
-#dial .block-label { font: 500 21px var(--font-sans); letter-spacing: -.01em; fill: var(--text); pointer-events: none; }
-#dial .block-label.done { fill: var(--text-muted); }
-#dial .block-label.now, #dial .block-label.sel { fill: var(--text-strong); }
-#dial .block-time { font: 400 14px var(--font-mono); fill: color-mix(in srgb, var(--text) 55%, transparent); pointer-events: none; }
-#dial .ghost { fill: color-mix(in srgb, var(--text) 10%, transparent); stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 6 6; pointer-events: none; }
-#dial .hover-tick { stroke: var(--text-muted); stroke-width: 1.5; pointer-events: none; }
-#dial .hover-label {
+:is(#dial, .peek-dial) .block:hover { fill: color-mix(in srgb, var(--c) 22%, var(--cf)); }
+:is(#dial, .peek-dial) .block.sel { fill: color-mix(in srgb, var(--c) 45%, var(--cf)); }
+:is(#dial, .peek-dial) .block-arc { fill: none; stroke: var(--c); stroke-width: 5; pointer-events: none; opacity: .5; }
+:is(#dial, .peek-dial) .block-arc.done { opacity: 1; }
+:is(#dial, .peek-dial) .block-label { font: 500 21px var(--font-sans); letter-spacing: -.01em; fill: var(--text); pointer-events: none; }
+:is(#dial, .peek-dial) .block-label.done { fill: var(--text-muted); }
+:is(#dial, .peek-dial) .block-label.now, :is(#dial, .peek-dial) .block-label.sel { fill: var(--text-strong); }
+:is(#dial, .peek-dial) .block-time { font: 400 14px var(--font-mono); fill: color-mix(in srgb, var(--text) 55%, transparent); pointer-events: none; }
+:is(#dial, .peek-dial) .ghost { fill: color-mix(in srgb, var(--text) 10%, transparent); stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 6 6; pointer-events: none; }
+:is(#dial, .peek-dial) .hover-tick { stroke: var(--text-muted); stroke-width: 1.5; pointer-events: none; }
+:is(#dial, .peek-dial) .hover-label {
   font: 500 16px var(--font-mono); fill: var(--text-strong); pointer-events: none;
   stroke: var(--surface-solid); stroke-width: 6px; stroke-linejoin: round; paint-order: stroke;
 }
-#dial .hover-label.now { fill: var(--accent); }
-#dial .now-hand { stroke: var(--accent); stroke-width: 2.5; pointer-events: none; }
-#dial .now-dot { fill: var(--accent); pointer-events: none; }
+:is(#dial, .peek-dial) .hover-label.now { fill: var(--accent); }
+:is(#dial, .peek-dial) .now-hand { stroke: var(--accent); stroke-width: 2.5; pointer-events: none; }
+:is(#dial, .peek-dial) .now-dot { fill: var(--accent); pointer-events: none; }
 /* where a new day begins: a dashed cut through the ring, a small ↺ badge just past the rim */
-#dial .layer-reset { pointer-events: none; }
-#dial .reset-cut { stroke: var(--text-muted); stroke-width: 2; stroke-dasharray: 5 7; stroke-linecap: round; }
-#dial .reset-badge { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1.5; }
-#dial .reset-ic { color: var(--text-muted); }
+:is(#dial, .peek-dial) .layer-reset { pointer-events: none; }
+:is(#dial, .peek-dial) .reset-cut { stroke: var(--text-muted); stroke-width: 2; stroke-dasharray: 5 7; stroke-linecap: round; }
+:is(#dial, .peek-dial) .reset-badge { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1.5; }
+:is(#dial, .peek-dial) .reset-ic { color: var(--text-muted); }
 #orb-layer .orb-core { transition: fill var(--dur-fast) var(--ease-out); transform-box: fill-box; transform-origin: center; }
 #orb-layer .orb-core.pulse { animation: core-pulse .6s cubic-bezier(.2, 1.6, .4, 1); }
 @keyframes core-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.08); } 100% { transform: scale(1); } }
@@ -993,7 +993,21 @@ body.left-open .rail { opacity: 0; transform: translate3d(-10px, 0, 0); pointer-
 .gate-mark .ic { width: 22px; height: 22px; color: var(--accent); }
 .gate-msg { margin: 0; min-height: 20px; text-align: center; font-size: 13.5px; color: var(--text-muted); }
 .gate-google { width: 100%; height: 38px; }
-body.gated > :not(.gate) { visibility: hidden; }
+body.gated > :not(.gate, .connect) { visibility: hidden; }
+/* reconnecting a known session (a reload): the mark breathing, one quiet line, no card */
+.connect {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; justify-items: center; gap: 14px;
+  background: var(--bg); animation: fade-in .2s var(--ease-out) both;
+}
+.connect[hidden] { display: none; }
+.connect.leaving { animation: gate-out .35s var(--ease-out) both; }
+.connect-mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent); animation: connect-breathe 1.4s ease-in-out infinite; }
+.connect-mark .ic { width: 26px; height: 26px; }
+.connect-msg { margin: 0; font: 400 12.5px var(--font-mono); letter-spacing: .04em; color: var(--text-muted); }
+@keyframes connect-breathe { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 14px color-mix(in srgb, var(--accent) 0%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .connect-mark { animation: none; } }
 .backup-row { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
 .backup-row #backup-auto[aria-pressed="true"] { color: var(--text-strong); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .backup-status { text-transform: none; }
@@ -1302,6 +1316,12 @@ body.drawer-moving .rail-btn[aria-current="page"]::after { animation-play-state:
 .switch[aria-checked="true"] { background: var(--accent); }
 .switch[aria-checked="true"] i { transform: translateX(18px); }
 .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* a short text field in a settings row (the Notion name) */
+.set-input {
+  flex: none; width: 140px; height: 32px; padding: 0 10px; border: 1px solid var(--well-border); border-radius: 10px;
+  background: var(--well); color: var(--text-strong); font: 400 13.5px var(--font-sans); outline: none;
+}
+.set-input:focus { border-color: var(--line-strong); }
 /* new day: the time, then its on/off switch */
 .set-reset { display: flex; flex: none; align-items: center; gap: 12px; }
 .set-reset .time-field { width: 104px; height: 32px; }
@@ -1466,7 +1486,8 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 .j-undo { padding: 2px 6px; font-size: 11.5px; color: var(--accent); }
 .j-row { position: relative; }
 .j-row .j-item { padding-right: 30px; }
-.j-row-del { top: 8px; right: 6px; }
+/* a page's delete stays in sight (dim), full on hover */
+.j-row-del { top: 8px; right: 6px; opacity: .4; }
 .j-row:hover .j-row-del, .j-row-del:focus-visible { opacity: 1; }
 .j-folder-bar .j-folder-name { flex: 1; height: 30px !important; }
 .j-folder-bar .btn-text { flex: none; font-size: 12px; }
@@ -1656,9 +1677,9 @@ body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
 .a-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .j-share[hidden] { display: none; }
 
-/* ---------- Today: the people button, and someone else's Today laid over yours (read only) */
+/* ---------- someone else's Haru (read only, every page): the people button, the bar saying whose it is */
 .peek-btn {
-  position: absolute; top: 18px; right: 18px; z-index: 6; display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px 0 6px;
+  position: fixed; top: 18px; right: 18px; z-index: 60; display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px 0 6px;
   border: 1px solid var(--glass-edge); border-radius: 16px; background: var(--noise), var(--glass-fill); color: var(--text); cursor: pointer;
   backdrop-filter: blur(var(--blur-glass)) saturate(140%); box-shadow: var(--glass-shine); font: 500 12.5px var(--font-sans);
   transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
@@ -1666,36 +1687,43 @@ body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
 .peek-btn[hidden] { display: none; }
 .peek-btn:hover { color: var(--text-strong); }
 .peek-btn .ic { width: 14px; height: 14px; color: var(--text-muted); }
-.peek-btn.on { border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--accent); }
-.peek {
-  position: absolute; inset: 0; z-index: 5; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px;
-  padding: 18px 24px 24px calc(var(--rail-room, 0px) + 24px); background: color-mix(in srgb, var(--bg) 92%, transparent);
-  backdrop-filter: blur(6px); animation: tt-open .25s var(--ease-out) both;
+/* their dial takes your dial's box; yours (and your other views) wait hidden underneath */
+.peek-dial { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; animation: tt-open .3s var(--ease-out) both; }
+.dial-wrap.peeking > :is(#dial, #orb-canvas, #orb-layer, .today-chart) { visibility: hidden; }
+/* while looking, your own task drawer and Today's view switcher step aside */
+body.viewing :is(.drawer-right, .today-views) { visibility: hidden; }
+/* pages swap their own body for the other person's (the bodies are grids, so [hidden] needs help) */
+:is(.pg-body, .cal-body, .cal-filters, .cal-nav, .wpeek, .jpeek, .cpeek)[hidden] { display: none !important; }
+.calendar-view > .cpeek { grid-row: 2 / -1; min-height: 0; }
+.wpeek { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; min-height: 0; }
+.wpeek-sum { margin: 0; text-transform: none; }
+.wpeek-list { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 2px; overflow-y: auto; }
+.wpeek-list li:not(.j-empty) {
+  display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto; column-gap: 14px; row-gap: 2px; align-items: baseline;
+  padding: 9px 10px; border-radius: 10px;
 }
-.peek[hidden] { display: none; }
-body.peeking[data-view="today"] .drawer-right { visibility: hidden; }
-.peek-head { display: flex; align-items: center; gap: 12px; padding-right: 150px; }
-.peek-name { display: inline-flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 500; color: var(--text-strong); }
-.peek-name .a-avatar { width: 28px; height: 28px; font-size: 13px; }
+.wpeek-list li:not(.j-empty):hover { background: rgb(var(--ink) / .04); }
+.wpeek-word { font-size: 15px; font-weight: 500; color: var(--text-strong); }
+.wpeek-meaning { font-size: 13.5px; color: var(--text); }
+.wpeek-box { text-transform: none; font-size: 11px; }
+.wpeek-ex { grid-column: 1 / -1; font-size: 12.5px; color: var(--text-muted); font-style: italic; }
+.wpeek-ex:empty { display: none; }
+.peek-dial .peek-core { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; }
+.peek-dial .peek-pct { font: 600 30px var(--font-sans); letter-spacing: -.02em; fill: var(--accent); }
+/* whose day it is, read only, and the way out */
+.peek-bar {
+  position: fixed; top: 18px; left: 50%; z-index: 60; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 12px;
+  height: 40px; padding: 0 6px 0 8px; border: 1px solid var(--glass-edge); border-radius: 20px; background: var(--noise), var(--glass-fill);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%); box-shadow: var(--glass-shine), var(--glass-drop); white-space: nowrap;
+}
+.peek-bar[hidden] { display: none; }
+.peek-name { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--text-strong); }
+.peek-name .a-avatar { width: 24px; height: 24px; font-size: 12px; }
 .peek-tag { display: inline-flex; align-items: center; gap: 5px; text-transform: none; }
 .peek-tag .ic { width: 13px; height: 13px; }
-.peek-head .icon-btn { margin-left: auto; }
-.peek-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; min-height: 0; align-items: center; }
-.peek-chart { display: grid; place-items: center; min-height: 0; height: 100%; }
-.peek-chart .cal-tt-dial { width: auto; height: 100%; max-width: 100%; max-height: min(100%, 760px); }
-.peek-side { display: grid; gap: 8px; align-content: start; max-height: 100%; overflow-y: auto; }
-.peek-sum { margin: 0; text-transform: none; }
-.peek-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.peek-list li:not(.j-empty) { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; font-size: 13px; color: var(--text); }
-.peek-list li:not(.j-empty):hover { background: rgb(var(--ink) / .04); }
-.peek-list .peek-t, .peek-list .peek-d { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
-.peek-list .peek-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.peek-list li.done .peek-n { color: var(--text-muted); text-decoration: line-through; }
-@media (max-width: 1000px) {
-  .peek-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
-  .peek-side { max-height: 30vh; }
-  .peek-head { padding-right: 0; flex-wrap: wrap; }
-}
+.peek-x { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: rgb(var(--ink) / .06); color: var(--text); cursor: pointer; }
+.peek-x:hover { background: var(--gray-btn-hover); color: var(--text-strong); }
+.peek-x .ic { width: 14px; height: 14px; }
 
 /* ---------- Haru's own dialogs (in place of prompt/confirm) and small menus */
 .modal {

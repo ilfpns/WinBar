@@ -28,6 +28,11 @@ import { featureOn, mountFeatures } from './ui/features';
 import { mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountPeek } from './timetable/peek';
+import { mountWordsPeek } from './words/peek-words';
+import { mountJournalPeek } from './journal/peek-journal';
+import { mountCalendarPeek } from './calendar/peek-calendar';
+import { mountViewing, viewing } from './cloud/viewing';
+import { mountNotionAttendance } from './calendar/notion-attendance';
 
 hydrateIcons();
 // Korean labels (if picked) go on before the pages render, and follow everything they render later
@@ -70,7 +75,12 @@ mountSettings();
 mountWords(byId('words-body'), byId('words-sum'));
 mountJournal(byId('journal-body'));
 mountArchive(byId('archive-body'), byId('archive-sum'));
+// someone else's Haru, read only, on every page
+mountViewing();
 mountPeek(byId('stage'));
+mountWordsPeek(byId('words'));
+mountJournalPeek(byId('journal'));
+mountCalendarPeek(byId('calendar'));
 mountWinBarLink();
 mountBackup({
   status: byId('backup-status'),
@@ -90,6 +100,7 @@ mountNews({
   list: byId('news-list'),
 });
 mountAttendance(byId('news'));
+mountNotionAttendance();
 mountCalendar({
   month: byId('cal-month'),
   year: byId('cal-year'),
@@ -113,7 +124,8 @@ document.addEventListener('keydown', (e) => {
     else if (state.selected.length) clearSelection();
     else if (state.drawers.left || state.drawers.right) setState({ drawers: { left: false, right: false } });
   }
-  if (typing) return;
+  // while someone else's Haru is on screen, keys never reach your own tasks
+  if (typing || viewing()) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
     e.preventDefault();
     select(state.blocks.map((b) => b.id));

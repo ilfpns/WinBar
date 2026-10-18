@@ -35,18 +35,24 @@ service cloud.firestore {
     match /users/{uid}/{document=**} {
       allow read, write: if isInvited() && request.auth.uid == uid;
     }
-    // …but everyone invited may look at anyone's Today
+    // …but everyone invited may look at (never change) anyone's Today, day memos, words, journal and check-ins
     match /users/{uid}/state/timetable {
       allow read: if isInvited();
     }
+    match /users/{uid}/notes/{date} {
+      allow read: if isInvited();
+    }
+    match /users/{uid}/lists/{list} {
+      allow read: if isInvited() && list in ['words', 'journal', 'journal-folders', 'checkins'];
+    }
 
-    // the shared archive: journal pages sent with Share. Everyone invited reads it; a page is written only
-    // by its author (as themselves), and taken down by its author or an owner
+    // the shared archive: journal pages sent with Share. Everyone invited reads it; a page is written and
+    // taken down only by its author (no one else, owners included)
     match /archive/{id} {
       allow read: if isInvited();
       allow create: if isInvited() && request.resource.data.authorUid == request.auth.uid;
       allow update: if isInvited() && request.resource.data.authorUid == request.auth.uid && resource.data.authorUid == request.auth.uid;
-      allow delete: if isInvited() && (resource.data.authorUid == request.auth.uid || isOwner());
+      allow delete: if isInvited() && resource.data.authorUid == request.auth.uid;
     }
   }
 }

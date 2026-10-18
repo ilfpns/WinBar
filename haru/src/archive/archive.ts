@@ -5,8 +5,8 @@ import { askConfirm } from '../ui/modal';
 
 /**
  * Archive: journal pages people chose to share (Share on a page in Journal), from everyone invited, newest
- * first. A shared page is a copy taken when it was shared; sharing the same page again updates it. Its
- * author (or an owner) can take it down. Reading only: everyone's own pages stay in their Journal.
+ * first. A shared page is a copy taken when it was shared; sharing the same page again updates it. Only its
+ * author can take it down. Reading only: everyone's own pages stay in their Journal.
  */
 export interface Shared {
   authorUid: string;
@@ -116,8 +116,8 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
     const fill = document.createElement('span');
     fill.className = 'j-head-fill';
     head.append(by, date, fill);
-    // its author, or an owner, may take it down
-    if (p.authorUid === s.uid || s.owner) {
+    // only its author may take it down
+    if (p.authorUid === s.uid) {
       const down = document.createElement('button');
       down.type = 'button';
       down.className = 'icon-btn';
