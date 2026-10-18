@@ -1,7 +1,6 @@
 import { allDays, dayKey } from '../timetable/history';
 import { listStore } from '../storage/list-store';
 import { icon } from '../ui/icons';
-import { onViewing, viewing, watchTheirs } from '../cloud/viewing';
 import { notionDays, notionName, onNotionAttendance } from './notion-attendance';
 
 /**
@@ -73,41 +72,25 @@ export function createAttendance(): Attendance {
   /** Days with a saved timetable from before check-ins existed. */
   let opened = new Set<string>();
 
-  /** Someone else's check-ins while their Haru is on screen (see viewing); null shows yours. */
-  let theirs: Set<string> | null = null;
-  let stopTheirs: (() => void) | null = null;
-  /** Days checked in Notion by whoever is on screen (see notion-attendance). */
+  /** Your days checked in Notion (see notion-attendance). */
   let notion = new Set<string>();
   const refreshNotion = async () => {
-    const who = viewing();
-    notion = await notionDays(who ? who.notionName : notionName());
+    notion = await notionDays(notionName());
     paint();
   };
   onNotionAttendance(() => void refreshNotion());
-  onViewing((who) => {
-    stopTheirs?.();
-    stopTheirs = null;
-    theirs = who ? new Set() : null;
-    if (who) stopTheirs = watchTheirs<{ items?: string[] }>('lists/checkins', (data) => {
-      theirs = new Set(data?.items ?? []);
-      paint();
-    });
-    void refreshNotion();
-  });
+  void refreshNotion();
 
   /** Every attended day: check-ins (Haru's and Notion's), plus the days Haru was opened before check-ins existed. */
-  const attendedDays = () => new Set([...(theirs ?? [...checkinStore.all(), ...[...opened].filter((k) => k < CHECKIN_SINCE)]), ...notion]);
+  const attendedDays = () => new Set([...checkinStore.all(), ...[...opened].filter((k) => k < CHECKIN_SINCE), ...notion]);
 
   function paint(): void {
     const today = dayKey();
     const days = attendedDays();
     const done = days.has(today);
-    const who = viewing();
     check.setAttribute('aria-pressed', String(done));
-    // someone else's: their day, read only
-    check.disabled = !!who;
-    checkText.textContent = who ? (done ? `${who.name} checked in today` : `${who.name} hasn’t checked in yet`) : done ? 'Checked in today' : 'Check in';
-    check.title = who ? '' : done ? 'Click to undo today’s check-in' : 'Mark today as attended';
+    checkText.textContent = done ? 'Checked in today' : 'Check in';
+    check.title = done ? 'Click to undo today’s check-in' : 'Mark today as attended';
 
     // the grid ends with this week's Sunday; its first column starts on a Monday
     const end = new Date();
@@ -167,7 +150,6 @@ export function createAttendance(): Attendance {
   }
 
   check.addEventListener('click', () => {
-    if (viewing()) return;
     const today = dayKey();
     const list = checkinStore.all();
     if (list.includes(today)) checkinStore.set(list.filter((k) => k !== today));

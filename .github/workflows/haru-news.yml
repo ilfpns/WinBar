@@ -32,11 +32,13 @@ jobs:
           node-version: 22
       - name: Fetch headlines
         run: node haru/scripts/fetch-news.mjs site/data/news.json
-      # attendance from the Notion database (a failure here never holds up the headlines)
-      - name: Fetch attendance
+      # attendance both ways with the Notion database: Haru check-ins ticked there, Notion's brought here
+      # (a failure here never holds up the headlines)
+      - name: Sync attendance
         continue-on-error: true
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
         run: node haru/scripts/fetch-attendance.mjs site/data/attendance.json
       - name: Publish
         working-directory: site

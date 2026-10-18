@@ -35,15 +35,18 @@ service cloud.firestore {
     match /users/{uid}/{document=**} {
       allow read, write: if isInvited() && request.auth.uid == uid;
     }
-    // …but everyone invited may look at (never change) anyone's Today, day memos, words, journal and check-ins
+    // …but everyone invited may look at (never change) anyone's Today
     match /users/{uid}/state/timetable {
       allow read: if isInvited();
     }
-    match /users/{uid}/notes/{date} {
-      allow read: if isInvited();
-    }
-    match /users/{uid}/lists/{list} {
-      allow read: if isInvited() && list in ['words', 'journal', 'journal-folders', 'checkins'];
+
+    // check-ins on their way to the Notion attendance database: one document per Notion column, keyed by a hash
+    // of its name (no names here). GitHub Actions reads them without signing in, so reading is open; writing is
+    // for invited accounts, and a document stays with the account that first wrote it
+    match /notion-checkins/{key} {
+      allow read: if true;
+      allow create: if isInvited() && request.resource.data.uid == request.auth.uid;
+      allow update: if isInvited() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid;
     }
 
     // the shared archive: journal pages sent with Share. Everyone invited reads it; a page is written and

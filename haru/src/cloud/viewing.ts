@@ -1,12 +1,13 @@
 import { avatar, onSession, session, type Profile } from './session';
 import { icon } from '../ui/icons';
 import { showMenu } from '../ui/modal';
+import { onView } from '../ui/router';
 
 /**
- * Looking at someone else's Haru, on every page at once: the people button (top right, signed in only)
- * lists everyone; picking someone makes each page show that person's data instead of yours — read only
- * and live — under a bar saying whose it is. X on the bar (or Esc) comes back to your own. Pages follow
- * through `onViewing`; nothing of yours is changed while you look.
+ * Looking at someone else's Today: the people button (top right of Today, signed in only) lists everyone;
+ * picking someone lays their Today over yours — read only and live — under a bar saying whose it is. X on
+ * the bar, Esc, or leaving Today comes back to your own. Only Today can be looked at; every other page is
+ * always your own. Nothing of yours is changed while you look.
  */
 let current: Profile | null = null;
 const listeners = new Set<(p: Profile | null) => void>();
@@ -34,22 +35,17 @@ export function watchTheirs<T>(path: string, fn: (data: T | undefined, failed?: 
   return fs.onSnapshot(fs.doc(db, `users/${p.uid}/${path}`), (snap) => fn(snap.data() as T | undefined), () => fn(undefined, true));
 }
 
-/** A read-only collection of the person on screen (every document's data), live. */
-export function watchTheirList<T>(path: string, fn: (docs: T[] | null) => void): () => void {
-  const s = session();
-  const p = current;
-  if (!s || !p) return () => {};
-  const { fs, db } = s.fb;
-  return fs.onSnapshot(fs.collection(db, `users/${p.uid}/${path}`), (snap) => fn(snap.docs.map((d) => d.data() as T)), () => fn(null));
-}
-
 export function mountViewing(): void {
+  // only Today can be looked at: any other page is your own
+  onView((page) => {
+    if (page !== 'today') view(null);
+  });
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'peek-btn';
   btn.setAttribute('aria-haspopup', 'menu');
-  btn.setAttribute('aria-label', 'See someone’s Haru');
-  btn.title = 'See someone’s Haru';
+  btn.setAttribute('aria-label', 'See someone’s Today');
+  btn.title = 'See someone’s Today';
   btn.hidden = true;
   document.body.append(btn);
 

@@ -1692,22 +1692,8 @@ body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
 .dial-wrap.peeking > :is(#dial, #orb-canvas, #orb-layer, .today-chart) { visibility: hidden; }
 /* while looking, your own task drawer and Today's view switcher step aside */
 body.viewing :is(.drawer-right, .today-views) { visibility: hidden; }
-/* pages swap their own body for the other person's (the bodies are grids, so [hidden] needs help) */
-:is(.pg-body, .cal-body, .cal-filters, .cal-nav, .wpeek, .jpeek, .cpeek)[hidden] { display: none !important; }
-.calendar-view > .cpeek { grid-row: 2 / -1; min-height: 0; }
-.wpeek { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; min-height: 0; }
-.wpeek-sum { margin: 0; text-transform: none; }
-.wpeek-list { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 2px; overflow-y: auto; }
-.wpeek-list li:not(.j-empty) {
-  display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto; column-gap: 14px; row-gap: 2px; align-items: baseline;
-  padding: 9px 10px; border-radius: 10px;
-}
-.wpeek-list li:not(.j-empty):hover { background: rgb(var(--ink) / .04); }
-.wpeek-word { font-size: 15px; font-weight: 500; color: var(--text-strong); }
-.wpeek-meaning { font-size: 13.5px; color: var(--text); }
-.wpeek-box { text-transform: none; font-size: 11px; }
-.wpeek-ex { grid-column: 1 / -1; font-size: 12.5px; color: var(--text-muted); font-style: italic; }
-.wpeek-ex:empty { display: none; }
+/* only Today can be looked at: the people button and the bar belong to it */
+body:not([data-view="today"]) > :is(.peek-btn, .peek-bar) { display: none !important; }
 .peek-dial .peek-core { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; }
 .peek-dial .peek-pct { font: 600 30px var(--font-sans); letter-spacing: -.02em; fill: var(--accent); }
 /* whose day it is, read only, and the way out */

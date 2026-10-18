@@ -1,10 +1,13 @@
 import { onSession, session } from '../cloud/session';
+import type { ListStore } from '../storage/list-store';
 
 /**
- * Attendance kept in Notion (the "출석 체크" database, one checkbox column per person), brought in every
- * 10 minutes by GitHub Actions as data/attendance.json. People are keyed there by a hash of their column
- * name, so the public site never names anyone; you tell Haru your name (Settings → Account → Notion name)
- * and it looks up your days. Read only: checking in on Haru does not write to Notion.
+ * Attendance kept in Notion (the "출석 체크" database, one checkbox column per person), both ways:
+ *  - in: every 10 minutes GitHub Actions publishes it as data/attendance.json, people keyed by a hash of
+ *    their column name (the public site never names anyone); you tell Haru your name (Settings → Account →
+ *    Notion name) and it looks up your days;
+ *  - out: your Haru check-ins go to `notion-checkins/{that hash}` in Firestore, and the same job ticks your
+ *    column on those dates in Notion (adding the date's row when there is none). Ticks are only ever added.
  */
 const NAME_KEY = 'haru:notion-name';
 const listeners = new Set<() => void>();
@@ -68,7 +71,28 @@ async function load(): Promise<void> {
   }
 }
 
-export function mountNotionAttendance(): void {
+/** Sends your Haru check-ins on their way to your Notion column (signed in, with a Notion name set). */
+let checkins: ListStore<string> | null = null;
+let pushed = '';
+async function pushOut(): Promise<void> {
+  const s = session();
+  if (!s || !myName || !checkins) return;
+  const days = [...checkins.all()].sort();
+  const key = await keyOf(myName);
+  const sig = `${key}:${days.join()}`;
+  if (sig === pushed) return;
+  pushed = sig;
+  const { fs, db } = s.fb;
+  await fs.setDoc(fs.doc(db, 'notion-checkins', key), { uid: s.uid, days, updated: Date.now() }).catch(() => {
+    pushed = '';
+  });
+}
+
+export function mountNotionAttendance(store: ListStore<string>): void {
+  checkins = store;
+  store.onChange(() => void pushOut());
+  onNotionAttendance(() => void pushOut());
+  onSession(() => void pushOut());
   void load();
   // the file is refreshed every 10 minutes
   setInterval(() => void load(), 600_000);

@@ -25,12 +25,9 @@ import { mountJournal } from './journal/journal';
 import { mountSettings } from './ui/settings';
 import { mountI18n } from './ui/i18n';
 import { featureOn, mountFeatures } from './ui/features';
-import { mountAttendance } from './calendar/attendance';
+import { checkinStore, mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountPeek } from './timetable/peek';
-import { mountWordsPeek } from './words/peek-words';
-import { mountJournalPeek } from './journal/peek-journal';
-import { mountCalendarPeek } from './calendar/peek-calendar';
 import { mountViewing, viewing } from './cloud/viewing';
 import { mountNotionAttendance } from './calendar/notion-attendance';
 
@@ -75,12 +72,9 @@ mountSettings();
 mountWords(byId('words-body'), byId('words-sum'));
 mountJournal(byId('journal-body'));
 mountArchive(byId('archive-body'), byId('archive-sum'));
-// someone else's Haru, read only, on every page
+// someone else's Today, read only
 mountViewing();
 mountPeek(byId('stage'));
-mountWordsPeek(byId('words'));
-mountJournalPeek(byId('journal'));
-mountCalendarPeek(byId('calendar'));
 mountWinBarLink();
 mountBackup({
   status: byId('backup-status'),
@@ -100,7 +94,7 @@ mountNews({
   list: byId('news-list'),
 });
 mountAttendance(byId('news'));
-mountNotionAttendance();
+mountNotionAttendance(checkinStore);
 mountCalendar({
   month: byId('cal-month'),
   year: byId('cal-year'),
