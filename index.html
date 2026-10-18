@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <script type="module" crossorigin src="/WinBar/assets/index-BmYvLpvJ.js"></script>
-  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-B4NjoAmU.css">
+  <script type="module" crossorigin src="/WinBar/assets/index-AMRa9krZ.js"></script>
+  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-M1Yp7RMf.css">
 </head>
 <body>
   <main class="stage page" id="stage">
@@ -66,6 +66,11 @@
     <div class="pg-body journal-body" id="journal-body"></div>
   </main>
 
+  <main class="archive-view text-page page" id="archive" aria-label="Archive">
+    <header class="pg-head"><h1>Archive</h1><span class="meta" id="archive-sum"></span></header>
+    <div class="pg-body journal-body" id="archive-body"></div>
+  </main>
+
   <!-- the closed overview: a slim glass rail (logo, pages, search); the open panel slides over it -->
   <nav class="rail" id="rail" aria-label="Pages">
     <button type="button" class="rail-btn rail-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" data-tip="Haru · settings and more"><i data-icon="circle-dot"></i></button>
@@ -76,6 +81,7 @@
     <a class="rail-btn" href="#/news" data-view="news" aria-label="News" data-tip="News · headlines on the globe, attendance"><i data-icon="newspaper"></i></a>
     <a class="rail-btn" href="#/words" data-view="words" aria-label="Words" data-tip="Words · learn English vocabulary"><i data-icon="languages"></i></a>
     <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
+    <a class="rail-btn" href="#/archive" data-view="archive" aria-label="Archive" data-tip="Archive · pages everyone shared"><i data-icon="archive"></i></a>
     <button type="button" class="rail-btn" id="rail-search" aria-label="Search tasks" data-tip="Search tasks  /"><i data-icon="search"></i></button>
     <span class="rail-fill"></span>
     <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
@@ -106,6 +112,9 @@
         </a>
         <a class="nav-item" href="#/journal" data-view="journal">
           <i data-icon="notebook-pen"></i>Journal
+        </a>
+        <a class="nav-item" href="#/archive" data-view="archive">
+          <i data-icon="archive"></i>Archive
         </a>
       </nav>
 
@@ -352,6 +361,13 @@
         <h2 class="set-title">Today</h2>
         <p class="set-lead">Start the day over.</p>
         <div class="set-card">
+          <div class="set-row">
+            <div class="set-label"><strong>New day</strong><span>At this time the day's timetable is kept in the calendar and Today starts empty</span></div>
+            <div class="set-reset">
+              <button type="button" class="time-field" id="reset-time" aria-label="New day time"></button>
+              <button type="button" class="switch" role="switch" id="reset-on" aria-label="Start a new day automatically"><i></i></button>
+            </div>
+          </div>
           <div class="set-row">
             <div class="set-label"><strong>Clear all</strong><span>Clear every task on today's timetable</span></div>
             <button type="button" class="btn-sm danger" id="clear">Clear all</button>
