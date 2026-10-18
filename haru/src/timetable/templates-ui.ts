@@ -3,6 +3,7 @@ import { CATEGORIES, CATEGORY_KEYS, labelOf, type Category } from './model';
 import { setState, state, subscribe } from './state';
 import { DAY, formatDuration, hhmm, mod } from './time';
 import { icon } from '../ui/icons';
+import { askConfirm } from '../ui/modal';
 
 export interface TemplateRefs {
   list: HTMLElement;
@@ -328,8 +329,8 @@ export function mountTemplates(refs: TemplateRefs): void {
       const sel = focusName ? `[name="${focusName}"]` : focusCls ? `.${focusCls}` : '';
       if (sel) row?.querySelector<HTMLElement>(sel)?.focus({ preventScroll: true });
     }
-    editor.querySelector('.tpl-remove')!.addEventListener('click', () => {
-      if (t.blocks.length && !confirm(`Delete the template “${t.name}”?`)) return;
+    editor.querySelector('.tpl-remove')!.addEventListener('click', async () => {
+      if (t.blocks.length && !(await askConfirm({ title: `Delete “${t.name}”?`, body: 'The template goes; Today keeps its tasks.', danger: true }))) return;
       removeTemplate(t.id);
       closeEditor();
     });

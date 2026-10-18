@@ -28,16 +28,37 @@ export function renderMarkdown(src: string): string {
   const lines = src.replace(/\r\n?/g, '\n').split('\n');
   const out: string[] = [];
   let para: string[] = [];
-  let list: { tag: 'ul' | 'ol'; items: string[] } | null = null;
+  /** The list being read: its items with their depth (two spaces or a tab per level). */
+  let items: { tag: 'ul' | 'ol'; level: number; li: string }[] = [];
   let quote: string[] = [];
 
   const flushPara = () => {
     if (para.length) out.push(`<p>${para.map(inline).join('<br>')}</p>`);
     para = [];
   };
+  // nested lists: a deeper item opens a list inside the item before it (never more than one level at a time)
   const flushList = () => {
-    if (list) out.push(`<${list.tag}>${list.items.join('')}</${list.tag}>`);
-    list = null;
+    if (!items.length) return;
+    let html = '';
+    const open: ('ul' | 'ol')[] = [];
+    for (const it of items) {
+      const lvl = Math.min(it.level, open.length);
+      if (lvl === open.length) {
+        html += `<${it.tag}>`;
+        open.push(it.tag);
+      } else {
+        while (open.length > lvl + 1) html += `</li></${open.pop()}>`;
+        html += '</li>';
+        if (open[lvl] !== it.tag) {
+          html += `</${open.pop()}><${it.tag}>`;
+          open.push(it.tag);
+        }
+      }
+      html += it.li;
+    }
+    while (open.length) html += `</li></${open.pop()}>`;
+    out.push(html);
+    items = [];
   };
   const flushQuote = () => {
     if (quote.length) out.push(`<blockquote>${quote.map(inline).join('<br>')}</blockquote>`);
@@ -49,8 +70,23 @@ export function renderMarkdown(src: string): string {
     flushQuote();
   };
 
+  const cellsOf = (l: string) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+  const isRow = (l: string) => /^\s*\|.*\|\s*$/.test(l);
+  const isSep = (l: string) => /^\s*\|(\s*:?-{3,}:?\s*\|)+\s*$/.test(l);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
+    // a table: a header row, a | --- | separator, then rows
+    if (isRow(line) && i + 1 < lines.length && isSep(lines[i + 1]!)) {
+      flush();
+      const head = cellsOf(line);
+      const body: string[][] = [];
+      i += 2;
+      while (i < lines.length && isRow(lines[i]!)) body.push(cellsOf(lines[i++]!));
+      i--;
+      out.push(`<table><thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${
+        body.map((r) => `<tr>${head.map((_, k) => `<td>${inline(r[k] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
+      continue;
+    }
     // fenced code
     if (/^\s*```/.test(line)) {
       flush();
@@ -81,19 +117,17 @@ export function renderMarkdown(src: string): string {
       quote.push(q[1]!);
       continue;
     }
-    const li = line.match(/^\s*(?:([-*+])|(\d+)[.)])\s+(.*)$/);
+    const li = line.match(/^(\s*)(?:([-*+])|(\d+)[.)])\s+(.*)$/);
     if (li) {
       flushPara();
       flushQuote();
-      const tag = li[1] ? 'ul' : 'ol';
-      if (!list || list.tag !== tag) {
-        flushList();
-        list = { tag, items: [] };
-      }
-      const task = li[3]!.match(/^\[([ xX])\]\s+(.*)$/);
-      list.items.push(task
-        ? `<li class="md-task${task[1] !== ' ' ? ' done' : ''}"><input type="checkbox" data-line="${i}"${task[1] !== ' ' ? ' checked' : ''}><span>${inline(task[2]!)}</span></li>`
-        : `<li>${inline(li[3]!)}</li>`);
+      const tag = li[2] ? 'ul' : 'ol';
+      const level = Math.floor(li[1]!.replace(/\t/g, '  ').length / 2);
+      const task = li[4]!.match(/^\[([ xX])\]\s+(.*)$/);
+      // left open: a deeper item may nest inside it
+      items.push({ tag, level, li: task
+        ? `<li class="md-task${task[1] !== ' ' ? ' done' : ''}"><input type="checkbox" data-line="${i}"${task[1] !== ' ' ? ' checked' : ''}><span>${inline(task[2]!)}</span>`
+        : `<li>${inline(li[4]!)}` });
       continue;
     }
     flushList();

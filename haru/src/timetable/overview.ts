@@ -3,6 +3,7 @@ import { CATEGORIES, CATEGORY_KEYS, type Category, contains, labelOf, progressOf
 import { setState, state, subscribe } from './state';
 import { ring } from '../ui/ring';
 import type { IconName } from '../ui/icons';
+import { askConfirm } from '../ui/modal';
 
 /** Lucide icon for each category (also used by the Now card). */
 export const CATEGORY_ICON: Record<Category, IconName> = {
@@ -24,8 +25,8 @@ export function mountOverview(refs: OverviewRefs): void {
   refs.date.textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
   refs.search.addEventListener('input', () => setState({ query: refs.search.value }));
-  refs.clear.addEventListener('click', () => {
-    if (!state.blocks.length || !confirm('Clear every block?')) return;
+  refs.clear.addEventListener('click', async () => {
+    if (!state.blocks.length || !(await askConfirm({ title: 'Clear today?', body: 'Every task on today’s timetable is removed.', ok: 'Clear all', danger: true }))) return;
     setState({ blocks: [], draft: null });
   });
 

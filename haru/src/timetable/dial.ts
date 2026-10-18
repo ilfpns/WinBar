@@ -6,6 +6,9 @@ import { centeredText, svgEl } from './svg';
 import { createOrb } from './orb';
 import { onHover, setHover } from './hover';
 import { onTheme } from '../ui/theme';
+import { icon } from '../ui/icons';
+import { lang } from '../ui/i18n';
+import { onResetAt, resetAt } from './day-reset';
 
 /** Pointer counts as "on the ring" a little inside the hole and out over the hour labels. */
 const onRing = (r: number): boolean => r >= R_IN - 10 && r <= R_OUT + 60;
@@ -62,6 +65,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
   const gCallouts = layer('callouts');
   // (named so a block's own `style` string in render() can't shadow it)
   let dialStyle: DialStyle = 'full';
+  const gReset = layer('reset');
   const gGhost = layer('ghost');
   const gNow = layer('now');
   const gHover = layer('hover');
@@ -115,6 +119,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
     }
 
     renderCallouts(visibleBlocks(), picked, now);
+    renderReset();
 
     gGhost.replaceChildren();
     if (drag?.delta) {
@@ -138,6 +143,29 @@ export function mountDial(svg: SVGSVGElement): Dial {
 
     renderCenter();
   }
+
+  /** Where a new day begins (Settings → Today): a dashed cut across the ring, ending in a ↺ badge inside the rim. */
+  function renderReset(): void {
+    const at = resetAt();
+    if (at === null) {
+      gReset.replaceChildren();
+      return;
+    }
+    // inside the rim, so it never sits on the hour numbers round the outside
+    const [bx, by] = pointAt(R_OUT - 22, at);
+    const [x0, y0] = pointAt(R_IN, at);
+    const [x1, y1] = pointAt(R_OUT - 36, at);
+    const badge = icon('rotate-ccw', 'reset-ic');
+    for (const [k, v] of Object.entries({ x: bx - 8, y: by - 8, width: 16, height: 16 })) badge.setAttribute(k, String(v));
+    const label = svgEl('title', {}, lang() === 'ko' ? `${hhmm(at)}에 새 하루 시작` : `New day at ${hhmm(at)}`);
+    gReset.replaceChildren(
+      svgEl('line', { class: 'reset-cut', x1: x0, y1: y0, x2: x1, y2: y1 }),
+      svgEl('circle', { class: 'reset-badge', cx: bx, cy: by, r: 14 }),
+      badge,
+      label,
+    );
+  }
+  onResetAt(render);
 
   /**
    * Centre: the dot emblem plus one short value in its core. The emblem reacts to what the

@@ -146,7 +146,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   });
 
   document.addEventListener('keydown', (e) => {
-    if ((e.target as Element).closest('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+    if ((e.target as Element).closest('input, select, textarea, md-editor') || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === '[') pull('left');
     if (e.key === ']') pull('right');
   });

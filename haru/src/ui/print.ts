@@ -13,6 +13,8 @@ export interface PrintSection {
 }
 
 export function printPdf(fileName: string, heading: string, sections: PrintSection[]): void {
+  // a layer left from an earlier print (no afterprint came) must not print again
+  document.getElementById('print-root')?.remove();
   const root = document.createElement('div');
   root.id = 'print-root';
   const h = document.createElement('header');

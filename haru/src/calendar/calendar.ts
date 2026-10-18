@@ -3,6 +3,7 @@ import { createNotes } from './notes';
 import { createImages } from './images';
 import { mountStats } from './stats';
 import { mdPad } from '../ui/md-pad';
+import '../ui/md-editor';
 import { printPdf } from '../ui/print';
 import { ringsChart, slicesChart } from './day-charts';
 import { icon } from '../ui/icons';
@@ -82,17 +83,16 @@ export function mountCalendar(refs: CalendarRefs): void {
     renderGrid(0);
     renderImages();
   });
-  const note = document.createElement('textarea');
+  const note = document.createElement('md-editor');
   note.className = 'cal-note';
   note.placeholder = 'Note';
   // the syntax hint stays visible under the pad (a placeholder would vanish as soon as you type)
   const hint = document.createElement('pre');
   hint.className = 'cal-note-hint';
   hint.textContent = QUICK_ADD_HINT;
-  note.rows = 5;
   note.spellcheck = false;
   note.setAttribute('aria-label', 'Note for the selected day (Markdown)');
-  // Markdown: plain text while writing, the rendered page once you click away
+  // Markdown that formats itself as you type (/ for blocks, Tab to indent)
   const pad = mdPad(note, 'cal-pad');
   let noteDate = '';
   const status = document.createElement('p');
@@ -423,6 +423,7 @@ export function mountCalendar(refs: CalendarRefs): void {
   /** The memo's first line as plain text for the month grid (Markdown marks dropped). */
   const firstLine = (text: string) =>
     (text.trim().split(/\r?\n/)[0] ?? '')
+      .replace(/^\s*\|(.*)\|\s*$/, (_, cells: string) => cells.split('|').map((x) => x.trim()).filter(Boolean).join(' · '))
       .replace(/^\s*(#{1,6}\s+|>\s?|[-*+]\s+(\[[ xX]\]\s+)?|\d+[.)]\s+)/, '')
       .replace(/\*\*|__|~~|`/g, '')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
@@ -445,7 +446,7 @@ export function mountCalendar(refs: CalendarRefs): void {
 
   document.addEventListener('keydown', (e) => {
     if (currentView() !== 'calendar' || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
-    if ((e.target as Element).closest('input, select, textarea')) return;
+    if ((e.target as Element).closest('input, select, textarea, md-editor')) return;
     if (e.key === 'ArrowLeft') go(-1);
     if (e.key === 'ArrowRight') go(1);
     if (e.key === 't') refs.today.click();

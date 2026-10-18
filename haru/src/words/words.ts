@@ -2,6 +2,7 @@ import { listStore } from '../storage/list-store';
 import { dayKey } from '../timetable/history';
 import { icon } from '../ui/icons';
 import { currentView, onView } from '../ui/router';
+import { askConfirm } from '../ui/modal';
 
 /**
  * Words: English vocabulary on flashcards. Each word sits in a box (0–5); knowing it moves it up a box and
@@ -328,7 +329,7 @@ export function mountWords(body: HTMLElement, sum: HTMLElement): void {
 
   document.addEventListener('keydown', (e) => {
     if (currentView() !== 'words' || e.metaKey || e.ctrlKey || e.altKey) return;
-    if ((e.target as Element).closest('input, textarea, select, dialog')) return;
+    if ((e.target as Element).closest('input, textarea, select, dialog, md-editor')) return;
     if (e.key === ' ') {
       e.preventDefault();
       flip();
@@ -414,9 +415,9 @@ export function mountWords(body: HTMLElement, sum: HTMLElement): void {
       del.className = 'tpl-del';
       del.setAttribute('aria-label', `Delete ${w.word}`);
       del.append(icon('x'));
-      del.addEventListener('click', () => {
+      del.addEventListener('click', async () => {
         // a card with progress on it asks first
-        if ((w.right + w.wrong > 0 || w.box > 0) && !confirm(`Delete “${w.word}” and its progress?`)) return;
+        if ((w.right + w.wrong > 0 || w.box > 0) && !(await askConfirm({ title: `Delete “${w.word}”?`, body: 'Its progress goes with it.', danger: true }))) return;
         wordsStore.set(wordsStore.all().filter((x) => x.id !== w.id));
       });
       li.append(del);

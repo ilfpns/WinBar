@@ -117,6 +117,15 @@ export function loadBlocks(): Block[] {
   }
 }
 
+/** Whether this browser holds a timetable at all — an empty one (a new day, Clear all) counts. */
+export function blocksStored(): boolean {
+  try {
+    return localStorage.getItem(STORE_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
 const STAMP_KEY = 'haru:timetable:updated';
 /** When Today's timetable last changed on this device (0 if never recorded). */
 export const blocksUpdated = (): number => Number(localStorage.getItem(STAMP_KEY) ?? 0) || 0;

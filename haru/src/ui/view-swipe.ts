@@ -1,3 +1,4 @@
+import { type Feature, featureOn } from './features';
 import { VIEW_ORDER, type View, currentView, goTo, onView } from './router';
 
 const TURN_MS = 300;           // one page turn
@@ -8,6 +9,8 @@ const NOTCH_GAP = 110;         // a mouse-wheel notch this long after the last t
 const STREAM_GAP = 120;        // silence that ends a trackpad stream (its inertia) for sure
 /** Only these pages turn by wheel or swipe; the rest are opened from the rail. */
 const SWIPE_PAGES: View[] = ['today', 'calendar'];
+/** The swipe pages that are switched on (Settings → Features). */
+const swipePages = () => SWIPE_PAGES.filter((v) => v === 'today' || featureOn(v as Feature));
 
 /**
  * The pages are stacked (Today on top). Between Today and Calendar, a gesture past a small threshold turns exactly one
@@ -47,7 +50,7 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
   const canTurn = (target: EventTarget | null, dir: 1 | -1): boolean => {
     const el = target instanceof Element ? target : null;
     // inside drawers, editors, popovers and text fields the wheel belongs to them
-    if (el?.closest('.drawer, .time-pop, textarea, input, select')) return false;
+    if (el?.closest('.drawer, .time-pop, textarea, input, select, md-editor')) return false;
     // an inner area that can still scroll that way (e.g. the calendar's day panel) scrolls first
     const page = pages[currentView()];
     for (let n = el; n && n !== page; n = n.parentElement) {
@@ -56,12 +59,13 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
       if (oy !== 'auto' && oy !== 'scroll') continue;
       if (dir > 0 ? n.scrollTop + n.clientHeight < n.scrollHeight - 1 : n.scrollTop > 0) return false;
     }
-    const i = SWIPE_PAGES.indexOf(currentView());
-    if (i < 0 || i + dir < 0 || i + dir >= SWIPE_PAGES.length) return false;
+    const order = swipePages();
+    const i = order.indexOf(currentView());
+    if (i < 0 || i + dir < 0 || i + dir >= order.length) return false;
     // only once the current page is scrolled to its edge in that direction
     return dir > 0 ? page.scrollTop + page.clientHeight >= page.scrollHeight - 2 : page.scrollTop <= 0;
   };
-  const turn = (dir: 1 | -1) => goTo(SWIPE_PAGES[SWIPE_PAGES.indexOf(currentView()) + dir]!);
+  const turn = (dir: 1 | -1) => goTo(swipePages()[swipePages().indexOf(currentView()) + dir]!);
 
   // ---------- wheel / trackpad: one gesture, one page
   let acc = 0;

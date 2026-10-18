@@ -1,15 +1,16 @@
 import { listStore } from '../storage/list-store';
-import { dayKey, timetableOn } from '../timetable/history';
-import { progressOf } from '../timetable/model';
+import { dayKey } from '../timetable/history';
 import { icon } from '../ui/icons';
 import { mdPad } from '../ui/md-pad';
+import { type MdEditor } from '../ui/md-editor';
 import { printPdf } from '../ui/print';
+import { askConfirm, askText, showMenu } from '../ui/modal';
 
 /**
  * Journal: pages written in your own words — a summary of the day, a thought, a plan — always filed in a
  * folder (tabs over the list). The list keeps a folder's pages by date; the editor saves as you type. Next
  * to the date, how that day's timetable went. Pages move between folders (the picker, or drag one onto a
- * folder tab); deleting a page or a folder asks first and can be undone for a few seconds.
+ * folder tab; a folder's ⋯ or right-click renames or deletes it); deleting asks first and can be undone for a few seconds.
  */
 export interface Entry {
   id: string;
@@ -41,9 +42,15 @@ const FIRST_FOLDER = 'Journal';
 
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const wordCount = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
+/** A Markdown line as plain words (marks, fences and dividers dropped). */
+const plain = (line: string) =>
+  /^\s*(```|([-*_])(\s*\2){2,}\s*$|\|(\s*:?-{3,}:?\s*\|)+\s*$)/.test(line) ? '' : line
+    .replace(/^\s*\|(.*)\|\s*$/, (_, cells: string) => cells.split('|').map((x) => x.trim()).filter(Boolean).join(' · '))
+    .replace(/^\s*(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> )/, '')
+    .replace(/\*\*|__|~~|`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
 const fmtDay = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
+export function mountJournal(body: HTMLElement): void {
   body.innerHTML = `
     <aside class="j-side glass-card" aria-label="Pages">
       <div class="j-side-head">
@@ -51,25 +58,19 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
         <button type="button" class="btn-sm j-new"></button>
       </div>
       <div class="j-folders" role="tablist" aria-label="Folders"></div>
-      <div class="j-folder-bar">
-        <input class="j-folder-name" maxlength="40" aria-label="Folder name">
-        <button type="button" class="btn-text danger j-folder-del">Delete folder</button>
-      </div>
       <p class="meta j-status" aria-live="polite"></p>
-      <input type="search" class="j-search" placeholder="Search this folder" aria-label="Search this folder">
       <ul class="j-list"></ul>
     </aside>
     <article class="j-editor glass-card">
       <div class="j-ed-head">
-        <input type="date" class="j-date" aria-label="Date">
-        <select class="j-folder" aria-label="Move to folder" title="Move to folder"></select>
-        <span class="meta j-day"></span>
-        <span class="meta j-saved" aria-live="polite"></span>
+        <span class="j-date"></span>
+        <button type="button" class="j-folder" aria-haspopup="menu" title="Move to another folder"><span class="j-folder-name"></span></button>
+        <span class="j-head-fill"></span>
         <button type="button" class="icon-btn j-pdf" aria-label="Export this page as PDF" title="Export as PDF"></button>
         <button type="button" class="icon-btn j-del" aria-label="Delete page" title="Delete page"></button>
       </div>
       <input class="j-title" placeholder="Title" maxlength="120" aria-label="Title">
-      <textarea class="j-text" placeholder="Write about your day…  (Markdown: # heading, **bold**, - list, - [ ] to-do)" aria-label="Page (Markdown)"></textarea>
+      <md-editor class="j-text" aria-label="Page (Markdown)"></md-editor>
       <div class="j-foot meta"></div>
     </article>`;
   const $ = <T extends Element>(sel: string) => body.querySelector<T>(sel)!;
@@ -78,15 +79,13 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
   const del = $<HTMLButtonElement>('.j-del');
   del.append(icon('x'));
   const list = $<HTMLUListElement>('.j-list');
-  const search = $<HTMLInputElement>('.j-search');
-  const dateIn = $<HTMLInputElement>('.j-date');
+  const dateEl = $<HTMLElement>('.j-date');
   const titleIn = $<HTMLInputElement>('.j-title');
-  const text = $<HTMLTextAreaElement>('.j-text');
-  const dayInfo = $<HTMLElement>('.j-day');
-  const saved = $<HTMLElement>('.j-saved');
+  const text = $<MdEditor>('.j-text');
+  text.placeholder = 'Write, or type / for headings, lists, to-dos…';
   const foot = $<HTMLElement>('.j-foot');
   const status = $<HTMLElement>('.j-status');
-  // Markdown: plain text while writing, the rendered page once you click away
+  // Markdown that formats itself as you type
   const pad = mdPad(text, 'j-pad');
   const pdfOne = $<HTMLButtonElement>('.j-pdf');
   pdfOne.append(icon('file-down'));
@@ -97,7 +96,7 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
   });
   pdfOne.addEventListener('click', () => {
     flush();
-    const date = dateIn.value || draftDate;
+    const date = draftDate;
     printPdf(`Haru Journal ${date}`, 'Journal', [asSection({ date, title: titleIn.value.trim(), body: text.value })]);
   });
   const entries = () => journalStore.all();
@@ -116,18 +115,21 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
       b.textContent = 'Undo';
       b.addEventListener('click', () => {
         undo();
-        status.replaceChildren('Restored');
+        tell('Restored');
       });
       status.append(b);
     }
     clearTimeout(statusTimer);
-    statusTimer = window.setTimeout(() => status.replaceChildren(), undo ? 10000 : 3000);
+    statusTimer = window.setTimeout(() => status.replaceChildren(), undo ? 5000 : 3000);
   }
 
   // ---- folders: every page lives in one; the open folder is the tab
   const tabsEl = $<HTMLElement>('.j-folders');
-  const barName = $<HTMLInputElement>('.j-folder-name');
-  const folderSel = $<HTMLSelectElement>('.j-folder');
+  const folderBtn = $<HTMLButtonElement>('.j-folder');
+  folderBtn.prepend(icon('notebook-pen'));
+  folderBtn.append(icon('chevron-down'));
+  /** The folder the open page is in (a blank page: the open folder). */
+  let pageFolder = '';
   const folders = () => folderStore.all();
   let tab = '';
   try {
@@ -144,7 +146,6 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
     } catch {
       // for this visit
     }
-    search.value = '';
     // the editor follows: the folder's newest page, or a blank one
     const page = openId ? entries().find((e) => e.id === openId) : undefined;
     if (page && !inTab(page)) {
@@ -178,89 +179,41 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
     renderList();
   });
 
-  /** Moves pages to a folder (the picker, or a drop on a folder tab). */
-  function moveTo(ids: string[], folder: string): void {
+  /**
+   * Moves pages to a folder (the picker, or a drop on a folder tab). `follow` opens the destination tab too,
+   * so the open page stays in the list beside it instead of vanishing from the old folder's.
+   */
+  function moveTo(ids: string[], folder: string, follow = false): void {
     const f = folders().find((x) => x.id === folder);
     if (!f) return;
     const before = entries();
     const moving = before.filter((e) => ids.includes(e.id) && e.folder !== folder);
     if (!moving.length) return;
+    const from = validTab();
     journalStore.set(before.map((e) => (moving.includes(e) ? { ...e, folder, updated: Date.now() } : e)));
+    if (follow) setTab(folder);
     tell(`Moved to ${f.name}`, () => {
       const back = new Map(moving.map((e) => [e.id, e.folder]));
       journalStore.set(entries().map((e) => (back.has(e.id) ? { ...e, folder: back.get(e.id) } : e)));
+      if (follow) setTab(from);
     });
   }
 
-  function renderFolders(): void {
-    const cur = validTab();
-    const all = entries();
-    const chips = folders().map((f) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'chip j-tab';
-      b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(f.id === cur));
-      b.innerHTML = '<span class="j-tab-name"></span><span class="j-tab-n"></span>';
-      b.firstElementChild!.textContent = f.name;
-      b.lastElementChild!.textContent = String(all.filter((e) => e.folder === f.id).length);
-      b.title = `${f.name} · drop a page here to move it`;
-      b.addEventListener('click', () => setTab(f.id));
-      // a page dragged from the list lands here
-      b.addEventListener('dragover', (e) => {
-        if (!e.dataTransfer?.types.includes('text/x-haru-page')) return;
-        e.preventDefault();
-        b.classList.add('drop');
-      });
-      b.addEventListener('dragleave', () => b.classList.remove('drop'));
-      b.addEventListener('drop', (e) => {
-        e.preventDefault();
-        b.classList.remove('drop');
-        const id = e.dataTransfer?.getData('text/x-haru-page');
-        if (id) moveTo([id], f.id);
-      });
-      return b;
-    });
-    const add = document.createElement('button');
-    add.type = 'button';
-    add.className = 'chip j-tab-add';
-    add.setAttribute('aria-label', 'New folder');
-    add.title = 'New folder';
-    add.append(icon('plus'));
-    add.addEventListener('click', () => {
-      const name = prompt('Folder name')?.trim();
-      if (!name) return;
-      const f: Folder = { id: newId(), name: name.slice(0, 40), created: Date.now() };
-      folderStore.set([...folders(), f]);
-      setTab(f.id);
-      // a new folder starts on a blank page
-      open(null);
-    });
-    tabsEl.replaceChildren(...chips, add);
-    // the open folder can be renamed or deleted
-    const f = folders().find((x) => x.id === cur);
-    if (f && document.activeElement !== barName) barName.value = f.name;
-    barName.disabled = !f;
-    $<HTMLButtonElement>('.j-folder-del').disabled = !f;
-    // the editor's picker: which folder this page is in
-    folderSel.replaceChildren(...folders().map((x) => new Option(x.name, x.id)));
-    const e = openId ? entries().find((x) => x.id === openId) : undefined;
-    folderSel.value = e?.folder && folders().some((x) => x.id === e.folder) ? e.folder : cur;
+  /** Renames a folder (a dialog asks for the name). */
+  async function renameFolder(f: Folder): Promise<void> {
+    const name = await askText({ title: 'Rename folder', label: 'Folder name', value: f.name, ok: 'Rename', icon: 'pencil', max: 40 });
+    if (name && name !== f.name) folderStore.set(folders().map((x) => (x.id === f.id ? { ...x, name } : x)));
   }
-  barName.addEventListener('change', () => {
-    const name = barName.value.trim();
-    if (!name) return renderFolders();
-    const id = validTab();
-    folderStore.set(folders().map((f) => (f.id === id ? { ...f, name: name.slice(0, 40) } : f)));
-  });
-  $<HTMLButtonElement>('.j-folder-del').addEventListener('click', () => {
-    const f = folders().find((x) => x.id === validTab());
-    if (!f) return;
+  /** Deletes a folder and its pages (after asking); Undo brings both back. */
+  async function deleteFolder(f: Folder): Promise<void> {
     flush();
     const pages = entries().filter((e) => e.folder === f.id);
-    if (!confirm(pages.length
-      ? `Delete the folder “${f.name}” and its ${pages.length} ${pages.length === 1 ? 'page' : 'pages'}?`
-      : `Delete the folder “${f.name}”?`)) return;
+    const yes = await askConfirm({
+      title: `Delete “${f.name}”?`,
+      body: pages.length ? `Its ${pages.length} ${pages.length === 1 ? 'page goes' : 'pages go'} with it. You can undo this for a few seconds.` : 'The folder is empty.',
+      danger: true,
+    });
+    if (!yes) return;
     const at = folders().indexOf(f);
     journalStore.set(entries().filter((e) => e.folder !== f.id));
     folderStore.set(folders().filter((x) => x.id !== f.id));
@@ -276,10 +229,96 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
       journalStore.set([...pages.filter((p) => !have.has(p.id)), ...entries()]);
       setTab(f.id);
     });
-  });
-  folderSel.addEventListener('change', () => {
+  }
+  const folderMenu = (f: Folder, at: HTMLElement | { x: number; y: number }) =>
+    showMenu(at, [
+      { label: 'Rename', icon: 'pencil', run: () => void renameFolder(f) },
+      { label: 'Delete folder', icon: 'trash', danger: true, run: () => void deleteFolder(f) },
+    ]);
+
+  function renderFolders(): void {
+    const cur = validTab();
+    const all = entries();
+    const chips = folders().map((f) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip j-tab';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(f.id === cur));
+      b.innerHTML = '<span class="j-tab-name"></span><span class="j-tab-n"></span>';
+      b.firstElementChild!.textContent = f.name;
+      b.lastElementChild!.textContent = String(all.filter((e) => e.folder === f.id).length);
+      b.title = `${f.name} · drop a page here to move it`;
+      b.addEventListener('click', () => setTab(f.id));
+      // right-click: rename or delete
+      b.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        folderMenu(f, { x: e.clientX, y: e.clientY });
+      });
+      // a page dragged from the list lands here
+      b.addEventListener('dragover', (e) => {
+        if (!e.dataTransfer?.types.includes('text/x-haru-page')) return;
+        e.preventDefault();
+        b.classList.add('drop');
+      });
+      b.addEventListener('dragleave', () => b.classList.remove('drop'));
+      b.addEventListener('drop', (e) => {
+        e.preventDefault();
+        b.classList.remove('drop');
+        const id = e.dataTransfer?.getData('text/x-haru-page');
+        if (id) moveTo([id], f.id);
+      });
+      return b;
+    });
+    // the open folder's ⋯ sits at the end of the row, so picking a folder never moves the tabs
+    const openFolder = folders().find((x) => x.id === cur);
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'chip j-tab-more';
+    more.setAttribute('aria-label', `${openFolder?.name ?? 'Folder'} options`);
+    more.title = 'Rename or delete this folder';
+    more.append(icon('ellipsis'));
+    more.hidden = !openFolder;
+    more.addEventListener('click', () => openFolder && folderMenu(openFolder, more));
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'chip j-tab-add';
+    add.setAttribute('aria-label', 'New folder');
+    add.title = 'New folder';
+    add.append(icon('plus'));
+    add.addEventListener('click', async () => {
+      const name = await askText({ title: 'New folder', label: 'Folder name', placeholder: 'e.g. School, Ideas', ok: 'Create', icon: 'plus', max: 40 });
+      if (!name) return;
+      const f: Folder = { id: newId(), name, created: Date.now() };
+      folderStore.set([...folders(), f]);
+      setTab(f.id);
+      // a new folder starts on a blank page
+      open(null);
+    });
+    tabsEl.replaceChildren(...chips, add, more);
+    // the editor's picker: which folder this page is in
+    const e = openId ? entries().find((x) => x.id === openId) : undefined;
+    pageFolder = e?.folder && folders().some((x) => x.id === e.folder) ? e.folder : cur;
+    folderBtn.querySelector('.j-folder-name')!.textContent = folders().find((x) => x.id === pageFolder)?.name ?? '';
+    folderBtn.setAttribute('aria-label', `In ${folderBtn.textContent}. Move to another folder`);
+  }
+  // moving the page: a menu of the other folders
+  folderBtn.addEventListener('click', () => {
     flush();
-    if (openId) moveTo([openId], folderSel.value);
+    const others = folders().filter((f) => f.id !== pageFolder);
+    if (!others.length) {
+      tell('Make another folder to move pages into');
+      return;
+    }
+    showMenu(folderBtn, others.map((f) => ({
+      label: `Move to ${f.name}`,
+      icon: 'arrow-right',
+      run: () => {
+        if (openId) moveTo([openId], f.id, true);
+        // a blank page: it will be written into that folder, so its tab opens now
+        else setTab(f.id);
+      },
+    })));
   });
   folderStore.onChange(() => {
     fileEverything();
@@ -300,23 +339,20 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
     openId = id;
     const e = id ? entries().find((x) => x.id === id) : undefined;
     draftDate = e?.date ?? date;
-    dateIn.value = draftDate;
+    dateEl.textContent = new Date(`${draftDate}T00:00`).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
     titleIn.value = e?.title ?? '';
     text.value = e?.body ?? '';
     pad.refresh();
     del.hidden = !e;
-    saved.textContent = '';
     renderFoot();
     renderFolders();
     renderList();
-    void renderDay();
   }
 
   // ---- saving as you type
   let timer = 0;
   function schedule(): void {
     clearTimeout(timer);
-    saved.textContent = 'Editing…';
     timer = window.setTimeout(flush, 500);
   }
   function flush(): void {
@@ -331,16 +367,15 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
       if (!title && !bodyText.trim()) return;
       const now = Date.now();
       // into the open folder (filed later if the folders haven't loaded yet)
-      const folder = validTab() || undefined;
-      const e: Entry = { id: newId(), date: dateIn.value || draftDate, title, body: bodyText, created: now, updated: now, ...(folder ? { folder } : {}) };
+      const folder = pageFolder || validTab() || undefined;
+      const e: Entry = { id: newId(), date: draftDate, title, body: bodyText, created: now, updated: now, ...(folder ? { folder } : {}) };
       openId = e.id;
       del.hidden = false;
       journalStore.set([e, ...all]);
     } else {
-      if (cur.title === title && cur.body === bodyText && cur.date === (dateIn.value || cur.date)) return;
-      journalStore.set(all.map((x) => (x.id === cur.id ? { ...x, title, body: bodyText, date: dateIn.value || x.date, updated: Date.now() } : x)));
+      if (cur.title === title && cur.body === bodyText) return;
+      journalStore.set(all.map((x) => (x.id === cur.id ? { ...x, title, body: bodyText, updated: Date.now() } : x)));
     }
-    saved.textContent = `Saved ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
   }
   titleIn.addEventListener('input', () => {
     schedule();
@@ -349,12 +384,6 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
   text.addEventListener('input', () => {
     schedule();
     renderFoot();
-  });
-  dateIn.addEventListener('change', () => {
-    if (!dateIn.value) dateIn.value = draftDate;
-    draftDate = dateIn.value;
-    flush();
-    void renderDay();
   });
   // leaving the page or tab never loses the last few keystrokes
   addEventListener('pagehide', flush);
@@ -367,10 +396,10 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
   });
 
   /** Deletes a page (asks first); Undo brings it back. */
-  function removePage(id: string): void {
+  async function removePage(id: string): Promise<void> {
     if (id === openId) flush();
     const page = entries().find((x) => x.id === id);
-    if (!page || !confirm(`Delete the page “${page.title || 'Untitled'}”?`)) return;
+    if (!page || !(await askConfirm({ title: `Delete “${page.title || 'Untitled'}”?`, body: 'You can undo this for a few seconds.', danger: true }))) return;
     journalStore.set(entries().filter((x) => x.id !== id));
     if (id === openId) {
       forget();
@@ -381,36 +410,23 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
     });
   }
   del.addEventListener('click', () => {
-    if (openId) removePage(openId);
+    if (openId) void removePage(openId);
   });
-  search.addEventListener('input', renderList);
 
   function renderFoot(): void {
     const n = wordCount(`${titleIn.value} ${text.value}`);
     foot.textContent = n ? `${n} ${n === 1 ? 'word' : 'words'} · ${Math.max(1, Math.round(n / 200))} min read` : 'Saved as you type';
   }
 
-  /** How the page's day went on the timetable (only for days Haru has a record of). */
-  async function renderDay(): Promise<void> {
-    const date = dateIn.value || draftDate;
-    dayInfo.textContent = fmtDay(date);
-    const t = await timetableOn(date).catch(() => null);
-    if ((dateIn.value || draftDate) !== date) return;
-    if (t && !t.carried && t.snap.blocks.length) {
-      const { done, planned } = progressOf(t.snap.blocks);
-      dayInfo.textContent = `${fmtDay(date)} · ${planned ? Math.round((done / planned) * 100) : 0}% of plan done`;
-    }
-  }
 
   function renderList(): void {
-    const q = search.value.trim().toLowerCase();
     const shown = [...entries()]
-      .filter((e) => inTab(e) && (!q || e.title.toLowerCase().includes(q) || e.body.toLowerCase().includes(q)))
+      .filter(inTab)
       .sort((a, b) => b.date.localeCompare(a.date) || b.created - a.created);
     if (!shown.length) {
       const li = document.createElement('li');
       li.className = 'j-empty';
-      li.textContent = q ? 'No match' : 'No pages in this folder yet';
+      li.textContent = 'No pages in this folder yet';
       list.replaceChildren(li);
       return;
     }
@@ -432,10 +448,11 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
       b.className = `j-item${e.id === openId ? ' on' : ''}`;
       b.draggable = true;
       b.innerHTML = '<span class="j-i-top"><span class="j-i-title"></span><span class="meta j-i-date"></span></span><span class="j-i-prev"></span>';
-      const firstLine = e.body.trim().split(/\r?\n/)[0] ?? '';
-      b.querySelector('.j-i-title')!.textContent = e.title || firstLine || 'Untitled';
+      // the list shows words, not Markdown marks
+      const lines = e.body.split(/\r?\n/).map(plain).filter(Boolean);
+      b.querySelector('.j-i-title')!.textContent = e.title || lines[0] || 'Untitled';
       b.querySelector('.j-i-date')!.textContent = fmtDay(e.date);
-      b.querySelector('.j-i-prev')!.textContent = (e.title ? e.body : e.body.trim().split(/\r?\n/).slice(1).join(' ')).trim().slice(0, 140);
+      b.querySelector('.j-i-prev')!.textContent = (e.title ? lines : lines.slice(1)).join(' · ').slice(0, 140);
       b.addEventListener('click', () => open(e.id));
       // drag onto a folder tab to move it there
       b.addEventListener('dragstart', (ev) => {
@@ -450,29 +467,20 @@ export function mountJournal(body: HTMLElement, sum: HTMLElement): void {
       x.className = 'tpl-del j-row-del';
       x.setAttribute('aria-label', `Delete ${e.title || 'Untitled'}`);
       x.append(icon('x'));
-      x.addEventListener('click', () => removePage(e.id));
+      x.addEventListener('click', () => void removePage(e.id));
       li.append(b, x);
       out.push(li);
     }
     list.replaceChildren(...out);
   }
 
-  function renderSum(): void {
-    const all = entries();
-    const words = all.reduce((n, e) => n + wordCount(`${e.title} ${e.body}`), 0);
-    sum.textContent = all.length ? `${folders().length} ${folders().length === 1 ? 'folder' : 'folders'} · ${all.length} ${all.length === 1 ? 'page' : 'pages'} · ${words} words` : '';
-  }
-
   journalStore.onChange(() => {
     fileEverything();
     renderFolders();
     renderList();
-    renderSum();
   });
-  folderStore.onChange(renderSum);
   // start on today's page in the open folder, if there is one
   open(entries().find((e) => e.date === dayKey() && inTab(e))?.id ?? null);
-  renderSum();
   journalStore.onChange(() => {
     // the stored copy arrived late (IndexedDB) while the page still shows a blank: open today's
     if (!openId && !titleIn.value && !text.value) {

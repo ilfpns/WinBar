@@ -1,5 +1,5 @@
 import { kvGet, kvSet, requestPersistence } from './db';
-import { type Block, isBlock } from '../timetable/model';
+import { type Block, blocksStored, isBlock } from '../timetable/model';
 import { setState, state, subscribe } from '../timetable/state';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { type ImageRecord, fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
@@ -8,6 +8,7 @@ import { type DaySnapshot, allDays, restoreDays } from '../timetable/history';
 import { type Word, wordsStore } from '../words/words';
 import { type Entry, type Folder, folderStore, journalStore } from '../journal/journal';
 import { checkinStore } from '../calendar/attendance';
+import { askConfirm } from '../ui/modal';
 
 /**
  * Keeping data no matter what:
@@ -82,9 +83,11 @@ export function mountBackup(refs: BackupRefs): void {
   });
   void kvGet<Block[]>('timetable')
     .then((saved) => {
-      // localStorage lost but the mirror survived: bring the day back
-      if (!state.blocks.length && saved?.length) setState({ blocks: saved });
-      else if (state.blocks.length) void kvSet('timetable', state.blocks);
+      // localStorage lost but the mirror survived: bring the day back (an emptied day — a new day,
+      // Clear all — is still stored, so it stays empty)
+      if (!blocksStored() && saved?.length) setState({ blocks: saved });
+      // otherwise the mirror follows, empty included, so it never holds a day that was already filed away
+      else if (blocksStored()) void kvSet('timetable', state.blocks);
     })
     .catch(() => {});
   onNotesChanged(() => scheduleFileSave());
@@ -112,7 +115,7 @@ export function mountBackup(refs: BackupRefs): void {
     try {
       const data = JSON.parse(await f.text()) as Partial<BackupFile>;
       if (data.app !== 'haru' || !Array.isArray(data.timetable)) throw new Error('not a Haru backup');
-      if (!confirm('Replace today’s tasks and all memos with this backup?')) return;
+      if (!(await askConfirm({ title: 'Restore this backup?', body: 'Today’s tasks and all memos are replaced with the ones in the file.', ok: 'Restore', icon: 'hard-drive' }))) return;
       // only well-formed entries come in (a hand-edited or older file must not break the app)
       const blocks = data.timetable.filter(isBlock).map((b) => ({ ...b, done: b.done === true }));
       const notes = (Array.isArray(data.notes) ? data.notes : []).filter((n): n is NoteRecord => typeof n?.date === 'string' && typeof n.text === 'string');

@@ -1,6 +1,9 @@
 import { icon } from './icons';
 import { toggleDrawer } from '../timetable/state';
 import { shownTheme, showTheme } from './theme';
+import { FEATURES, featureOn, onFeatures, setFeature } from './features';
+import { timeField } from './time-field';
+import { DEFAULT_RESET, onResetAt, resetAt, setResetAt } from '../timetable/day-reset';
 
 /**
  * The Haru logo (on the rail, or in the open overview) opens a small menu: Settings, the overview, a quick
@@ -32,7 +35,7 @@ const applyTheme = (t: Theme) => showTheme(t === 'system' ? (lightQuery.matches 
 export function mountSettings(): void {
   const dialog = document.getElementById('settings') as HTMLDialogElement;
   const build = document.getElementById('settings-build')!;
-  build.textContent = `Haru · build ${__BUILD_ID__}`;
+  build.textContent = __BUILD_ID__;
 
   const open = () => {
     if (!dialog.open) dialog.showModal();
@@ -54,6 +57,94 @@ export function mountSettings(): void {
     e.preventDefault();
     close();
   });
+
+  // ---- pages: the sidebar picks one; search shows every matching row across them
+  const navBtns = [...dialog.querySelectorAll<HTMLButtonElement>('.set-nav [data-set-page]')];
+  const pages = [...dialog.querySelectorAll<HTMLElement>('.set-page')];
+  const search = dialog.querySelector<HTMLInputElement>('#set-search')!;
+  const none = dialog.querySelector<HTMLElement>('.set-none')!;
+  const PAGE_KEY = 'haru:settings-page';
+  let page = read(PAGE_KEY) ?? 'appearance';
+  if (!pages.some((p) => p.dataset.page === page)) page = 'appearance';
+  function showPage(next: string): void {
+    page = next;
+    write(PAGE_KEY, page);
+    search.value = '';
+    filter();
+  }
+  function filter(): void {
+    const q = search.value.trim().toLowerCase();
+    let any = false;
+    for (const p of pages) {
+      if (!q) {
+        p.hidden = p.dataset.page !== page;
+        p.querySelectorAll<HTMLElement>('.set-row').forEach((r) => (r.hidden = false));
+        continue;
+      }
+      // searching: a page shows when its title or any of its rows match, and only those rows
+      const titleHit = (p.querySelector('.set-title')?.textContent ?? '').toLowerCase().includes(q);
+      let hits = 0;
+      p.querySelectorAll<HTMLElement>('.set-row').forEach((r) => {
+        const hit = titleHit || (r.textContent ?? '').toLowerCase().includes(q);
+        r.hidden = !hit;
+        if (hit) hits++;
+      });
+      p.hidden = !titleHit && !hits;
+      if (!p.hidden) any = true;
+    }
+    none.hidden = !q || any;
+    navBtns.forEach((b) => {
+      b.setAttribute('aria-current', String(!q && b.dataset.setPage === page));
+      b.classList.toggle('dim', !!q && !pages.some((p) => !p.hidden && p.dataset.page === b.dataset.setPage));
+    });
+  }
+  navBtns.forEach((b) => b.addEventListener('click', () => showPage(b.dataset.setPage!)));
+  dialog.querySelector<HTMLButtonElement>('.set-me')!.addEventListener('click', () => showPage('account'));
+  search.addEventListener('input', filter);
+  dialog.querySelector('#set-promo-export')!.addEventListener('click', () => document.getElementById('backup-export')!.click());
+  filter();
+
+  // ---- features: switches for the pages and tools that can be off
+  const featureBox = dialog.querySelector<HTMLElement>('#set-features')!;
+  featureBox.replaceChildren(...FEATURES.map((f) => {
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.innerHTML = '<div class="set-label"><strong></strong><span></span></div>';
+    row.querySelector('strong')!.textContent = f.label;
+    row.querySelector('span')!.textContent = f.hint;
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'switch';
+    sw.setAttribute('role', 'switch');
+    sw.setAttribute('aria-label', f.label);
+    sw.append(document.createElement('i'));
+    const paint = () => sw.setAttribute('aria-checked', String(featureOn(f.id)));
+    sw.addEventListener('click', () => setFeature(f.id, !featureOn(f.id)));
+    onFeatures(paint);
+    paint();
+    row.append(sw);
+    return row;
+  }));
+
+  // ---- new day: when Today is filed away and starts empty (off: it carries on)
+  const resetTime = dialog.querySelector<HTMLButtonElement>('#reset-time')!;
+  const resetOn = dialog.querySelector<HTMLButtonElement>('#reset-on')!;
+  // the time stays shown (dimmed) while off, so turning it back on keeps it
+  let lastReset = resetAt() ?? DEFAULT_RESET;
+  const resetField = timeField(resetTime, (m) => {
+    lastReset = m;
+    setResetAt(m);
+  });
+  resetOn.addEventListener('click', () => setResetAt(resetAt() === null ? lastReset : null));
+  const paintReset = () => {
+    const at = resetAt();
+    if (at !== null) lastReset = at;
+    resetField.set(lastReset);
+    resetTime.disabled = at === null;
+    resetOn.setAttribute('aria-checked', String(at !== null));
+  };
+  onResetAt(paintReset);
+  paintReset();
 
   // ---- theme: dark (default), light, or whatever the system uses
   const themeBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-theme-pick]')];

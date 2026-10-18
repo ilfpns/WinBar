@@ -24,6 +24,7 @@ import { mountWords } from './words/words';
 import { mountJournal } from './journal/journal';
 import { mountSettings } from './ui/settings';
 import { mountI18n } from './ui/i18n';
+import { featureOn, mountFeatures } from './ui/features';
 import { mountAttendance } from './calendar/attendance';
 
 hydrateIcons();
@@ -31,10 +32,11 @@ hydrateIcons();
 mountI18n();
 mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal') });
 mountRouter();
+mountFeatures();
 
 // labels, icons and links are not draggable content
 document.addEventListener('dragstart', (e) => {
-  if (!(e.target instanceof Element && e.target.closest('input, textarea, [draggable="true"]'))) e.preventDefault();
+  if (!(e.target instanceof Element && e.target.closest('input, textarea, md-editor, [draggable="true"]'))) e.preventDefault();
 });
 
 const byId = <T extends HTMLElement>(id: string): T => {
@@ -64,7 +66,7 @@ mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save')
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountSettings();
 mountWords(byId('words-body'), byId('words-sum'));
-mountJournal(byId('journal-body'), byId('journal-sum'));
+mountJournal(byId('journal-body'));
 mountWinBarLink();
 mountBackup({
   status: byId('backup-status'),
@@ -98,7 +100,7 @@ mountCalendar({
 });
 
 document.addEventListener('keydown', (e) => {
-  const typing = (e.target as Element).closest('input, select, textarea');
+  const typing = (e.target as Element).closest('input, select, textarea, md-editor');
   // Esc inside an open time picker or dialog (stats, image) only closes that
   if (e.key === 'Escape' && document.querySelector(':popover-open, dialog[open]')) return;
   if (e.key === 'Escape') {
@@ -119,7 +121,7 @@ document.addEventListener('keydown', (e) => {
     if (n) deleteSelected();
     else if (state.draft?.id) deleteDraftBlock();
   }
-  if (e.key === '/') {
+  if (e.key === '/' && featureOn('search')) {
     e.preventDefault();
     // the search lives in the overview panel: bring it out of the rail first
     toggleDrawer('left', true);

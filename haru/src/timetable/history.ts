@@ -1,6 +1,7 @@
 import { db } from '../storage/db';
+import { resetAt } from './day-reset';
 import { type Block } from './model';
-import { state, subscribe } from './state';
+import { setState, state, subscribe } from './state';
 
 /**
  * Day history: Today's timetable is snapshotted under the date it was on (kv store, key `day:YYYY-MM-DD`),
@@ -10,6 +11,11 @@ import { state, subscribe } from './state';
 const PREFIX = 'day:';
 export const dayKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** The day `d` belongs to: the date it was `resetAt()` minutes earlier (plain midnight when the reset is off). */
+export const dayOf = (d = new Date()): string => dayKey(new Date(d.getTime() - (resetAt() ?? 0) * 60_000));
+/** Which day Today's timetable belongs to (per browser), so a reset missed while Haru was closed still runs. */
+const OWNER_KEY = 'haru:timetable-day';
 
 export interface DaySnapshot { date: string; blocks: Block[]; saved: number }
 
@@ -70,15 +76,46 @@ export async function restoreDays(list: unknown[]): Promise<void> {
   }
 }
 
-/** Keeps today's snapshot current: on start, on every change, and when the date rolls over. */
+/**
+ * Keeps today's snapshot current: on start, on every change, and when the day rolls over. A new day (see
+ * day-reset) files the timetable under the day that ended and starts Today empty; with the reset off the
+ * same timetable carries into the new day.
+ */
 export function trackHistory(): void {
   let timer = 0;
   let last = state.blocks;
+  let today = dayOf();
+  try {
+    today = localStorage.getItem(OWNER_KEY) ?? today;
+  } catch {
+    // the day it is now
+  }
+  const own = (day: string) => {
+    today = day;
+    try {
+      localStorage.setItem(OWNER_KEY, day);
+    } catch {
+      // for this visit only
+    }
+  };
   const snap = () => {
     clearTimeout(timer);
-    const s = { date: dayKey(), blocks: state.blocks, saved: Date.now() };
+    const s = { date: today, blocks: state.blocks, saved: Date.now() };
     void put(s).then(() => savedListeners.forEach((fn) => fn(s))).catch(() => {});
   };
+  /**
+   * Moves on only when the day is past the one the timetable belongs to: setting a later reset time never
+   * steps back onto (and overwrites) a day that is already filed.
+   */
+  function roll(): void {
+    const now = dayOf();
+    if (now <= today) return;
+    // the day that ended keeps the timetable as it was
+    snap();
+    own(now);
+    if (resetAt() !== null && state.blocks.length) setState({ blocks: [], draft: null, selected: [] });
+    else snap();
+  }
   subscribe(() => {
     if (state.blocks === last) return;
     last = state.blocks;
@@ -86,12 +123,12 @@ export function trackHistory(): void {
     timer = window.setTimeout(snap, 400);
   });
   addEventListener('pagehide', snap);
+  // a new day may have begun while Haru was closed
+  roll();
+  own(today);
   snap();
-  // past midnight the same timetable carries into the new day
-  let today = dayKey();
-  setInterval(() => {
-    if (dayKey() === today) return;
-    today = dayKey();
-    snap();
-  }, 60_000);
+  setInterval(roll, 30_000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') roll();
+  });
 }

@@ -86,6 +86,9 @@ class TimePopover {
   open(trigger: HTMLButtonElement, value: number, pick: (m: number) => void): void {
     this.owner = { trigger, value, pick };
     this.mark();
+    // a modal dialog makes everything outside it inert, so a picker opened from one has to live inside it
+    const host = trigger.closest('dialog') ?? document.body;
+    if (this.el.parentElement !== host) host.append(this.el);
     this.el.showPopover();
     // place under the trigger, flipping above / nudging inward near the viewport edges
     const r = trigger.getBoundingClientRect();
