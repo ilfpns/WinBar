@@ -1,13 +1,18 @@
 import { cloudConfigured, loadFirebase, type Fb } from './firebase';
 import { startSync, type SyncStatus } from './sync';
+import { setSession } from './session';
 import { icon } from '../ui/icons';
+import { switchAccountData } from '../storage/backup';
 
 /**
- * Sign-in with Google, invite-only. Who may use Haru is the `allow/{email}` collection (the owner manages it;
+ * Sign-in with Google, invite-only. Who may use Haru is the `allow/{email}` collection (the owners manage it;
  * Firestore rules enforce it). Until a signed-in, invited account is confirmed, a gate covers the app.
- * Without a Firebase config the app stays local and none of this appears.
+ * Everyone's planner is their own: on a shared device, another account signing in puts the previous one's
+ * data aside first. Without a Firebase config the app stays local and none of this appears.
  */
 const INVITED_KEY = 'haru:invited';
+/** Whose data this device holds (a uid); the first account to sign in takes over what was here. */
+const DATA_OWNER_KEY = 'haru:data-owner';
 
 export interface AccountRefs {
   section: HTMLElement;
@@ -92,6 +97,7 @@ export function mountAccount(refs: AccountRefs): void {
       stopSync?.();
       stopSync = null;
       invites.hidden = true;
+      setSession(null);
       if (!user) {
         signOut.hidden = true;
         who.replaceChildren();
@@ -126,10 +132,30 @@ export function mountAccount(refs: AccountRefs): void {
       } catch {
         // ignore
       }
+      // someone else's data is on this device: put it aside and bring this account's in
+      let dataOwner: string | null = null;
+      try {
+        dataOwner = localStorage.getItem(DATA_OWNER_KEY);
+      } catch {
+        // ignore
+      }
+      if (dataOwner && dataOwner !== user.uid) {
+        showGate('Getting your Haru ready…', false);
+        await switchAccountData(dataOwner, user.uid);
+      }
+      try {
+        localStorage.setItem(DATA_OWNER_KEY, user.uid);
+      } catch {
+        // ignore
+      }
       hideGate();
-      renderWho(user.displayName ?? email, email, user.photoURL);
+      const name = user.displayName ?? email;
+      renderWho(name, email, user.photoURL);
       stopSync = startSync(fb, user.uid, (s) => (status.textContent = labels[s]));
       if (owner) mountInvites(fb, email);
+      // how the others see this account (the Today switcher, the Archive)
+      void fs.setDoc(fs.doc(db, 'profiles', user.uid), { uid: user.uid, name, email, photo: user.photoURL ?? null, updated: Date.now() }).catch(() => {});
+      setSession({ fb, uid: user.uid, email, name, photo: user.photoURL ?? null, owner });
     });
   }).catch(() => {
     // Firebase couldn't load (offline on first visit): keep working locally

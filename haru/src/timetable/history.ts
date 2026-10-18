@@ -76,6 +76,17 @@ export async function restoreDays(list: unknown[]): Promise<void> {
   }
 }
 
+/** Drops every day's snapshot (another account takes over this device; its own come back from the cloud). */
+export async function clearDays(): Promise<void> {
+  const d = await db();
+  await new Promise<void>((resolve, reject) => {
+    const tx = d.transaction('kv', 'readwrite');
+    tx.objectStore('kv').delete(IDBKeyRange.bound(PREFIX, `${PREFIX}￿`));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 /**
  * Keeps today's snapshot current: on start, on every change, and when the day rolls over. A new day (see
  * day-reset) files the timetable under the day that ended and starts Today empty; with the reset off the

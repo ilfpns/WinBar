@@ -26,11 +26,13 @@ import { mountSettings } from './ui/settings';
 import { mountI18n } from './ui/i18n';
 import { featureOn, mountFeatures } from './ui/features';
 import { mountAttendance } from './calendar/attendance';
+import { mountArchive } from './archive/archive';
+import { mountPeek } from './timetable/peek';
 
 hydrateIcons();
 // Korean labels (if picked) go on before the pages render, and follow everything they render later
 mountI18n();
-mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal') });
+mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal'), archive: byIdEarly('archive') });
 mountRouter();
 mountFeatures();
 
@@ -67,6 +69,8 @@ mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountSettings();
 mountWords(byId('words-body'), byId('words-sum'));
 mountJournal(byId('journal-body'));
+mountArchive(byId('archive-body'), byId('archive-sum'));
+mountPeek(byId('stage'));
 mountWinBarLink();
 mountBackup({
   status: byId('backup-status'),

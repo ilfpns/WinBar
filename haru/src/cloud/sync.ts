@@ -5,6 +5,10 @@ import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templates
 import { allDays, onDaySaved, putFromRemote, type DaySnapshot } from '../timetable/history';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
+import { checkinStore } from '../calendar/attendance';
+import type { ListStore } from '../storage/list-store';
+import { wordsStore } from '../words/words';
+import { folderStore, journalStore } from '../journal/journal';
 
 /**
  * Two-way sync of one user's data with Firestore (`users/{uid}/…`). Each piece carries a time stamp and the
@@ -15,6 +19,7 @@ import { fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calenda
  *   notes/{date}      { date, text, updated }      memos
  *   days/{date}       { date, blocks, saved }      day history
  *   images/{id}       { id, date, created, data }  memo images (data URL, kept under Firestore's 1 MB limit)
+ *   lists/{key}       { items, updated }           words, journal pages and folders, check-ins
  */
 export type SyncStatus = 'syncing' | 'synced' | 'offline' | 'error';
 
@@ -226,6 +231,55 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
           imagesSeeded = true;
           void pushImages();
         }
+      }, () => onStatus('error')));
+    });
+  }
+
+  // ---------- lists (one document each, the newer side wins; check-ins are only ever added, so they merge)
+  const lists: [string, ListStore<unknown>, boolean][] = [
+    ['words', wordsStore, false],
+    ['journal', journalStore, false],
+    ['journal-folders', folderStore, false],
+    ['checkins', checkinStore, true],
+  ];
+  for (const [key, store, merge] of lists) {
+    let cloudStamp = 0;
+    const push = () => {
+      // Firestore takes no `undefined` fields: a JSON round trip drops them
+      const items = JSON.parse(JSON.stringify(store.all())) as unknown[];
+      // one document holds at most 1 MB
+      if (JSON.stringify(items).length > MAX_IMAGE_BYTES) {
+        onStatus('error');
+        return;
+      }
+      cloudStamp = store.updated() || Date.now();
+      write(fs.setDoc(ref(`lists/${key}`), { items, updated: cloudStamp }));
+    };
+    store.onChange(() => {
+      if (!stopped && store.updated() > cloudStamp) push();
+    });
+    void store.ready.then(() => {
+      if (stopped) return;
+      unsubs.push(fs.onSnapshot(ref(`lists/${key}`), (snap) => {
+        if (snap.metadata.hasPendingWrites) return;
+        const data = snap.data() as { items: unknown[]; updated: number } | undefined;
+        if (!data) {
+          // nothing in the cloud yet: this device's list goes up
+          if (store.all().length) push();
+          return;
+        }
+        if (merge) {
+          const both = [...new Set([...store.all(), ...data.items])].sort() as unknown[];
+          if (both.length !== store.all().length) store.fromRemote(both, Math.max(data.updated, store.updated()));
+          cloudStamp = data.updated;
+          if (both.length !== data.items.length) push();
+          return;
+        }
+        if (data.updated > store.updated()) {
+          cloudStamp = data.updated;
+          store.fromRemote(data.items, data.updated);
+        } else if (store.updated() > data.updated) push();
+        else cloudStamp = data.updated;
       }, () => onStatus('error')));
     });
   }

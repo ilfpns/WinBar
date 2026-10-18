@@ -1,10 +1,10 @@
 import { kvGet, kvSet, requestPersistence } from './db';
-import { type Block, blocksStored, isBlock } from '../timetable/model';
+import { type Block, blocksStored, blocksUpdated, isBlock, stampBlocks } from '../timetable/model';
 import { setState, state, subscribe } from '../timetable/state';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { type ImageRecord, fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
-import { type Template, allTemplates, onTemplates, replaceTemplates } from '../timetable/templates';
-import { type DaySnapshot, allDays, restoreDays } from '../timetable/history';
+import { type Template, allTemplates, onTemplates, replaceTemplates, templatesFromRemote, templatesUpdated } from '../timetable/templates';
+import { type DaySnapshot, allDays, clearDays, restoreDays } from '../timetable/history';
 import { type Word, wordsStore } from '../words/words';
 import { type Entry, type Folder, folderStore, journalStore } from '../journal/journal';
 import { checkinStore } from '../calendar/attendance';
@@ -57,6 +57,40 @@ export interface BackupRefs {
 async function snapshot(): Promise<BackupFile> {
   const images = await Promise.all((imagesStore()?.all() ?? []).map(async (r) => ({ id: r.id, date: r.date, created: r.created, data: await toDataUrl(r.blob) })));
   return { app: 'haru', version: 1, exportedAt: new Date().toISOString(), timetable: state.blocks, notes: notesStore()?.all() ?? [], images, templates: allTemplates(), days: await allDays().catch(() => []), words: wordsStore.all(), journal: journalStore.all(), journalFolders: folderStore.all(), checkins: checkinStore.all() };
+}
+
+/** What an account kept on this device while another one was signed in (IndexedDB `kv`, `stash:{uid}`). */
+interface Stash { data: BackupFile; stamps: { blocks: number; templates: number; lists: Record<string, number> } }
+const LISTS = { words: wordsStore, journal: journalStore, journalFolders: folderStore, checkins: checkinStore } as const;
+type ListKey = keyof typeof LISTS;
+
+/**
+ * One device, several accounts: when another account signs in, everything on the device is put aside for
+ * the account that used it, and the newcomer's own comes in — what it left here earlier, or nothing (its
+ * cloud copy then fills the device). The time stamps travel with the data, so an emptied device never
+ * counts as newer than an account's cloud copy and never overwrites it.
+ */
+export async function switchAccountData(from: string | null, to: string): Promise<void> {
+  if (from === to) return;
+  if (from) {
+    const lists = Object.fromEntries((Object.keys(LISTS) as ListKey[]).map((k) => [k, LISTS[k].updated()]));
+    const stash: Stash = { data: await snapshot(), stamps: { blocks: blocksUpdated(), templates: templatesUpdated(), lists } };
+    await kvSet(`stash:${from}`, stash);
+  }
+  const back = await kvGet<Stash | null>(`stash:${to}`).catch(() => undefined);
+  const d = back?.data;
+  const stamps = back?.stamps;
+  setState({ blocks: (d?.timetable ?? []).filter(isBlock).map((b) => ({ ...b, done: b.done === true })), draft: null, selected: [] });
+  stampBlocks(stamps?.blocks ?? 0);
+  notesStore()?.replace(d?.notes ?? []);
+  templatesFromRemote(d?.templates ?? [], stamps?.templates ?? 0);
+  await clearDays();
+  if (d?.days) await restoreDays(d.days);
+  for (const k of Object.keys(LISTS) as ListKey[]) LISTS[k].fromRemote((d?.[k] as unknown[] | undefined) ?? [], stamps?.lists[k] ?? 0);
+  const imgs: ImageRecord[] = [];
+  for (const i of d?.images ?? []) imgs.push({ id: i.id, date: i.date, created: i.created, blob: await fromDataUrl(i.data) });
+  imagesStore()?.replace(imgs);
+  if (back) await kvSet(`stash:${to}`, null);
 }
 
 export function mountBackup(refs: BackupRefs): void {

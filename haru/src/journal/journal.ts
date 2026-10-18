@@ -5,6 +5,8 @@ import { mdPad } from '../ui/md-pad';
 import { type MdEditor } from '../ui/md-editor';
 import { printPdf } from '../ui/print';
 import { askConfirm, askText, showMenu } from '../ui/modal';
+import { onSession, session } from '../cloud/session';
+import { sharePage, unsharePage } from '../archive/archive';
 
 /**
  * Journal: pages written in your own words — a summary of the day, a thought, a plan — always filed in a
@@ -66,6 +68,7 @@ export function mountJournal(body: HTMLElement): void {
         <span class="j-date"></span>
         <button type="button" class="j-folder" aria-haspopup="menu" title="Move to another folder"><span class="j-folder-name"></span></button>
         <span class="j-head-fill"></span>
+        <button type="button" class="icon-btn j-share" aria-label="Share to Archive" title="Share to Archive" hidden></button>
         <button type="button" class="icon-btn j-pdf" aria-label="Export this page as PDF" title="Export as PDF"></button>
         <button type="button" class="icon-btn j-del" aria-label="Delete page" title="Delete page"></button>
       </div>
@@ -100,6 +103,28 @@ export function mountJournal(body: HTMLElement): void {
     printPdf(`Haru Journal ${date}`, 'Journal', [asSection({ date, title: titleIn.value.trim(), body: text.value })]);
   });
   const entries = () => journalStore.all();
+
+  // ---- Share: a copy of the page goes to the Archive, for everyone invited (signed in only)
+  const shareBtn = $<HTMLButtonElement>('.j-share');
+  shareBtn.append(icon('share'));
+  onSession((s) => (shareBtn.hidden = !s));
+  shareBtn.hidden = !session();
+  shareBtn.addEventListener('click', async () => {
+    flush();
+    const s = session();
+    const page = openId ? entries().find((e) => e.id === openId) : undefined;
+    if (!s) return;
+    if (!page) {
+      tell('Write something to share first');
+      return;
+    }
+    try {
+      await sharePage(s, page);
+      tell('Shared to Archive', () => void unsharePage(s, s.uid, page.id).catch(() => {}));
+    } catch {
+      tell('Couldn’t share. Check your connection.');
+    }
+  });
   /** The page in the editor; null = a fresh page that becomes an entry once something is written. */
   let openId: string | null = null;
   let draftDate = dayKey();

@@ -133,6 +133,17 @@ const KO: Record<string, string> = {
   'Syncing…': '동기화 중…', Offline: '오프라인', 'Sync error': '동기화 오류', 'Checking access…': '접근 권한 확인 중…',
   'Sign in with an invited Google account.': '초대된 Google 계정으로 로그인하세요.', 'Sign-in failed. Try again.': '로그인에 실패했어요. 다시 시도하세요.',
   Invites: '초대', 'Only you so far': '아직 나만 있어요',
+  // sharing and other people's Today
+  Archive: '아카이브', 'Archive · pages everyone shared': '아카이브 · 모두가 공유한 페이지', 'Journal pages everyone shared': '모두가 공유한 일기 페이지',
+  Shared: '공유됨', 'Shared pages': '공유된 페이지', 'Nothing shared yet': '아직 공유된 페이지가 없어요', 'Sign in to see shared pages': '로그인하면 공유된 페이지를 볼 수 있어요',
+  'Pages shared from Journal show here once you sign in.': '로그인하면 일기에서 공유한 페이지가 여기에 보여요.',
+  'Share a page from Journal and it shows here for everyone invited.': '일기에서 페이지를 공유하면 초대된 모두에게 여기에 보여요.',
+  'Share to Archive': '아카이브에 공유', 'Shared to Archive': '아카이브에 공유했어요', 'Write something to share first': '먼저 내용을 써 주세요',
+  'Couldn’t share. Check your connection.': '공유하지 못했어요. 연결을 확인하세요.', 'Remove from Archive': '아카이브에서 내리기',
+  'The page stays in its author’s Journal.': '페이지는 작성자의 일기에 그대로 남아요.', 'The Archive couldn’t be loaded. Check your connection.': '아카이브를 불러오지 못했어요. 연결을 확인하세요.',
+  'See someone’s Today': '다른 사람의 오늘 보기', 'Someone’s Today (read only)': '다른 사람의 오늘 (보기 전용)', 'Back to my Today': '내 오늘로 돌아가기', 'My Today': '내 오늘',
+  'Read only': '보기 전용', 'No one else yet': '아직 다른 사람이 없어요', 'Loading…': '불러오는 중…',
+  'Their Today couldn’t be loaded.': '오늘 시간표를 불러오지 못했어요.', Me: '나', 'Getting your Haru ready…': 'Haru를 준비하는 중…',
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -141,6 +152,11 @@ const t = (s: string) => KO[s] ?? s;
 
 /** Strings with numbers or names in them. */
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
+  // sharing and other people's Today
+  [/^(.+)’s Today$/, (_, n) => `${n}의 오늘`],
+  [/^(\d+) shared$/, (_, n) => `${n}개 공유됨`],
+  [/^Remove “(.+)” from Archive\?$/, (_, n) => `“${n}”을(를) 아카이브에서 내릴까요?`],
+  [/^(.+) planned · (\d+)% of the day done$/, (_, p, n) => `${p} 계획 · 하루의 ${n}% 완료`],
   // the calendar memo's quick-add hint (the syntax itself stays)
   [/^! 12:00~12:30 work Title\n {2}→ moves to Today\n\ncategories\n([\s\S]*)$/, (_, cats) => `! 12:00~12:30 work 제목\n  → 오늘 시간표로 옮겨져요\n\n카테고리\n${cats}`],
   // dates as JavaScript writes them (calendar cells), weekday · hour blocks (stats), ring tooltips, done toggles
@@ -153,7 +169,9 @@ const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^(.+)\. Flip to see the meaning$/, (_, w) => `${w}. 뒤집어서 뜻 보기`],
   [/^TOEIC · box (\d+) of (\d+) · next (.+) · right (\d+) · missed (\d+)$/, (_, b, m, n, r, w) => `TOEIC · ${b}/${m}단계 · 다음 ${n === 'today' ? '오늘' : n} · 맞힘 ${r} · 틀림 ${w}`],
   [/^My words · box (\d+) of (\d+) · next (.+) · right (\d+) · missed (\d+)$/, (_, b, m, n, r, w) => `내 단어 · ${b}/${m}단계 · 다음 ${n === 'today' ? '오늘' : n} · 맞힘 ${r} · 틀림 ${w}`],
-  [/^Attendance: (\d+) days in the last (\d+) weeks, current streak (\d+) days$/, (_, n, w, s) => `출석: 최근 ${w}주 동안 ${n}일, 현재 ${s}일 연속`],
+  [/^Attendance: (\d+) days in the last (\d+) weeks, current streak (\d+) days, best (\d+) days$/, (_, n, w, s, b) => `출석: 최근 ${w}주 동안 ${n}일, 현재 ${s}일 연속, 최고 ${b}일`],
+  [/^Best streak · (\d+) days?$/, (_, b) => `최고 연속 · ${b}일`],
+  [/^(\d{4}-\d{2}-\d{2}) · (attended|missed)$/, (_, d, a) => `${d} · ${a === 'attended' ? '출석' : '결석'}`],
   [/^(\d+) left$/, (_, n) => `${n}개 남음`],
   [/^(.+) left$/, (_, d) => `${d} 남음`],
   [/^next (.+)$/, (_, h) => `다음 ${h}`],

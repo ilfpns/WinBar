@@ -11,8 +11,8 @@ const config = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
 };
 
-/** Sign-in and cloud sync, off during development: the app runs local-only with no gate. Set true to bring them back. */
-const SIGN_IN_ENABLED = false;
+/** Sign-in and cloud sync: invited Google accounts only (off: the app runs local-only with no gate). */
+const SIGN_IN_ENABLED = true;
 
 export const cloudConfigured = SIGN_IN_ENABLED && Boolean(config.apiKey && config.projectId && config.authDomain);
 

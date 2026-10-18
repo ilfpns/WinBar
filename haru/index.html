@@ -64,6 +64,11 @@
     <div class="pg-body journal-body" id="journal-body"></div>
   </main>
 
+  <main class="archive-view text-page page" id="archive" aria-label="Archive">
+    <header class="pg-head"><h1>Archive</h1><span class="meta" id="archive-sum"></span></header>
+    <div class="pg-body journal-body" id="archive-body"></div>
+  </main>
+
   <!-- the closed overview: a slim glass rail (logo, pages, search); the open panel slides over it -->
   <nav class="rail" id="rail" aria-label="Pages">
     <button type="button" class="rail-btn rail-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" data-tip="Haru · settings and more"><i data-icon="circle-dot"></i></button>
@@ -74,6 +79,7 @@
     <a class="rail-btn" href="#/news" data-view="news" aria-label="News" data-tip="News · headlines on the globe, attendance"><i data-icon="newspaper"></i></a>
     <a class="rail-btn" href="#/words" data-view="words" aria-label="Words" data-tip="Words · learn English vocabulary"><i data-icon="languages"></i></a>
     <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
+    <a class="rail-btn" href="#/archive" data-view="archive" aria-label="Archive" data-tip="Archive · pages everyone shared"><i data-icon="archive"></i></a>
     <button type="button" class="rail-btn" id="rail-search" aria-label="Search tasks" data-tip="Search tasks  /"><i data-icon="search"></i></button>
     <span class="rail-fill"></span>
     <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
@@ -104,6 +110,9 @@
         </a>
         <a class="nav-item" href="#/journal" data-view="journal">
           <i data-icon="notebook-pen"></i>Journal
+        </a>
+        <a class="nav-item" href="#/archive" data-view="archive">
+          <i data-icon="archive"></i>Archive
         </a>
       </nav>
 

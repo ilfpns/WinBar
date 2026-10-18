@@ -1,9 +1,9 @@
-export type View = 'today' | 'calendar' | 'news' | 'words' | 'journal';
+export type View = 'today' | 'calendar' | 'news' | 'words' | 'journal' | 'archive';
 
-/** Views are stacked like pages: Today on top, then Calendar, News, Words and Journal. */
-export const VIEW_ORDER: View[] = ['today', 'calendar', 'news', 'words', 'journal'];
+/** Views are stacked like pages: Today on top, then Calendar, News, Words, Journal and Archive. */
+export const VIEW_ORDER: View[] = ['today', 'calendar', 'news', 'words', 'journal', 'archive'];
 
-const TITLES: Record<View, string> = { today: 'Today', calendar: 'Calendar', news: 'News', words: 'Words', journal: 'Journal' };
+const TITLES: Record<View, string> = { today: 'Today', calendar: 'Calendar', news: 'News', words: 'Words', journal: 'Journal', archive: 'Archive' };
 
 type Listener = (view: View, prev: View | null) => void;
 const listeners = new Set<Listener>();

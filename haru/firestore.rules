@@ -1,8 +1,9 @@
 rules_version = '2';
 
-// Haru: invite-only. The owner manages `allow/{email}`; an invited (or the owner's) Google account may read and
-// write only its own data under `users/{uid}`. Paste into Firebase console → Firestore → Rules, or
-// `firebase deploy --only firestore:rules`. Replace OWNER_EMAIL with the owner's Google address.
+// Haru: invite-only. The owners manage `allow/{email}`; an invited (or an owner's) Google account reads and
+// writes its own planner under `users/{uid}`, may look at (never change) the others' Today, and shares journal
+// pages to the common `archive`. Paste into Firebase console → Firestore → Rules, or
+// `firebase deploy --only firestore:rules`.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -12,21 +13,40 @@ service cloud.firestore {
       return request.auth.token.email.lower();
     }
     function isOwner() {
-      return signedIn() && email() == 'OWNER_EMAIL';
+      return signedIn() && email() in ['publicclaude223@gmail.com', 'yeomsh09@gmail.com'];
     }
     function isInvited() {
       return signedIn() && (isOwner() || exists(/databases/$(database)/documents/allow/$(email())));
     }
 
-    // invitations: the owner lists and edits them; anyone signed in may check their own entry
+    // invitations: the owners list and edit them; anyone signed in may check their own entry
     match /allow/{invitee} {
       allow read: if isOwner() || (signedIn() && email() == invitee);
       allow write: if isOwner();
     }
 
-    // each person's planner
+    // who is in Haru (name, photo), for the Today switcher and the Archive; each writes only their own
+    match /profiles/{uid} {
+      allow read: if isInvited();
+      allow write: if isInvited() && request.auth.uid == uid;
+    }
+
+    // each person's planner is their own…
     match /users/{uid}/{document=**} {
       allow read, write: if isInvited() && request.auth.uid == uid;
+    }
+    // …but everyone invited may look at anyone's Today
+    match /users/{uid}/state/timetable {
+      allow read: if isInvited();
+    }
+
+    // the shared archive: journal pages sent with Share. Everyone invited reads it; a page is written only
+    // by its author (as themselves), and taken down by its author or an owner
+    match /archive/{id} {
+      allow read: if isInvited();
+      allow create: if isInvited() && request.resource.data.authorUid == request.auth.uid;
+      allow update: if isInvited() && request.resource.data.authorUid == request.auth.uid && resource.data.authorUid == request.auth.uid;
+      allow delete: if isInvited() && (resource.data.authorUid == request.auth.uid || isOwner());
     }
   }
 }

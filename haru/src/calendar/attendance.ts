@@ -1,29 +1,40 @@
-import { allDays, dayKey, onDaySaved, type DaySnapshot } from '../timetable/history';
-import { progressOf } from '../timetable/model';
-import { state } from '../timetable/state';
+import { allDays, dayKey } from '../timetable/history';
 import { listStore } from '../storage/list-store';
 import { icon } from '../ui/icons';
 
 /**
  * Attendance, on the News (globe) page: a Check in button for today and the recent weeks as a grass grid
- * (weeks across, Mon–Sun down). A day counts once you checked in; its shade is how much of that day's plan
- * got done. Before check-ins existed, opening Haru counted as attending: those days (a saved snapshot
- * before CHECKIN_SINCE) still count, so no old grass disappears.
+ * (weeks across, Mon–Sun down). A day you checked in is filled; nothing else counts. Above it, the streak
+ * now and the longest one. Before check-ins existed, opening Haru counted as attending: those days (a saved
+ * snapshot before CHECKIN_SINCE) still count, so no old grass disappears.
  */
 const WEEKS = 53;
-const LEVELS = ['Low', 'Medium', 'High', 'Best'] as const;
 const CHECKIN_SINCE = '2026-10-16';
 
 const isDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 /** The days you checked in on (YYYY-MM-DD). Backups carry it as `checkins`. */
 export const checkinStore = listStore<string>('checkins', isDate);
 
-/** 1–4 from the share of the plan that was done; a day with nothing planned still counts as attended. */
-function levelOf(blocks: DaySnapshot['blocks'] | undefined): number {
-  if (!blocks) return 1;
-  const { done, planned } = progressOf(blocks);
-  const r = planned ? done / planned : 0;
-  return r >= 0.85 ? 4 : r >= 0.5 ? 3 : r > 0 ? 2 : 1;
+/** The day after `key` (YYYY-MM-DD). */
+function nextDay(key: string): string {
+  const d = new Date(`${key}T00:00`);
+  d.setDate(d.getDate() + 1);
+  return dayKey(d);
+}
+
+/** The longest run of consecutive days in `days`. */
+function longestRun(days: Set<string>): number {
+  let best = 0;
+  for (const key of days) {
+    // only count from the first day of a run
+    const prev = new Date(`${key}T00:00`);
+    prev.setDate(prev.getDate() - 1);
+    if (days.has(dayKey(prev))) continue;
+    let n = 1;
+    for (let k = nextDay(key); days.has(k); k = nextDay(k)) n++;
+    best = Math.max(best, n);
+  }
+  return best;
 }
 
 export interface Attendance {
@@ -37,20 +48,18 @@ export function createAttendance(): Attendance {
   root.innerHTML = `
     <div class="att-head"><span class="att-title">Attendance</span><span class="meta att-sum"></span></div>
     <button type="button" class="att-check" aria-pressed="false"><span class="att-box"></span><span class="att-check-text"></span></button>
-    <div class="att-day"><i class="att-sw"></i><span class="att-day-text"></span></div>
-    <div class="att-cal"><div class="att-months" aria-hidden="true"></div><div class="att-grid" role="img"></div></div>
-    <div class="att-legend">${LEVELS.map((l, i) => `<span><i class="att-sw" data-l="${i + 1}"></i>${l}</span>`).join('')}</div>`;
+    <p class="att-best"></p>
+    <div class="att-cal"><div class="att-months" aria-hidden="true"></div><div class="att-grid" role="img"></div></div>`;
   const grid = root.querySelector<HTMLElement>('.att-grid')!;
   const sum = root.querySelector<HTMLElement>('.att-sum')!;
   const months = root.querySelector<HTMLElement>('.att-months')!;
   const cal = root.querySelector<HTMLElement>('.att-cal')!;
   const check = root.querySelector<HTMLButtonElement>('.att-check')!;
   const checkText = root.querySelector<HTMLElement>('.att-check-text')!;
-  const daySw = root.querySelector<HTMLElement>('.att-day .att-sw')!;
-  const dayText = root.querySelector<HTMLElement>('.att-day-text')!;
+  const bestEl = root.querySelector<HTMLElement>('.att-best')!;
   root.querySelector('.att-box')!.append(icon('check'));
 
-  // the cells never change, only their level: built once
+  // the cells never change, only whether they are filled: built once
   const cells: HTMLElement[] = [];
   for (let i = 0; i < WEEKS * 7; i++) {
     const c = document.createElement('i');
@@ -59,30 +68,16 @@ export function createAttendance(): Attendance {
   }
   grid.replaceChildren(...cells);
 
-  let byDate = new Map<string, DaySnapshot['blocks']>();
-  let selected = dayKey();
+  /** Days with a saved timetable from before check-ins existed. */
+  let opened = new Set<string>();
 
-  const checkedIn = (key: string) => checkinStore.all().includes(key);
-  const attended = (key: string) => checkedIn(key) || (key < CHECKIN_SINCE && byDate.has(key));
-  const blocksOn = (key: string) => (key === dayKey() ? state.blocks : byDate.get(key));
-
-  function showDay(): void {
-    const today = dayKey();
-    const l = selected <= today && attended(selected) ? levelOf(blocksOn(selected)) : 0;
-    daySw.dataset.l = String(l);
-    const when = selected === today ? 'Today' : new Date(`${selected}T00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (selected > today) dayText.textContent = `${when} · ahead`;
-    else if (!l) dayText.textContent = selected === today ? 'Today · not checked in yet' : `${when} · missed`;
-    else {
-      const { done, planned } = progressOf(blocksOn(selected) ?? []);
-      dayText.textContent = `${when} · ${LEVELS[l - 1]} · ${planned ? Math.round((done / planned) * 100) : 0}% of plan`;
-    }
-    for (const c of cells) c.classList.toggle('sel', c.dataset.date === selected);
-  }
+  /** Every attended day: check-ins, plus the days Haru was opened before check-ins existed. */
+  const attendedDays = () => new Set([...checkinStore.all(), ...[...opened].filter((k) => k < CHECKIN_SINCE)]);
 
   function paint(): void {
     const today = dayKey();
-    const done = checkedIn(today);
+    const days = attendedDays();
+    const done = days.has(today);
     check.setAttribute('aria-pressed', String(done));
     checkText.textContent = done ? 'Checked in today' : 'Check in';
     check.title = done ? 'Click to undo today’s check-in' : 'Mark today as attended';
@@ -112,13 +107,13 @@ export function createAttendance(): Attendance {
     for (const c of cells) {
       const key = dayKey(d);
       const future = key > today;
-      const on = !future && attended(key);
-      const l = on ? levelOf(blocksOn(key)) : 0;
-      c.dataset.l = String(l);
+      const on = !future && days.has(key);
+      // attended is simply filled (the brightest shade)
+      c.dataset.l = on ? '4' : '0';
       c.dataset.date = key;
       c.classList.toggle('future', future);
       c.classList.toggle('today', key === today);
-      c.title = future ? '' : on ? `${key} · ${LEVELS[l - 1]}` : `${key} · missed`;
+      c.title = future ? '' : on ? `${key} · attended` : `${key} · missed`;
       if (on) count++;
       d.setDate(d.getDate() + 1);
     }
@@ -126,20 +121,21 @@ export function createAttendance(): Attendance {
     let streak = 0;
     const back = new Date();
     if (!done) back.setDate(back.getDate() - 1);
-    while (attended(dayKey(back))) {
+    while (days.has(dayKey(back))) {
       streak++;
       back.setDate(back.getDate() - 1);
     }
+    const best = Math.max(streak, longestRun(days));
     sum.textContent = `${streak}-day streak`;
-    grid.setAttribute('aria-label', `Attendance: ${count} days in the last ${WEEKS} weeks, current streak ${streak} days`);
-    showDay();
+    bestEl.replaceChildren(icon('flame'), `Best streak · ${best} ${best === 1 ? 'day' : 'days'}`);
+    grid.setAttribute('aria-label', `Attendance: ${count} days in the last ${WEEKS} weeks, current streak ${streak} days, best ${best} days`);
     // narrow screens scroll the year sideways: start at this week
     cal.scrollLeft = cal.scrollWidth;
   }
 
   async function load(): Promise<void> {
-    const saved = await allDays().catch(() => [] as DaySnapshot[]);
-    byDate = new Map(saved.map((d) => [d.date, d.blocks]));
+    const saved = await allDays().catch(() => []);
+    opened = new Set(saved.map((s) => s.date));
     paint();
   }
 
@@ -153,22 +149,16 @@ export function createAttendance(): Attendance {
       void check.offsetWidth;
       check.classList.add('pop');
     }
-    selected = today;
-  });
-  grid.addEventListener('click', (e) => {
-    const c = (e.target as Element).closest<HTMLElement>('.att-cell[data-date]');
-    if (!c || c.classList.contains('future')) return;
-    selected = c.dataset.date!;
-    showDay();
   });
 
-  let pending = 0;
-  // today's snapshot is rewritten after every timetable change
-  onDaySaved(() => {
-    clearTimeout(pending);
-    pending = window.setTimeout(() => void load(), 500);
-  });
   checkinStore.onChange(paint);
+  // past midnight: a new day to check in on
+  let shown = dayKey();
+  setInterval(() => {
+    if (dayKey() === shown) return;
+    shown = dayKey();
+    paint();
+  }, 60_000);
   // whenever the bar changes width (window, drawers) the year scrolls back to this week
   new ResizeObserver(() => (cal.scrollLeft = cal.scrollWidth)).observe(cal);
   void load();
