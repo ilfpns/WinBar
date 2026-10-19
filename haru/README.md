@@ -8,7 +8,7 @@ Haru is WinBar's day planner: a web app built around a 24-hour dial, opened from
 - **School timetable** — Settings → Today: find a school, pick a class, Apply puts today's lessons on Today. 대덕소프트웨어마이스터고 comes from 컴시간알리미 (with its bell times); other schools from NEIS.
 - **Calendar** — Korean holidays & observances, the school's academic calendar, day memos (with images) and statistics.
 - **News** — headlines on the globe, and attendance: check in daily; the grass also fills from the Notion attendance table.
-- **Words**, **Journal** (pages in folders, photos inline in the text, pinning, share to **Archive**), and **Your days** — Today's history as statistics at the top of Journal.
+- **Chat** (one room for everyone invited), **Words**, **Journal** (pages in folders, photos inline in the text, pinning, share to **Archive**), and **Your days** — Today's history as statistics at the top of Journal.
 - **Accounts** — invite-only Google sign-in; everyone's planner is their own and syncs across devices (Firestore). Today of another member can be looked at, read only.
 - Progress is measured against the whole day: finishing every block of a fully planned 24h is 100%.
 - Opened from WinBar (`?winbar=1`), finishing tasks updates the WinBar menu-bar emblem via `winbar://`.
@@ -37,6 +37,7 @@ npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.13** (2026-10-20) — 채팅방 추가 (아카이브 아래, 실시간, 안 읽음 점)
 - **v1.12** (2026-10-19) — 댓글 수 버튼으로 댓글 펼치기·접기 / 새 댓글 애니메이션 / 올리기 실패 이유 표시
 - **v1.11** (2026-10-19) — 편집기 버튼 밀림 / 위 경계 동작 / 경계 클릭 시 서랍 열림 수정 / 둥근 탭 아이콘 / 댓글 입력칸 정렬
 - **v1.10** (2026-10-19) — 아카이브 댓글 / 패널 경계 끌어서 크기 조절 / 일기 트리로 통일 / 둥근 탭 아이콘

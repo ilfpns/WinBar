@@ -28,6 +28,7 @@ import { mountI18n } from './ui/i18n';
 import { mountFeatures } from './ui/features';
 import { checkinStore, mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
+import { mountChat } from './chat/chat';
 import { mountInsights } from './journal/insights';
 import { addSplit } from './ui/splitter';
 import { mountPeek } from './timetable/peek';
@@ -37,7 +38,7 @@ import { mountNotionAttendance } from './calendar/notion-attendance';
 hydrateIcons();
 // Korean labels (if picked) go on before the pages render, and follow everything they render later
 mountI18n();
-mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal'), archive: byIdEarly('archive') });
+mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal'), archive: byIdEarly('archive'), chat: byIdEarly('chat') });
 mountRouter();
 mountFeatures();
 
@@ -74,6 +75,7 @@ mountWords(byId('words-body'), byId('words-sum'));
 mountJournal(byId('journal-body'));
 mountInsights(byId('journal'));
 mountArchive(byId('archive-body'), byId('archive-sum'));
+mountChat(byId('chat-body'), byId('chat-sum'));
 // someone else's Today, read only
 mountViewing();
 mountPeek(byId('stage'));

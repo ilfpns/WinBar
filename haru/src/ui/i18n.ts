@@ -164,7 +164,7 @@ const KO: Record<string, string> = {
   'Ctrl+click to open': 'Ctrl+클릭으로 열기', 'Copy photo': '사진 복사', 'Remove photo': '사진 지우기', 'Drag to resize · double-click for the original size': '끌어서 크기 조절 · 더블클릭하면 원래 크기', 'Photo removed': '사진을 지웠어요', 'Rename or delete this folder': '폴더 이름 바꾸기 또는 삭제',
   'A folder with that name already exists': '같은 이름의 폴더가 이미 있어요', 'A template of Today': 'Today를 템플릿으로',
   // Your days
-  Less: '접기', 'Last 14 days': '최근 14일', '@ you': '@나', Comments: '댓글', 'No comments yet': '아직 댓글이 없어요', 'Show comments': '댓글 보기', 'Hide comments': '댓글 접기', 'Comments aren’t allowed yet: the Firestore rules need publishing again': '아직 댓글을 쓸 수 없어요: Firestore 규칙을 다시 게시해야 해요', 'Couldn’t post. Check your connection.': '올리지 못했어요. 연결을 확인하세요.', 'Write a comment': '댓글 쓰기', 'Send comment': '댓글 보내기', 'Delete comment': '댓글 지우기', 'Delete this comment?': '이 댓글을 지울까요?', Root: '루트', 'Pages outside every folder · drop a page here to move it out': '폴더 밖의 페이지 · 여기로 끌어 놓으면 폴더에서 꺼내요', List: '목록', Tree: '트리', 'Tree: every folder and its pages': '트리: 모든 폴더와 페이지', 'Show pages as': '페이지 보기 방식', Empty: '비어 있음',
+  Less: '접기', 'Last 14 days': '최근 14일', '@ you': '@나', Chat: '채팅', 'Chat · talk with everyone invited': '채팅 · 초대된 모두와 대화', 'One room for everyone invited': '초대된 모두의 대화방', 'Message everyone': '모두에게 메시지', Send: '보내기', 'Delete message': '메시지 지우기', 'Delete this message?': '이 메시지를 지울까요?', 'Sign in to chat with everyone invited.': '로그인하면 초대된 모두와 채팅할 수 있어요.', 'No messages yet. Say hello.': '아직 메시지가 없어요. 인사해 보세요.', 'The chat couldn’t be loaded. Check your connection.': '채팅을 불러오지 못했어요. 연결을 확인하세요.', 'Chat isn’t allowed yet: the Firestore rules need publishing again': '아직 채팅을 쓸 수 없어요: Firestore 규칙을 다시 게시해야 해요', 'Couldn’t send. Check your connection.': '보내지 못했어요. 연결을 확인하세요.', Yesterday: '어제', Comments: '댓글', 'No comments yet': '아직 댓글이 없어요', 'Show comments': '댓글 보기', 'Hide comments': '댓글 접기', 'Comments aren’t allowed yet: the Firestore rules need publishing again': '아직 댓글을 쓸 수 없어요: Firestore 규칙을 다시 게시해야 해요', 'Couldn’t post. Check your connection.': '올리지 못했어요. 연결을 확인하세요.', 'Write a comment': '댓글 쓰기', 'Send comment': '댓글 보내기', 'Delete comment': '댓글 지우기', 'Delete this comment?': '이 댓글을 지울까요?', Root: '루트', 'Pages outside every folder · drop a page here to move it out': '폴더 밖의 페이지 · 여기로 끌어 놓으면 폴더에서 꺼내요', List: '목록', Tree: '트리', 'Tree: every folder and its pages': '트리: 모든 폴더와 페이지', 'Show pages as': '페이지 보기 방식', Empty: '비어 있음',
   'Days with at least one task planned on Today': 'Today에 할 일을 하나 이상 계획한 날 수',
   'Time planned on Today, averaged over the days tracked (24h is a full day)': '기록한 날들의 하루 평균 계획 시간 (24시간이 꽉 찬 하루)',
   'How much of all the planned time was checked off as done': '계획한 전체 시간 중 완료로 체크한 비율',
@@ -195,6 +195,7 @@ const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^Found in Notion · (\d+) days$/, (_, n) => `Notion에서 찾음 · ${n}일`],
   [/^Saved Today as “(.+)”$/, (_, n) => `오늘을 “${n}”(으)로 저장했어요`],
   [/^(\d+) photos? added$/, (_, n) => `사진 ${n}장을 추가했어요`],
+  [/^(\d+) (?:person|people) · (\d+) messages?$/, (_, p, m) => `${p}명 · 메시지 ${m}개`],
   [/^since (.+)$/, (_, d) => `${d}부터`],
   [/^(.+) planned in all$/, (_, h) => `전체 ${h} 계획`],
   [/^(.+) of the plan$/, (_, h) => `계획 중 ${h}`],

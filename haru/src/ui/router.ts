@@ -1,7 +1,7 @@
-export type View = 'today' | 'calendar' | 'news' | 'words' | 'journal' | 'archive';
+export type View = 'today' | 'calendar' | 'news' | 'words' | 'journal' | 'archive' | 'chat';
 
 /** Views are stacked like pages: Today on top, then Calendar, News, Words, Journal and Archive. */
-export const VIEW_ORDER: View[] = ['today', 'calendar', 'news', 'words', 'journal', 'archive'];
+export const VIEW_ORDER: View[] = ['today', 'calendar', 'news', 'words', 'journal', 'archive', 'chat'];
 
 
 type Listener = (view: View, prev: View | null) => void;
