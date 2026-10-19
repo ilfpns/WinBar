@@ -309,7 +309,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-filters [data-kind="observance"] .dot, .cal-day-list [data-kind="observance"] .dot { --c: var(--text-muted); }
 .cal-filters [data-kind="school"] .dot, .cal-day-list [data-kind="school"] .dot { --c: var(--cat-work); }
 
-.cal-body { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; min-height: 0; }
+.cal-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 260px); gap: 20px; min-height: 0; }
 .cal-main {
   display: grid; grid-template-rows: auto 1fr; min-height: 0; padding: 14px;
   border: 1px solid var(--glass-edge); border-radius: 22px; background: var(--noise), var(--glass-fill); box-shadow: var(--glass-shine);
@@ -1454,7 +1454,7 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 .glass-card :is(input, textarea)::placeholder { color: var(--text-subtle); }
 
 /* ---- Words */
-.words-body { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; min-height: 0; }
+.words-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 340px); gap: 16px; min-height: 0; }
 .w-study { display: grid; grid-template-rows: auto minmax(260px, 1fr) auto auto auto; gap: 14px; min-height: 0; }
 .w-study-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .w-mode { grid-auto-columns: 54px; }
@@ -1548,7 +1548,27 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 .w-list li.w-empty { display: block; padding: 10px; background: none; color: var(--text-subtle); font-size: 13px; }
 
 /* ---- Journal */
-.journal-body { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; min-height: 0; }
+.journal-body { position: relative; display: grid; grid-template-columns: var(--side-w, 300px) minmax(0, 1fr); gap: 16px; min-height: 0; }
+/* the seams between panels (src/ui/splitter.ts): an invisible strip over the gap that lights up to grab */
+.split { position: absolute; z-index: 4; touch-action: none; outline: none; }
+.split[hidden] { display: none; }
+.split-x { width: 12px; cursor: col-resize; }
+.split-y { height: 12px; cursor: row-resize; }
+.split::before {
+  content: ""; position: absolute; border-radius: 2px; background: var(--accent); opacity: 0;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--drawer-ease);
+}
+.split-x::before { left: 5px; top: 18%; bottom: 18%; width: 2px; transform: scaleY(.6); }
+.split-y::before { top: 5px; left: 18%; right: 18%; height: 2px; transform: scaleX(.6); }
+.split:hover::before, .split:focus-visible::before, .split.dragging::before { opacity: .85; transform: none; }
+body.splitting { user-select: none; }
+body.splitting-x { cursor: col-resize; }
+body.splitting-y { cursor: row-resize; }
+/* Your days made shorter than its contents scrolls inside */
+/* (opened; a set height is kept exactly, or the grid would squeeze a scrolling card to nothing) */
+.insights.open.split-sized { height: var(--top-h); min-height: var(--top-h); overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 1000px) { .split { display: none; } }
 .j-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .j-side > .j-list { flex: 1 1 auto; min-height: 0; }
 .j-tab-more { width: 28px; padding: 0; justify-content: center; }
@@ -1586,11 +1606,8 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 .j-folder[hidden] { display: none; }
 .j-side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .j-side-head .card-title { margin-right: auto; }
-.j-view { display: inline-flex; padding: 2px; border-radius: 9px; background: rgb(var(--shade) / 0.35); }
-.j-view button { display: grid; place-items: center; width: 28px; height: 24px; padding: 0; border: 0; border-radius: 7px; background: none; color: var(--text-subtle); cursor: pointer; transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-.j-view button .ic { width: 14px; height: 14px; }
-.j-view button:hover { color: var(--text-strong); }
-.j-view button[aria-checked="true"] { background: var(--surface-3); color: var(--text-strong); }
+.j-new-folder { width: 30px; height: 30px; }
+.j-new-folder .ic { width: 16px; height: 16px; }
 
 /* the tree: every folder with its pages under it, as Octotree draws a repository */
 .j-side.tree .j-folders { display: none; }
@@ -1610,6 +1627,16 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 .jt-dir.drop { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
 .jt-count { padding: 1px 7px; border-radius: 999px; background: rgb(var(--ink) / 0.06); font: 400 11px var(--font-mono); color: var(--text-muted); }
 .jt-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a folder's ⋯ (rename, delete) shows on hover, over the end of its row where the count was */
+.jt-folder { position: relative; }
+.jt-more {
+  position: absolute; top: 3px; right: 4px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px;
+  background: var(--surface-3); color: var(--text-muted); cursor: pointer; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
+}
+.jt-more .ic { width: 14px; height: 14px; }
+.jt-folder:hover > .jt-more, .jt-more:focus-visible { opacity: 1; }
+.jt-more:hover { color: var(--text-strong); }
+@media (hover: none) { .jt-more { opacity: 1; } .jt-dir .jt-count { margin-right: 26px; } }
 /* a folder's pages fold in and out (grid rows 0fr <-> 1fr), hung on a guide line like a file tree */
 .jt-kids { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-base) var(--ease-out); }
 .jt-folder.open > .jt-kids { grid-template-rows: 1fr; }
@@ -1888,7 +1915,29 @@ body.off-news.off-words.off-journal.off-archive :is(.rail, .nav) > :is(.rail-rul
 body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
 
 /* ---------- Archive: pages everyone shared, read only */
-.a-reader { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 12px; min-height: 0; }
+.a-reader { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; gap: 12px; min-height: 0; }
+/* comments under a shared page */
+.a-comments { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.a-c-head { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
+.a-c-head .ic { width: 15px; height: 15px; }
+.a-c-n { text-transform: none; }
+.a-c-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 240px; overflow-y: auto; overscroll-behavior: contain; }
+.a-c { display: grid; gap: 3px; padding: 8px 10px; border-radius: 12px; background: rgb(var(--shade) / 0.22); animation: ins-rise .25s var(--ease-out); }
+.a-c.mine { background: color-mix(in srgb, var(--accent) 8%, rgb(var(--shade) / 0.22)); }
+.a-c-top { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-strong); }
+.a-c-top .a-avatar { width: 20px; height: 20px; font-size: 10px; }
+.a-c-when { text-transform: none; font-size: 11px; }
+.a-c-del { margin-left: auto; opacity: 0; }
+.a-c:hover .a-c-del, .a-c-del:focus-visible { opacity: 1; }
+@media (hover: none) { .a-c-del { opacity: 1; } }
+.a-c-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.55; color: var(--text); }
+.a-c-empty { padding: 4px 2px; text-transform: none; font-size: 12.5px; }
+.a-c-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+textarea.a-c-input { min-height: 38px; max-height: 140px; padding: 9px 12px; resize: none; line-height: 1.45; font: inherit; font-size: 13.5px; }
+.a-c-input.bad { border-color: var(--danger); }
+.a-c-send { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; }
+.a-c-send .ic { width: 16px; height: 16px; }
+.a-c-send:disabled { opacity: .4; cursor: default; }
 .a-title { margin: 0; font-size: 28px; font-weight: 500; letter-spacing: -.02em; color: var(--text-strong); }
 /* (an .md-view sits on top of its editor in a pad; here it is a row of its own) */
 .a-text { grid-area: auto; display: block; overflow-y: auto; font-size: 15.5px; line-height: 1.75; }

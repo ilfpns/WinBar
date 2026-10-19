@@ -63,5 +63,14 @@ service cloud.firestore {
       allow update: if isInvited() && request.resource.data.authorUid == request.auth.uid && resource.data.authorUid == request.auth.uid;
       allow delete: if isInvited() && resource.data.authorUid == request.auth.uid;
     }
+    // comments under a shared page: everyone invited reads and writes their own (as themselves, up to 1000
+    // characters); a comment is taken down by whoever wrote it or by the page's author
+    match /archive/{id}/comments/{cid} {
+      allow read: if isInvited();
+      allow create: if isInvited() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000;
+      allow delete: if isInvited() && (resource.data.uid == request.auth.uid
+        || get(/databases/$(database)/documents/archive/$(id)).data.authorUid == request.auth.uid);
+    }
   }
 }

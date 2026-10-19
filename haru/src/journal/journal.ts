@@ -44,7 +44,6 @@ const isFolder = (v: unknown): v is Folder => {
 export const folderStore = listStore<Folder>('journal-folders', isFolder);
 /** Which folder was open (per browser). */
 const TAB_KEY = 'haru:journal-folder';
-const VIEW_KEY = 'haru:journal-view';
 const TREE_KEY = 'haru:journal-tree-open';
 /** The top level: pages outside every folder (no folder, or one deleted elsewhere). Also a tab of its own. */
 const ROOT = '/';
@@ -61,16 +60,12 @@ const fmtDay = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('e
 
 export function mountJournal(body: HTMLElement): void {
   body.innerHTML = `
-    <aside class="j-side glass-card" aria-label="Pages">
+    <aside class="j-side tree glass-card" aria-label="Pages">
       <div class="j-side-head">
         <span class="card-title">Folders</span>
-        <span class="seg j-view" role="radiogroup" aria-label="Show pages as">
-          <button type="button" role="radio" data-view="list" aria-label="List" title="List"></button>
-          <button type="button" role="radio" data-view="tree" aria-label="Tree" title="Tree: every folder and its pages"></button>
-        </span>
+        <button type="button" class="icon-btn j-new-folder" aria-label="New folder" title="New folder"></button>
         <button type="button" class="btn-sm j-new"></button>
       </div>
-      <div class="j-folders" role="tablist" aria-label="Folders"></div>
       <p class="meta j-status" aria-live="polite"></p>
       <ul class="j-list"></ul>
     </aside>
@@ -165,7 +160,6 @@ export function mountJournal(body: HTMLElement): void {
   }
 
   // ---- folders: every page lives in one; the open folder is the tab
-  const tabsEl = $<HTMLElement>('.j-folders');
   const folderBtn = $<HTMLButtonElement>('.j-folder');
   folderBtn.prepend(icon('notebook-pen'));
   folderBtn.append(icon('chevron-down'));
@@ -271,89 +265,23 @@ export function mountJournal(body: HTMLElement): void {
       { label: 'Delete folder', icon: 'trash', danger: true, run: () => void deleteFolder(f) },
     ]);
 
+  /** A new folder (a dialog asks for its name); it opens on a blank page. */
+  async function newFolder(): Promise<void> {
+    const name = await askText({ title: 'New folder', label: 'Folder name', placeholder: 'e.g. School, Ideas', ok: 'Create', icon: 'plus', max: 40 });
+    if (!name) return;
+    if (folderNamed(name)) return tell('A folder with that name already exists');
+    const f: Folder = { id: newId(), name, created: Date.now() };
+    folderStore.set([...folders(), f]);
+    setTab(f.id);
+    open(null);
+  }
+  const newFolderBtn = $<HTMLButtonElement>('.j-new-folder');
+  newFolderBtn.append(icon('folder-plus'));
+  newFolderBtn.addEventListener('click', () => void newFolder());
+
+  /** The editor's folder picker: which folder (or the root) the page is in. */
   function renderFolders(): void {
     const cur = validTab();
-    const all = entries();
-    const chips = folders().map((f) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'chip j-tab';
-      b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(f.id === cur));
-      b.innerHTML = '<span class="j-tab-name"></span><span class="j-tab-n"></span>';
-      b.firstElementChild!.textContent = f.name;
-      b.lastElementChild!.textContent = String(all.filter((e) => e.folder === f.id).length);
-      b.title = `${f.name} · drop a page here to move it`;
-      b.addEventListener('click', () => setTab(f.id));
-      // right-click: rename or delete
-      b.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        folderMenu(f, { x: e.clientX, y: e.clientY });
-      });
-      // a page dragged from the list lands here
-      b.addEventListener('dragover', (e) => {
-        if (!e.dataTransfer?.types.includes('text/x-haru-page')) return;
-        e.preventDefault();
-        b.classList.add('drop');
-      });
-      b.addEventListener('dragleave', () => b.classList.remove('drop'));
-      b.addEventListener('drop', (e) => {
-        e.preventDefault();
-        b.classList.remove('drop');
-        const id = e.dataTransfer?.getData('text/x-haru-page');
-        if (id) moveTo([id], f.id);
-      });
-      return b;
-    });
-    // the open folder's ⋯ sits at the end of the row, so picking a folder never moves the tabs
-    const openFolder = folders().find((x) => x.id === cur);
-    const more = document.createElement('button');
-    more.type = 'button';
-    more.className = 'chip j-tab-more';
-    more.setAttribute('aria-label', `${openFolder?.name ?? 'Folder'} options`);
-    more.title = 'Rename or delete this folder';
-    more.append(icon('ellipsis'));
-    more.hidden = !openFolder;
-    more.addEventListener('click', () => openFolder && folderMenu(openFolder, more));
-    const add = document.createElement('button');
-    add.type = 'button';
-    add.className = 'chip j-tab-add';
-    add.setAttribute('aria-label', 'New folder');
-    add.title = 'New folder';
-    add.append(icon('plus'));
-    add.addEventListener('click', async () => {
-      const name = await askText({ title: 'New folder', label: 'Folder name', placeholder: 'e.g. School, Ideas', ok: 'Create', icon: 'plus', max: 40 });
-      if (!name) return;
-      if (folderNamed(name)) return tell('A folder with that name already exists');
-      const f: Folder = { id: newId(), name, created: Date.now() };
-      folderStore.set([...folders(), f]);
-      setTab(f.id);
-      // a new folder starts on a blank page
-      open(null);
-    });
-    const rootChip = document.createElement('button');
-    rootChip.type = 'button';
-    rootChip.className = 'chip j-tab j-tab-root';
-    rootChip.setAttribute('role', 'tab');
-    rootChip.setAttribute('aria-selected', String(cur === ROOT));
-    rootChip.innerHTML = '<span class="j-tab-name"></span><span class="j-tab-n"></span>';
-    rootChip.firstElementChild!.textContent = 'Root';
-    rootChip.lastElementChild!.textContent = String(all.filter((e) => folderOf(e) === ROOT).length);
-    rootChip.title = 'Pages outside every folder · drop a page here to move it out';
-    rootChip.addEventListener('click', () => setTab(ROOT));
-    rootChip.addEventListener('dragover', (e) => {
-      if (!e.dataTransfer?.types.includes('text/x-haru-page')) return;
-      e.preventDefault();
-      rootChip.classList.add('drop');
-    });
-    rootChip.addEventListener('dragleave', () => rootChip.classList.remove('drop'));
-    rootChip.addEventListener('drop', (e) => {
-      e.preventDefault();
-      rootChip.classList.remove('drop');
-      const id = e.dataTransfer?.getData('text/x-haru-page');
-      if (id) moveTo([id], ROOT);
-    });
-    tabsEl.replaceChildren(rootChip, ...chips, add, more);
     // the editor's picker: which folder this page is in
     const e = openId ? entries().find((x) => x.id === openId) : undefined;
     pageFolder = e ? folderOf(e) : cur;
@@ -666,9 +594,8 @@ export function mountJournal(body: HTMLElement): void {
   }
 
 
-  // ---- list or tree: the tree (as Octotree draws a repository) shows every folder with its pages under it
-  const viewBtns = [...body.querySelectorAll<HTMLButtonElement>('.j-view [data-view]')];
-  viewBtns.forEach((b) => b.append(icon(b.dataset.view === 'tree' ? 'folder-tree' : 'list')));
+  // ---- the pages as a tree (as Octotree draws a repository): every folder with its pages under it, the root's
+  // pages at the top level
   const readJson = <T,>(key: string, fallback: T): T => {
     try {
       return (JSON.parse(localStorage.getItem(key) ?? 'null') as T) ?? fallback;
@@ -683,23 +610,11 @@ export function mountJournal(body: HTMLElement): void {
       // for this visit
     }
   };
-  let view: 'list' | 'tree' = readJson<string>(VIEW_KEY, 'list') === 'tree' ? 'tree' : 'list';
   let unfolded = '';
   /** Folders unfolded in the tree. */
   const treeOpen = new Set<string>(readJson<string[]>(TREE_KEY, []));
-  const paintView = () => {
-    viewBtns.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.view === view)));
-    body.querySelector('.j-side')!.classList.toggle('tree', view === 'tree');
-  };
-  viewBtns.forEach((b) => b.addEventListener('click', () => {
-    view = b.dataset.view === 'tree' ? 'tree' : 'list';
-    writeJson(VIEW_KEY, view);
-    paintView();
-    renderList();
-  }));
-  paintView();
 
-  /** The menu a page row offers (list and tree alike). */
+  /** The menu a page row offers. */
   const pageMenu = (e: Entry) => [
     { label: e.pinned ? 'Unpin' : 'Pin to top', icon: 'pin' as const, run: () => togglePin(e.id) },
     ...[ROOT, ...folders().map((f) => f.id)].filter((id) => id !== folderOf(e))
@@ -776,6 +691,17 @@ export function mountJournal(body: HTMLElement): void {
         renderTree();
       });
       row.addEventListener('dblclick', () => setTab(f.id));
+      row.addEventListener('contextmenu', (ev) => {
+        ev.preventDefault();
+        folderMenu(f, { x: ev.clientX, y: ev.clientY });
+      });
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'jt-more';
+      more.setAttribute('aria-label', `${f.name} options`);
+      more.title = 'Rename or delete this folder';
+      more.append(icon('ellipsis'));
+      more.addEventListener('click', () => folderMenu(f, more));
       // drop a page on a folder to move it there
       row.addEventListener('dragover', (ev) => {
         if (!ev.dataTransfer?.types.includes('text/x-haru-page')) return;
@@ -796,7 +722,7 @@ export function mountJournal(body: HTMLElement): void {
       const ul = document.createElement('ul');
       ul.append(...(pages.length ? pages.map(pageRow) : [Object.assign(document.createElement('li'), { className: 'jt-empty meta', textContent: 'Empty' })]));
       kids.append(ul);
-      li.append(row, kids);
+      li.append(row, more, kids);
       return li;
     });
     // the root's pages after the folders, at the top level
@@ -809,7 +735,7 @@ export function mountJournal(body: HTMLElement): void {
   }
   // the tree's empty space is the root: a page dropped there leaves its folder
   list.addEventListener('dragover', (ev) => {
-    if (view !== 'tree' || !ev.dataTransfer?.types.includes('text/x-haru-page') || (ev.target as Element).closest('.jt-dir')) return;
+    if (!ev.dataTransfer?.types.includes('text/x-haru-page') || (ev.target as Element).closest('.jt-dir')) return;
     ev.preventDefault();
     list.classList.add('drop-root');
   });
@@ -818,83 +744,14 @@ export function mountJournal(body: HTMLElement): void {
   });
   list.addEventListener('drop', (ev) => {
     list.classList.remove('drop-root');
-    if (view !== 'tree' || (ev.target as Element).closest('.jt-dir')) return;
+    if ((ev.target as Element).closest('.jt-dir')) return;
     const id = ev.dataTransfer?.getData('text/x-haru-page');
     if (!id) return;
     ev.preventDefault();
     moveTo([id], ROOT);
   });
 
-  function renderList(): void {
-    if (view === 'tree') return renderTree();
-    const shown = [...entries()]
-      .filter(inTab)
-      .sort((a, b) => b.date.localeCompare(a.date) || b.created - a.created);
-    if (!shown.length) {
-      const li = document.createElement('li');
-      li.className = 'j-empty';
-      li.textContent = 'No pages in this folder yet';
-      list.replaceChildren(li);
-      return;
-    }
-    const out: HTMLElement[] = [];
-    const heading = (text: string) => {
-      const h = document.createElement('li');
-      h.className = 'j-month meta';
-      h.textContent = text;
-      out.push(h);
-    };
-    // pinned pages first, under their own heading; the rest by month
-    const pinned = shown.filter((e) => e.pinned);
-    let month = '';
-    for (const e of [...pinned, ...shown.filter((e) => !e.pinned)]) {
-      if (e.pinned) {
-        if (e === pinned[0]) heading('Pinned');
-      } else {
-        const m = e.date.slice(0, 7);
-        if (m !== month) {
-          month = m;
-          heading(new Date(`${m}-01T00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-        }
-      }
-      const li = document.createElement('li');
-      li.className = 'j-row';
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = `j-item${e.id === openId ? ' on' : ''}`;
-      b.draggable = true;
-      b.innerHTML = '<span class="j-i-top"><span class="j-i-title"></span><span class="meta j-i-date"></span></span><span class="j-i-prev"></span>';
-      // the list shows words, not Markdown marks
-      const lines = e.body.split(/\r?\n/).map(plain).filter(Boolean);
-      b.querySelector('.j-i-title')!.textContent = e.title || lines[0] || 'Untitled';
-      if (e.pinned) b.querySelector('.j-i-top')!.prepend(icon('pin', 'ic j-pin-mark'));
-      b.querySelector('.j-i-date')!.textContent = fmtDay(e.date);
-      b.querySelector('.j-i-prev')!.textContent = (e.title ? lines : lines.slice(1)).join(' · ').slice(0, 140);
-      b.addEventListener('click', () => open(e.id));
-      // right-click: delete it, or move it to another folder
-      b.addEventListener('contextmenu', (ev) => {
-        ev.preventDefault();
-        showMenu({ x: ev.clientX, y: ev.clientY }, pageMenu(e));
-      });
-      // drag onto a folder tab to move it there
-      b.addEventListener('dragstart', (ev) => {
-        if (e.id === openId) flush();
-        ev.dataTransfer?.setData('text/x-haru-page', e.id);
-        if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
-        tabsEl.classList.add('dropping');
-      });
-      b.addEventListener('dragend', () => tabsEl.classList.remove('dropping'));
-      const x = document.createElement('button');
-      x.type = 'button';
-      x.className = 'tpl-del j-row-del';
-      x.setAttribute('aria-label', `Delete ${e.title || 'Untitled'}`);
-      x.append(icon('x'));
-      x.addEventListener('click', () => void removePage(e.id));
-      li.append(b, x);
-      out.push(li);
-    }
-    list.replaceChildren(...out);
-  }
+  const renderList = () => renderTree();
 
   journalStore.onChange(() => {
     renderFolders();

@@ -29,6 +29,7 @@ import { mountFeatures } from './ui/features';
 import { checkinStore, mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountInsights } from './journal/insights';
+import { addSplit } from './ui/splitter';
 import { mountPeek } from './timetable/peek';
 import { mountViewing, viewing } from './cloud/viewing';
 import { mountNotionAttendance } from './calendar/notion-attendance';
@@ -108,6 +109,24 @@ mountCalendar({
   grid: byId('cal-grid'),
   day: byId('cal-day'),
 });
+
+// seams between the panels: drag to give one more room (kept per page; double-click resets)
+{
+  const side = (host: HTMLElement, key: string, pane: HTMLElement, after: boolean, min: number, keep: number) =>
+    addSplit(host, { key, axis: 'x', pane, after, prop: '--side-w', min, max: () => host.getBoundingClientRect().width - keep });
+  const jb = byId('journal-body');
+  side(jb, 'journal', jb.querySelector<HTMLElement>('.j-side')!, false, 220, 420);
+  const ab = byId('archive-body');
+  side(ab, 'archive', ab.querySelector<HTMLElement>('.j-side')!, false, 220, 420);
+  const wb = byId('words-body');
+  side(wb, 'words', wb.lastElementChild as HTMLElement, true, 260, 420);
+  const cb = document.querySelector<HTMLElement>('.cal-body')!;
+  side(cb, 'calendar', cb.lastElementChild as HTMLElement, true, 220, 480);
+  // Journal's Your days: its height (it scrolls inside when made shorter than its contents)
+  const jv = byId('journal');
+  const card = jv.querySelector<HTMLElement>('.insights')!;
+  addSplit(jv, { key: 'journal-top', axis: 'y', pane: card, target: card, prop: '--top-h', min: 56, max: () => card.scrollHeight });
+}
 
 document.addEventListener('keydown', (e) => {
   const typing = (e.target as Element).closest('input, select, textarea, md-editor');
