@@ -233,10 +233,14 @@ export function mountJournal(body: HTMLElement): void {
     });
   }
 
+  /** Whether another folder already carries `name` (case and surrounding spaces aside). */
+  const folderNamed = (name: string, except?: string) => folders().some((x) => x.id !== except && x.name.trim().toLowerCase() === name.trim().toLowerCase());
   /** Renames a folder (a dialog asks for the name). */
   async function renameFolder(f: Folder): Promise<void> {
     const name = await askText({ title: 'Rename folder', label: 'Folder name', value: f.name, ok: 'Rename', icon: 'pencil', max: 40 });
-    if (name && name !== f.name) folderStore.set(folders().map((x) => (x.id === f.id ? { ...x, name } : x)));
+    if (!name || name === f.name) return;
+    if (folderNamed(name, f.id)) return tell('A folder with that name already exists');
+    folderStore.set(folders().map((x) => (x.id === f.id ? { ...x, name } : x)));
   }
   /** Deletes a folder and its pages (after asking); Undo brings both back. */
   async function deleteFolder(f: Folder): Promise<void> {
@@ -323,6 +327,7 @@ export function mountJournal(body: HTMLElement): void {
     add.addEventListener('click', async () => {
       const name = await askText({ title: 'New folder', label: 'Folder name', placeholder: 'e.g. School, Ideas', ok: 'Create', icon: 'plus', max: 40 });
       if (!name) return;
+      if (folderNamed(name)) return tell('A folder with that name already exists');
       const f: Folder = { id: newId(), name, created: Date.now() };
       folderStore.set([...folders(), f]);
       setTab(f.id);

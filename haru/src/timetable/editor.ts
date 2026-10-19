@@ -1,6 +1,6 @@
 import { mod } from './time';
 import { CATEGORIES, CATEGORY_KEYS, type Category } from './model';
-import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, state, subscribe } from './state';
+import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, state, subscribe, toggleDone } from './state';
 import { timeField } from '../ui/time-field';
 
 interface EditorFields extends HTMLFormControlsCollection {
@@ -21,7 +21,8 @@ export function mountEditor(form: HTMLFormElement): void {
   const del = req<HTMLButtonElement>(form, '#del');
   const chips = req<HTMLElement>(form, '#chips');
   const doneBtn = req<HTMLButtonElement>(form, '#ed-done');
-  doneBtn.addEventListener('click', () => patchDraft({ done: !state.draft?.done }));
+  // a saved task is ticked for real (the list and the dial follow at once); a task still being created only in its draft
+  doneBtn.addEventListener('click', () => (state.draft?.id ? toggleDone(state.draft.id) : patchDraft({ done: !state.draft?.done })));
 
   // custom 24h pickers: native <select>/<input type=time> follow OS styling and the 12h locale
   const setTimes = (start: number, end: number) => {

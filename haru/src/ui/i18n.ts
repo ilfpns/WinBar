@@ -160,6 +160,10 @@ const KO: Record<string, string> = {
   'This name is linked to another Haru account': '이 이름은 다른 Haru 계정과 연결되어 있어요', 'Not a column in the Notion table yet': 'Notion 표에 없는 이름이에요', 'Their pages': '그 사람의 페이지', 'Their memos': '그 사람의 메모',
   'Read only': '보기 전용', 'No one else yet': '아직 다른 사람이 없어요', 'Loading…': '불러오는 중…',
   'Their Today couldn’t be loaded.': '오늘 시간표를 불러오지 못했어요.', Me: '나', 'Getting your Haru ready…': 'Haru를 준비하는 중…',
+  'Copy photo': '사진 복사', 'Remove photo': '사진 지우기', 'Photo removed': '사진을 지웠어요', 'Rename or delete this folder': '폴더 이름 바꾸기 또는 삭제',
+  'A folder with that name already exists': '같은 이름의 폴더가 이미 있어요', 'A template of Today': 'Today를 템플릿으로',
+  // what's new
+  'What’s new': '새 소식', 'What changed in Haru, newest first.': 'Haru가 어떻게 바뀌었는지, 최신 순으로.',
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

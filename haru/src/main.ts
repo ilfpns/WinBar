@@ -23,6 +23,7 @@ import { mountAccount } from './cloud/account';
 import { mountWords } from './words/words';
 import { mountJournal } from './journal/journal';
 import { mountSettings } from './ui/settings';
+import { mountChangelog } from './ui/changelog';
 import { mountI18n } from './ui/i18n';
 import { mountFeatures } from './ui/features';
 import { checkinStore, mountAttendance } from './calendar/attendance';
@@ -67,6 +68,7 @@ mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'
 mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountSettings();
+mountChangelog();
 mountWords(byId('words-body'), byId('words-sum'));
 mountJournal(byId('journal-body'));
 mountInsights(byId('journal'));
