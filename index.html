@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <script type="module" crossorigin src="/WinBar/assets/index-CSYg1lCI.js"></script>
-  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-CGv5KHce.css">
+  <script type="module" crossorigin src="/WinBar/assets/index-CnKNnbfC.js"></script>
+  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-XRCr2U-t.css">
 </head>
 <body>
   <main class="stage page" id="stage">
@@ -367,6 +367,17 @@
             <div class="set-reset">
               <button type="button" class="time-field" id="reset-time" aria-label="New day time"></button>
               <button type="button" class="switch" role="switch" id="reset-on" aria-label="Start a new day automatically"><i></i></button>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label">
+              <strong>School timetable</strong>
+              <span>Puts your class's lessons for today on Today, at their periods (컴시간알리미)</span>
+              <span class="set-status" id="school-status" aria-live="polite"></span>
+            </div>
+            <div class="set-reset">
+              <select class="set-input set-select" id="school-class" aria-label="Class"><option value="">Class</option></select>
+              <button type="button" class="btn-sm" id="school-apply">Apply</button>
             </div>
           </div>
           <div class="set-row">
