@@ -1938,7 +1938,8 @@ body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
 .a-c-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13.5px; line-height: 1.55; color: var(--text); }
 .a-c-empty { padding: 4px 2px; text-transform: none; font-size: 12.5px; }
 .a-c-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
-textarea.a-c-input { min-height: 38px; max-height: 140px; padding: 9px 12px; resize: none; line-height: 1.45; font: inherit; font-size: 13.5px; }
+/* the box's own padding (the shared input style has none top and bottom), so the words sit in its middle */
+.a-comments textarea.a-c-input { display: block; height: 38px; min-height: 38px; max-height: 140px; padding: 9px 12px; resize: none; font: 400 13.5px/20px var(--font-sans); }
 .a-c-input.bad { border-color: var(--danger); }
 .a-c-send { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; }
 .a-c-send .ic { width: 16px; height: 16px; }
