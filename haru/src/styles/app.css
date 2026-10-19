@@ -164,6 +164,13 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .block-time { font: 400 14px var(--font-mono); fill: color-mix(in srgb, var(--text) 55%, transparent); pointer-events: none; }
 :is(#dial, .peek-dial) .ghost { fill: color-mix(in srgb, var(--text) 10%, transparent); stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 6 6; pointer-events: none; }
 :is(#dial, .peek-dial) .hover-tick { stroke: var(--text-muted); stroke-width: 1.5; pointer-events: none; }
+/* the hovered task's whole name, just above its name on the ring */
+#dial .dial-tip { pointer-events: none; animation: dial-tip-in .16s var(--ease-out) both; }
+#dial .dial-tip-box { fill: var(--popover); stroke: color-mix(in srgb, var(--c) 55%, transparent); stroke-width: 1.5; filter: drop-shadow(0 6px 14px rgb(0 0 0 / .35)); }
+#dial .dial-tip-name { font: 600 16px var(--font-sans); fill: var(--text-strong); }
+#dial .dial-tip-time { font: 400 12px var(--font-mono); fill: var(--text-muted); }
+@keyframes dial-tip-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { #dial .dial-tip { animation: none; } }
 :is(#dial, .peek-dial) .hover-label {
   font: 500 16px var(--font-mono); fill: var(--text-strong); pointer-events: none;
   stroke: var(--surface-solid); stroke-width: 6px; stroke-linejoin: round; paint-order: stroke;

@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.5',
+    date: '2026-10-19',
+    items: [
+      'Today: 좁은 칸의 한글 이름이 사라지지 않고 "농구…"처럼 줄여서 표시',
+      'Today: 할 일에 마우스를 올리면 이름 위에 전체 이름과 시간 표시',
+    ],
+  },
+  {
     version: '1.4',
     date: '2026-10-19',
     items: [

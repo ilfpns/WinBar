@@ -18,12 +18,16 @@ const glyphWidth = (ch: string): number =>
   /[ᄀ-ᇿ㄰-㆏가-힯぀-ヿ一-鿿]/.test(ch) ? 21 : /[A-Z0-9]/.test(ch) ? 13.5 : 11;
 const textWidth = (s: string): number => [...s].reduce((w, ch) => w + glyphWidth(ch), 0);
 
-/** Fits a label into `room` units, ellipsising; returns '' when not even two glyphs fit. */
+/**
+ * Fits a label into `room` units, ellipsising down to a single glyph and "…" (a Korean syllable is twice a
+ * Latin letter's width, so a narrow slice holds only one); '' when not even that fits.
+ */
 function fitLabel(text: string, room: number): string {
   if (textWidth(text) <= room) return text;
   const chars = [...text];
-  while (chars.length > 2 && textWidth(chars.join('')) + 12 > room) chars.pop();
-  return chars.length > 2 ? `${chars.join('').trimEnd()}…` : '';
+  while (chars.length > 1 && textWidth(chars.join('')) + 12 > room) chars.pop();
+  const cut = chars.join('').trimEnd();
+  return cut && textWidth(cut) + 12 <= room ? `${cut}…` : '';
 }
 
 /** Within this many minutes of the clock hand, pointing means "now": snap to the hand, not the grid. */
@@ -69,6 +73,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
   const gGhost = layer('ghost');
   const gNow = layer('now');
   const gHover = layer('hover');
+  const gTip = layer('tip');
   // the centre emblem and its core live in a sibling svg layered over the dial (see #orb-layer)
   const gCenter = svg.parentElement!.querySelector<SVGSVGElement>('#orb-layer')!.appendChild(svgEl('g', { class: 'layer-center' }));
 
@@ -122,6 +127,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
 
     renderCallouts(visibleBlocks(), picked, now);
     renderReset();
+    renderTip();
 
     gGhost.replaceChildren();
     if (drag?.delta) {
@@ -212,7 +218,29 @@ export function mountDial(svg: SVGSVGElement): Dial {
   onHover((id) => {
     hoverId = id;
     renderCenter();
+    renderTip();
   });
+
+  /**
+   * The hovered task's whole name (and hours) in a small label just above its name on the ring, so a name cut
+   * short (or left out) in a narrow slice can still be read. Only on the full dial: the slices view names
+   * every task outside the ring already.
+   */
+  function renderTip(): void {
+    const b = hoverId && dialStyle === 'full' && !state.drag ? state.blocks.find((x) => x.id === hoverId) : undefined;
+    if (!b) return void gTip.replaceChildren();
+    const [x, y] = pointAt(R_MID, b.start + b.dur / 2);
+    const ty = y - (b.dur >= 90 ? 46 : 36);
+    const g = svgEl('g', { class: 'dial-tip', style: `--c:var(--cat-${b.cat})` });
+    const name = centeredText('dial-tip-name', x, ty - 8, labelOf(b));
+    const time = centeredText('dial-tip-time', x, ty + 11, `${hhmm(b.start)}–${hhmm(b.start + b.dur)} · ${formatDuration(b.dur)}`);
+    const box = svgEl('rect', { class: 'dial-tip-box', rx: 10 });
+    g.append(box, name, time);
+    gTip.replaceChildren(g);
+    // sized to what was drawn
+    const w = Math.max(name.getBBox().width, time.getBBox().width) + 28;
+    for (const [k, v] of Object.entries({ x: x - w / 2, y: ty - 27, width: w, height: 50 })) box.setAttribute(k, String(v));
+  }
 
   function core(text: string, fill: string, ink: string, pulse = false): SVGElement[] {
     return [
