@@ -299,13 +299,26 @@ export function mountDial(svg: SVGSVGElement): Dial {
       const p1 = [(R_OUT + 70) * dx, y];
       const p2 = [side * (legX - 8), y];
       const anchor = side > 0 ? 'start' : 'end';
+      // a done task's leader starts from a check badge instead of a dot, so it reads at a glance here too
+      let start: SVGElement = svgEl('circle', { class: 'callout-dot', cx: p0[0]!, cy: p0[1]!, r: 3.5 });
+      if (b.done) {
+        const tick = icon('check', 'done-ic');
+        for (const [k, v] of Object.entries({ x: p0[0]! - 8, y: p0[1]! - 8, width: 16, height: 16 })) tick.setAttribute(k, String(v));
+        start = svgEl('g', { class: 'done-badge' });
+        start.append(svgEl('circle', { cx: p0[0]!, cy: p0[1]!, r: 12 }), tick);
+      }
       g.append(
         svgEl('polyline', { class: 'callout-line', points: `${p0.join(',')} ${p1.join(',')} ${p2.join(',')}` }),
-        svgEl('circle', { class: 'callout-dot', cx: p0[0]!, cy: p0[1]!, r: 3.5 }),
+        start,
         svgEl('text', { class: 'callout-name', x: side * legX, y: y - 3, 'text-anchor': anchor }, labelOf(b)),
         svgEl('text', { class: 'callout-detail', x: side * legX, y: y + DETAIL + 3, 'text-anchor': anchor },
           `${hhmm(b.start)}–${hhmm(b.start + b.dur)} · ${Math.round((b.dur / DAY) * 100)}%`),
       );
+      // a note on the task: a small dot at the name's top right
+      if (b.note?.trim()) {
+        const right = side > 0 ? side * legX + textWidth(labelOf(b)) * (22 / 21) : side * legX;
+        g.append(noteDot(right + 7, y - 20));
+      }
       return g;
     });
     // the middle keeps the dot emblem; either side of it, on its channel's line, what is on and how long it still runs
@@ -526,13 +539,24 @@ export function mountDial(svg: SVGSVGElement): Dial {
   };
 }
 
-/** One task on the full dial: its slice, its arc on the rim, and (when it fits) its name and hours. */
+/**
+ * One task on the full dial: its slice, its arc on the rim, and (when it fits) its name and hours. A done
+ * task reads at a glance: filled in its colour, a full-strength rim, and a check badge by the inner edge.
+ */
 function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean): SVGElement[] {
   const style = `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)`;
   const out: SVGElement[] = [
-    svgEl('path', { class: `block${isSel ? ' sel' : ''}`, d: sectorPath(b.start, b.dur), style }),
+    svgEl('path', { class: `block${isSel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }),
     svgEl('path', { class: `block-arc${b.done ? ' done' : ''}`, d: arcPath(b.start, b.dur, R_OUT - 3.5), style }),
   ];
+  if (b.done && b.dur >= 20) {
+    const [cx, cy] = pointAt(R_IN + 26, b.start + b.dur / 2);
+    const tick = icon('check', 'done-ic');
+    for (const [k, v] of Object.entries({ x: cx - 11, y: cy - 11, width: 22, height: 22 })) tick.setAttribute(k, String(v));
+    const badge = svgEl('g', { class: 'done-badge', style });
+    badge.append(svgEl('circle', { cx, cy, r: 16 }), tick);
+    out.push(badge);
+  }
   if (b.dur < 45) return out;
   const [x, y] = pointAt(R_MID, b.start + b.dur / 2);
   const room = Math.min((b.dur / DAY) * Math.PI * 2 * R_MID - 12, 210);
@@ -541,10 +565,16 @@ function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean): SVGEleme
   if (!label) return out;
   const withTime = b.dur >= 90;
   const cls = `block-label${isNow ? ' now' : ''}${isSel ? ' sel' : ''}${b.done ? ' done' : ''}`;
-  out.push(centeredText(cls, x, withTime ? y - 10 : y, label));
+  const ly = withTime ? y - 10 : y;
+  out.push(centeredText(cls, x, ly, label));
+  // a note on the task: a small dot at the name's top right
+  if (b.note?.trim()) out.push(noteDot(x + textWidth(label) / 2 + 6, ly - 11));
   if (withTime) out.push(centeredText('block-time', x, y + 16, `${hhmm(b.start)}–${hhmm(b.start + b.dur)}`));
   return out;
 }
+
+/** The small dot that says a task has a note. */
+const noteDot = (cx: number, cy: number): SVGElement => svgEl('circle', { class: 'note-dot', cx, cy, r: 4.5 });
 
 /**
  * Someone else's day drawn as a dial, read only (see peek): the same ring, tasks and clock hand as your

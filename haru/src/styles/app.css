@@ -103,7 +103,7 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .callout-dot { fill: var(--c); }
 :is(#dial, .peek-dial) .callout-name { font: 500 22px var(--font-sans); fill: var(--text-strong); }
 :is(#dial, .peek-dial) .callout-detail { font: 400 15px var(--font-mono); fill: var(--text-muted); }
-:is(#dial, .peek-dial) .callout.done .callout-name { fill: var(--text-muted); }
+:is(#dial, .peek-dial) .callout.done .callout-name { fill: var(--text-strong); }
 :is(#dial, .peek-dial) .callout.now .callout-name, :is(#dial, .peek-dial) .callout.sel .callout-name { fill: var(--accent); }
 :is(#dial, .peek-dial) .now-edge { stroke: color-mix(in srgb, var(--accent) 55%, #b8fff0); stroke-width: 3; stroke-linecap: round; pointer-events: none;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 80%, transparent)); }
@@ -143,9 +143,17 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .block:hover { fill: color-mix(in srgb, var(--c) 22%, var(--cf)); }
 :is(#dial, .peek-dial) .block.sel { fill: color-mix(in srgb, var(--c) 45%, var(--cf)); }
 :is(#dial, .peek-dial) .block-arc { fill: none; stroke: var(--c); stroke-width: 5; pointer-events: none; opacity: .5; }
-:is(#dial, .peek-dial) .block-arc.done { opacity: 1; }
+/* done: filled in its colour, a heavier rim, a check badge — readable at a glance */
+:is(#dial, .peek-dial) .block.done { fill: color-mix(in srgb, var(--c) 34%, var(--cf)); }
+:is(#dial, .peek-dial) .block.done:hover { fill: color-mix(in srgb, var(--c) 42%, var(--cf)); }
+:is(#dial, .peek-dial) .block-arc.done { opacity: 1; stroke-width: 8; }
+:is(#dial, .peek-dial) .done-badge { pointer-events: none; }
+/* a task with a note: a small dot by its name */
+:is(#dial, .peek-dial) .note-dot { fill: var(--accent); pointer-events: none; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent)); }
+:is(#dial, .peek-dial) .done-badge circle { fill: var(--c); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c) 55%, transparent)); }
+:is(#dial, .peek-dial) .done-badge .done-ic { color: var(--bg); stroke-width: 3; }
 :is(#dial, .peek-dial) .block-label { font: 500 21px var(--font-sans); letter-spacing: -.01em; fill: var(--text); pointer-events: none; }
-:is(#dial, .peek-dial) .block-label.done { fill: var(--text-muted); }
+:is(#dial, .peek-dial) .block-label.done { fill: var(--text-strong); }
 :is(#dial, .peek-dial) .block-label.now, :is(#dial, .peek-dial) .block-label.sel { fill: var(--text-strong); }
 :is(#dial, .peek-dial) .block-time { font: 400 14px var(--font-mono); fill: color-mix(in srgb, var(--text) 55%, transparent); pointer-events: none; }
 :is(#dial, .peek-dial) .ghost { fill: color-mix(in srgb, var(--text) 10%, transparent); stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 6 6; pointer-events: none; }
@@ -1024,6 +1032,15 @@ body.gated > :not(.gate, .connect) { visibility: hidden; }
 
 .editor { display: grid; gap: 14px; box-shadow: inset 2px 0 0 var(--c, var(--text)); }
 .editor[hidden] { display: none; }
+/* more about the task, under its hours */
+.editor .note-input {
+  width: 100%; min-height: 64px; max-height: 200px; padding: 9px 12px; resize: vertical;
+  border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well);
+  font: 400 13.5px/1.5 var(--font-sans); color: var(--text-strong); outline: none;
+}
+.editor .note-input:focus { border-color: var(--line-strong); }
+.editor .note-input::placeholder { color: var(--text-subtle); }
+#list .note-mark { display: inline-block; width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; vertical-align: super; background: var(--accent); }
 .editor-head .done-toggle { margin-left: auto; height: 26px; gap: 5px; }
 .done-toggle .ic { width: 13px; height: 13px; stroke-width: 2.5; }
 .editor-head .done-toggle { width: auto; }

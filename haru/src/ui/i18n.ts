@@ -146,7 +146,7 @@ const KO: Record<string, string> = {
   'No words yet': '아직 단어가 없어요', 'See someone’s Haru': '다른 사람의 Haru 보기', 'Back to mine (Esc)': '내 화면으로 돌아가기 (Esc)',
   'Back to mine  Esc': '내 화면으로  Esc', 'No pages yet': '아직 페이지가 없어요', 'No memos yet': '아직 메모가 없어요',
   'Their words couldn’t be loaded.': '단어장을 불러오지 못했어요.', 'Their pages couldn’t be loaded.': '페이지를 불러오지 못했어요.',
-  'Their memos couldn’t be loaded.': '메모를 불러오지 못했어요.', 'Name in Notion': 'Notion에서 쓰는 이름',
+  'Their memos couldn’t be loaded.': '메모를 불러오지 못했어요.', 'Name in Notion': 'Notion에서 쓰는 이름', 'Notes (optional)': '메모 (선택)', Notes: '메모',
   'Type your column name in the Notion attendance table exactly as it is there (e.g. 세현). Check-ins then go both ways.': 'Notion 출석 표에 있는 내 열 이름을 그대로 적어 주세요 (예: 세현). 그러면 출석 체크가 양쪽에 함께 반영돼요.',
   'This name is linked to another Haru account': '이 이름은 다른 Haru 계정과 연결되어 있어요', 'Not a column in the Notion table yet': 'Notion 표에 없는 이름이에요', 'Their pages': '그 사람의 페이지', 'Their memos': '그 사람의 메모',
   'Read only': '보기 전용', 'No one else yet': '아직 다른 사람이 없어요', 'Loading…': '불러오는 중…',

@@ -22,6 +22,8 @@ export interface Block {
   dur: number;
   /** Checked off as a finished task. */
   done: boolean;
+  /** More about the task, written in the editor (a dot by its name says there is some). */
+  note?: string;
 }
 
 /** A block being created (id null) or edited. */

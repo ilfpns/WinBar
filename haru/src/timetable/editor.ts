@@ -5,6 +5,7 @@ import { timeField } from '../ui/time-field';
 
 interface EditorFields extends HTMLFormControlsCollection {
   title: HTMLInputElement;
+  note: HTMLTextAreaElement;
 }
 
 function req<T extends Element>(root: ParentNode, selector: string): T {
@@ -62,6 +63,7 @@ export function mountEditor(form: HTMLFormElement): void {
       head.textContent = d.id ? 'Edit task' : 'New task';
       del.hidden = !d.id;
       f.title.value = d.title;
+      f.note.value = d.note ?? '';
       err.textContent = '';
       queueMicrotask(() => f.title.focus());
     }
@@ -73,6 +75,7 @@ export function mountEditor(form: HTMLFormElement): void {
   }
 
   f.title.addEventListener('input', () => patchDraft({ title: f.title.value }));
+  f.note.addEventListener('input', () => patchDraft({ note: f.note.value }));
 
   let lastSave = 0;
   const save = () => {
@@ -89,8 +92,8 @@ export function mountEditor(form: HTMLFormElement): void {
   let afterComposition = false;
   form.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
-    // Enter on Cancel / Delete does what that button says
-    if ((e.target as Element).closest('[data-act]')) return;
+    // Enter on Cancel / Delete does what that button says; in the note it starts a new line
+    if ((e.target as Element).closest('[data-act], textarea')) return;
     e.preventDefault();
     if (e.isComposing || e.keyCode === 229) {
       afterComposition = true; // save once the syllable being typed is committed

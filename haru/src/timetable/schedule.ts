@@ -116,7 +116,15 @@ export function mountSchedule(refs: ScheduleRefs): void {
       row.setAttribute('aria-pressed', String(picked.has(b.id)));
       row.style.setProperty('--c', `var(--cat-${b.cat})`);
       row.innerHTML = `<span class="t">${hhmm(b.start)}–${hhmm(b.start + b.dur)}</span><span class="dot"></span><span class="n"></span><span class="d">${formatDuration(b.dur)}</span>`;
-      row.querySelector('.n')!.textContent = labelOf(b);
+      const n = row.querySelector<HTMLElement>('.n')!;
+      n.textContent = labelOf(b);
+      // a note on the task: a small dot after its name, and the note itself on hover
+      if (b.note) {
+        const mark = document.createElement('i');
+        mark.className = 'note-mark';
+        n.append(mark);
+        row.title = b.note;
+      }
       li.append(check, row);
       return li;
     }));

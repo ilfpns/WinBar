@@ -112,11 +112,18 @@ function overlapMessage(d: Draft): string {
   return hit ? `Overlaps ${labelOf(hit)} ${hhmm(hit.start)}–${hhmm(hit.start + hit.dur)}` : 'Overlaps another task';
 }
 
+/** A draft as a saved task: the title trimmed, and the note kept only when it says something (no empty field). */
+function toBlock(d: Draft, id: string): Block {
+  const { note, ...rest } = d;
+  const text = note?.trim();
+  return { ...rest, id, title: d.title.trim(), ...(text ? { note: text } : {}) };
+}
+
 /** Adds a ready-made task (e.g. from a memo line). Returns an error message if it can't be placed. */
 export function addBlock(d: Draft): string | null {
   if (d.dur <= 0 || d.dur >= DAY) return 'Start and end are the same';
   if (overlaps(state.blocks, d)) return overlapMessage(d);
-  const block: Block = { ...d, id: newId(), title: d.title.trim() };
+  const block = toBlock(d, newId());
   setState({ blocks: [...state.blocks, block], lastCat: block.cat });
   savedListeners.forEach((fn) => fn(block));
   return null;
@@ -128,7 +135,7 @@ export function commitDraft(): string | null {
   if (!d) return null;
   if (d.dur <= 0 || d.dur >= DAY) return 'Start and end are the same';
   if (overlaps(state.blocks, d)) return overlapMessage(d);
-  const block: Block = { ...d, id: d.id ?? newId(), title: d.title.trim() };
+  const block = toBlock(d, d.id ?? newId());
   committing = true;
   setState({ blocks: [...state.blocks.filter((b) => b.id !== block.id), block], draft: null });
   committing = false;
