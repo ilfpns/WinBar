@@ -1838,7 +1838,7 @@ md-editor { --md-fs: 15px; }
 .j-editor .j-text { --md-fs: 15.5px; }
 md-editor .md-l { position: relative; min-height: 1.6em; padding-left: calc(var(--ind, 0) * 1.5em); }
 /* block marks (# , - , - [ ] , > , ---) stay in the text but take no room: what shows is the result */
-md-editor :is(.mk-ind, .mk-h, .mk-li, .mk-task, .mk-q, .mk-hr) { font-size: 0; }
+md-editor :is(.mk-ind, .mk-h, .mk-li, .mk-task, .mk-q, .mk-hr, .mk-img) { font-size: 0; }
 /* inline marks (** ` ~~ [ ]( )) show only on the line being edited */
 md-editor .md-l:not(.active) .mk-in { font-size: 0; }
 md-editor .mk-in { color: var(--text-subtle); font-weight: 400; font-style: normal; text-decoration: none; }
@@ -1868,6 +1868,26 @@ md-editor .md-l.task.done { color: var(--text-subtle); text-decoration: line-thr
 /* a quote: a bar on the left */
 md-editor .md-l.quote { padding-left: calc(var(--ind, 0) * 1.5em + 14px); color: var(--text-muted); }
 md-editor .md-l.quote::before { content: ""; position: absolute; left: calc(var(--ind, 0) * 1.5em + 2px); top: 3px; bottom: 3px; width: 3px; border-radius: 2px; background: var(--line-strong); }
+/* a photo in the text: the picture where its line is; click opens it large, copy / remove on hover */
+md-editor .md-l.img { padding: 6px 0; }
+/* its source line takes no line box of its own (the caret parks at its end, on the photo's line) */
+md-editor .md-l.img .mk-img { position: absolute; left: 0; top: 0; }
+md-editor .md-img { position: relative; display: block; width: fit-content; max-width: 100%; user-select: none; cursor: zoom-in; }
+md-editor .md-img img { display: block; max-width: 100%; max-height: 460px; border-radius: 10px; border: 1px solid var(--line); background: rgb(var(--ink) / .04); }
+md-editor .md-img.missing { width: 220px; height: 120px; border-radius: 10px; border: 1px dashed var(--line-strong); background: rgb(var(--ink) / .04); cursor: default; }
+md-editor .md-img.missing img { display: none; }
+md-editor .md-img-bar { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+md-editor .md-img:hover .md-img-bar, md-editor .md-img-btn:focus-visible { opacity: 1; }
+md-editor .md-img.missing .md-img-btn[data-act="copy"] { display: none; }
+@media (hover: none) { md-editor .md-img-bar { opacity: 1; } }
+md-editor .md-img-btn {
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; cursor: pointer;
+  background: rgb(0 0 0 / .62); color: #fff; backdrop-filter: blur(6px);
+}
+md-editor .md-img-btn:hover { background: rgb(0 0 0 / .8); }
+md-editor .md-img-btn .ic { width: 14px; height: 14px; }
+.md-view .md-img, .pr-body .md-img { margin: 8px 0; }
+.md-view .md-img img, .pr-body .md-img img { display: block; max-width: 100%; border-radius: 8px; }
 /* a divider: only the line */
 md-editor .md-l.hr { background: linear-gradient(var(--line-strong), var(--line-strong)) center / 100% 1px no-repeat; }
 md-editor :is(.md-l.code, .md-l.fence) { font: 400 .88em/1.7 var(--font-mono); background: rgb(var(--ink) / .05); padding: 0 10px; }

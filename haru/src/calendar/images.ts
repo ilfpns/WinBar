@@ -17,7 +17,8 @@ export interface ImageRecord {
 export interface Images {
   get(date: string): ImageRecord[];
   url(rec: ImageRecord): string;
-  add(date: string, files: Blob[]): Promise<number>;
+  /** Adds the images among `files`; resolves to what was added. */
+  add(date: string, files: Blob[]): Promise<ImageRecord[]>;
   remove(id: string): void;
   /** Every image, for backups. */
   all(): ImageRecord[];
@@ -126,14 +127,15 @@ export function createImages(onChange: () => void): Images {
       return u;
     },
     async add(date, files) {
-      const images = files.filter((f) => f.type.startsWith('image/'));
-      for (const f of images) {
+      const added: ImageRecord[] = [];
+      for (const f of files.filter((x) => x.type.startsWith('image/'))) {
         const rec: ImageRecord = { id: newId(), date, blob: await shrink(f), created: Date.now() };
         put(rec);
         write((s) => s.put(rec));
+        added.push(rec);
       }
-      if (images.length) changed();
-      return images.length;
+      if (added.length) changed();
+      return added;
     },
     remove(id) {
       for (const [date, list] of byDate) {

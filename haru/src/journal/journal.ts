@@ -4,6 +4,7 @@ import { icon } from '../ui/icons';
 import { mdPad } from '../ui/md-pad';
 import { type MdEditor } from '../ui/md-editor';
 import { printPdf } from '../ui/print';
+import { IMG_LINE, imageLine } from '../ui/markdown';
 import { askConfirm, askText, showMenu } from '../ui/modal';
 import { onSession, session } from '../cloud/session';
 import { sharePage, unsharePage } from '../archive/archive';
@@ -49,7 +50,7 @@ const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2
 const wordCount = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
 /** A Markdown line as plain words (marks, fences and dividers dropped). */
 const plain = (line: string) =>
-  /^\s*(```|([-*_])(\s*\2){2,}\s*$|\|(\s*:?-{3,}:?\s*\|)+\s*$)/.test(line) ? '' : line
+  IMG_LINE.test(line) || /^\s*(```|([-*_])(\s*\2){2,}\s*$|\|(\s*:?-{3,}:?\s*\|)+\s*$)/.test(line) ? '' : line
     .replace(/^\s*\|(.*)\|\s*$/, (_, cells: string) => cells.split('|').map((x) => x.trim()).filter(Boolean).join(' · '))
     .replace(/^\s*(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> )/, '')
     .replace(/\*\*|__|~~|`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
@@ -103,6 +104,7 @@ export function mountJournal(body: HTMLElement): void {
     title: e.title || 'Untitled',
     meta: new Date(`${e.date}T00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
     body: e.body,
+    imageUrl: photoUrl,
   });
   pdfOne.addEventListener('click', () => {
     flush();
@@ -419,6 +421,7 @@ export function mountJournal(body: HTMLElement): void {
   text.addEventListener('input', () => {
     schedule();
     renderFoot();
+    renderPhotos();
   });
   // leaving the page or tab never loses the last few keystrokes
   addEventListener('pagehide', () => flush());
@@ -473,22 +476,58 @@ export function mountJournal(body: HTMLElement): void {
   });
   journalStore.onChange(paintPin);
 
-  // ---- photos: pick, paste (Ctrl+V) or drop them onto the page; each can be opened large, copied or removed.
-  // They live with the calendar's images (synced and backed up the same way), filed under the page.
+  // ---- photos: pick, paste (Ctrl+V) or drop them onto the page, and they go into the text where the caret is
+  // (dropped: where they fall), each on a line of its own, as in Notion or Obsidian. Opened large, copied or
+  // removed from the photo itself. They live with the calendar's images (synced and backed up the same way),
+  // filed under the page; photos from before they went inline (or whose line was deleted) stay under the text.
   const gallery = $<HTMLElement>('.j-images');
   const addImg = $<HTMLButtonElement>('.j-add-img');
   const imgFile = $<HTMLInputElement>('.j-img-file');
   addImg.append(icon('image-plus'));
   const photoKey = (id: string) => `journal:${id}`;
+  /** A photo of the open page, to show (null: not on this device, or not yet). */
+  function photoUrl(id: string): string | null {
+    const store = imagesStore();
+    const rec = store && openId ? store.get(photoKey(openId)).find((r) => r.id === id) : undefined;
+    return rec ? store!.url(rec) : null;
+  }
   async function attach(files: Blob[]): Promise<void> {
     const store = imagesStore();
     if (!store || !files.some((f) => f.type.startsWith('image/'))) return;
     // a photo on a blank page starts the page
     flush(true);
     if (!openId) return;
-    const n = await store.add(photoKey(openId), files);
-    if (n) tell(`${n} photo${n === 1 ? '' : 's'} added`);
+    const at = text.selectionStart;
+    const added = await store.add(photoKey(openId), files);
+    if (!added.length) return;
+    placePhotos(added.map((r) => r.id), at);
+    tell(`${added.length} photo${added.length === 1 ? '' : 's'} added`);
   }
+  /** Puts photo lines into the text at `at` (on lines of their own), the caret after them. */
+  function placePhotos(ids: string[], at: number): void {
+    const v = text.value;
+    const pos = Math.min(at, v.length);
+    const before = pos > 0 && v[pos - 1] !== '\n' ? '\n' : '';
+    const after = pos < v.length && v[pos] === '\n' ? '' : '\n';
+    text.setRangeText(before + ids.map(imageLine).join('\n') + after, pos, pos, 'end');
+    text.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  text.imageUrl = photoUrl;
+  text.addEventListener('md-image', (e) => {
+    const { id, action } = (e as CustomEvent<{ id: string; action: string }>).detail;
+    const store = imagesStore();
+    const rec = store && openId ? store.get(photoKey(openId)).find((r) => r.id === id) : undefined;
+    if (!rec || !store) return;
+    if (action === 'open') {
+      big.src = store.url(rec);
+      viewer.showModal();
+    } else if (action === 'copy') {
+      void copyPhoto(rec.blob).then(() => tell('Photo copied'), () => tell('Couldn’t copy the photo'));
+    } else if (action === 'remove') {
+      store.remove(rec.id);
+      tell('Photo removed');
+    }
+  });
   addImg.addEventListener('click', () => imgFile.click());
   imgFile.addEventListener('change', () => {
     void attach([...(imgFile.files ?? [])]);
@@ -517,6 +556,12 @@ export function mountJournal(body: HTMLElement): void {
     editorEl.classList.remove('drop');
     if (!files.length) return;
     e.preventDefault();
+    // dropped on the text: they go where they fall
+    const spot = document.caretRangeFromPoint?.(e.clientX, e.clientY);
+    if (spot && text.contains(spot.startContainer)) {
+      text.focus();
+      getSelection()?.collapse(spot.startContainer, spot.startOffset);
+    }
     void attach(files);
   });
 
@@ -546,7 +591,10 @@ export function mountJournal(body: HTMLElement): void {
 
   function renderPhotos(): void {
     const store = imagesStore();
-    const list = store && openId ? store.get(photoKey(openId)) : [];
+    text.refreshImages();
+    // under the text: only the photos not placed in it
+    const placed = new Set(text.value.split('\n').flatMap((l) => IMG_LINE.exec(l)?.[1] ?? []));
+    const list = store && openId ? store.get(photoKey(openId)).filter((r) => !placed.has(r.id)) : [];
     gallery.hidden = !list.length;
     gallery.replaceChildren(...list.map((rec, k) => {
       const item = document.createElement('div');
@@ -587,7 +635,7 @@ export function mountJournal(body: HTMLElement): void {
   onImagesChanged(renderPhotos);
 
   function renderFoot(): void {
-    const n = wordCount(`${titleIn.value} ${text.value}`);
+    const n = wordCount(`${titleIn.value} ${text.value.split('\n').filter((l) => !IMG_LINE.test(l)).join('\n')}`);
     foot.textContent = n ? `${n} ${n === 1 ? 'word' : 'words'} · ${Math.max(1, Math.round(n / 200))} min read` : 'Saved as you type';
   }
 

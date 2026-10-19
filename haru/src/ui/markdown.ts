@@ -8,6 +8,13 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 const SAFE_URL = /^(https?:\/\/|mailto:)/i;
 
+/**
+ * A photo placed in the text: a line of its own, `![](img:<id>)`, naming an image in the images store.
+ * Only the device that holds the image can show it; elsewhere (someone else's shared page) the line is dropped.
+ */
+export const IMG_LINE = /^!\[[^\]]*\]\(img:([\w-]+)\)\s*$/;
+export const imageLine = (id: string) => `![](img:${id})`;
+
 function inline(text: string): string {
   // code spans and links first, set aside so the emphasis rules never reach into them
   const kept: string[] = [];
@@ -24,7 +31,7 @@ function inline(text: string): string {
   return s.replace(/\u0000(\d+)\u0000/g, (_, i: string) => kept[Number(i)]!);
 }
 
-export function renderMarkdown(src: string): string {
+export function renderMarkdown(src: string, imageUrl?: (id: string) => string | null): string {
   const lines = src.replace(/\r\n?/g, '\n').split('\n');
   const out: string[] = [];
   let para: string[] = [];
@@ -97,6 +104,13 @@ export function renderMarkdown(src: string): string {
     }
     if (!line.trim()) {
       flush();
+      continue;
+    }
+    const img = IMG_LINE.exec(line);
+    if (img) {
+      flush();
+      const url = imageUrl?.(img[1]!);
+      if (url) out.push(`<figure class="md-img"><img src="${esc(url)}" alt=""></figure>`);
       continue;
     }
     const h = line.match(/^(#{1,6})\s+(.*)$/);

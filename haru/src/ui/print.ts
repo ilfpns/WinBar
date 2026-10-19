@@ -10,6 +10,8 @@ export interface PrintSection {
   meta?: string;
   /** Markdown body. */
   body: string;
+  /** Where the photos placed in the body can be read from (left out, they are skipped). */
+  imageUrl?: (id: string) => string | null;
 }
 
 export function printPdf(fileName: string, heading: string, sections: PrintSection[]): void {
@@ -36,7 +38,7 @@ export function printPdf(fileName: string, heading: string, sections: PrintSecti
     }
     const body = document.createElement('div');
     body.className = 'pr-body';
-    body.innerHTML = renderMarkdown(s.body);
+    body.innerHTML = renderMarkdown(s.body, s.imageUrl);
     art.append(body);
     root.append(art);
   }

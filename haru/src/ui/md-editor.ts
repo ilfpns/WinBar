@@ -1,4 +1,5 @@
 import { icon, type IconName } from './icons';
+import { IMG_LINE } from './markdown';
 
 /**
  * <md-editor>: a note you write in Markdown that shows its formatting as you type — a `# ` line is a
@@ -17,10 +18,11 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
  * what is typed would land inside it — out of sight while a Korean syllable is composed. A zero-width space
  * after the mark gives the caret a visible place to type into; it is never part of the text.
  */
+const NL = String.fromCharCode(10);
 const ZW = '​';
 const unZW = (s: string | null) => (s ?? '').replaceAll(ZW, '');
 /** Marks drawn as a dot, box or bar (their text hidden): the caret never types into them. */
-const isHiddenMark = (t: Text) => !!t.parentElement?.closest('.mk-ind, .mk-h, .mk-li, .mk-task, .mk-q');
+const isHiddenMark = (t: Text) => !!t.parentElement?.closest('.mk-ind, .mk-h, .mk-li, .mk-task, .mk-q, .mk-img');
 const mk = (s: string) => `<span class="mk mk-in">${esc(s)}</span>`;
 const SAFE_URL = /^(https?:\/\/|mailto:)/i;
 
@@ -54,6 +56,7 @@ interface Drawn { cls: string; html: string; mark: number; indent: number }
 /** The block mark a line starts with (indent included): heading, to-do, bullet, number, quote or a divider. */
 function blockOf(src: string): { kind: string; indent: string; marker: string; rest: string; done?: boolean } | null {
   if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(src)) return { kind: 'hr', indent: '', marker: src, rest: '' };
+  if (IMG_LINE.test(src)) return { kind: 'img', indent: '', marker: src, rest: '' };
   let m = /^(#{1,6} )(.*)$/.exec(src);
   if (m) return { kind: `h${Math.min(3, m[1]!.length - 1)}`, indent: '', marker: m[1]!, rest: m[2]! };
   m = /^(\s*)([-*] \[([ xX])\] )(.*)$/.exec(src);
@@ -99,6 +102,11 @@ function line(src: string, fence: boolean, next?: string): Drawn {
   const indent = Math.floor(b.indent.replace(/\t/g, '  ').length / 2);
   const ind = b.indent ? `<span class="mk mk-ind">${esc(b.indent)}</span>` : '';
   if (b.kind === 'hr') return { cls: 'md-l hr', html: `<span class="mk mk-hr">${esc(src)}</span>`, mark: src.length, indent: 0 };
+  // a photo: its line hidden, the picture drawn in its place (filled in from the editor's imageUrl)
+  if (b.kind === 'img') {
+    const html = `<span class="mk mk-img">${esc(src)}</span><span class="md-img" contenteditable="false" data-ref="${IMG_LINE.exec(src)![1]}"><img alt="" draggable="false"><span class="md-img-bar"><button type="button" class="md-img-btn" data-act="copy" aria-label="Copy photo" title="Copy"></button><button type="button" class="md-img-btn" data-act="remove" aria-label="Remove photo" title="Remove"></button></span></span>`;
+    return { cls: 'md-l img', html, mark: src.length, indent: 0 };
+  }
   // a numbered item keeps its number visible; the other marks are drawn (a dot, a box, a bar) instead
   const markCls = b.kind === 'ol' ? 'mk mk-ol' : b.kind === 'task' ? 'mk mk-task' : b.kind === 'li' ? 'mk mk-li' : b.kind === 'quote' ? 'mk mk-q' : 'mk mk-h';
   return {
@@ -130,6 +138,12 @@ const BLOCKS: { id: string; label: string; hint: string; icon: IconName; keys: s
 const MARKER = /^(\s*)(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> )?/;
 
 export class MdEditor extends HTMLElement {
+  /**
+   * Where a photo line's picture comes from (null: not here, or not yet). A click on a photo, or its copy /
+   * remove button, comes out as an `md-image` event ({ id, action: 'open' | 'copy' | 'remove' }); on
+   * remove the line is gone already.
+   */
+  imageUrl: ((id: string) => string | null) | null = null;
   private composing = false;
   private placeholderText = '';
   private history: { text: string; caret: number }[] = [];
@@ -175,7 +189,7 @@ export class MdEditor extends HTMLElement {
         }
         // parked at the end of a hidden mark (a click, an arrow key): step past it, where typing shows
         const f = sel.focusNode;
-        if (f instanceof Text && sel.focusOffset === f.data.length && isHiddenMark(f) && !this.lineEl()?.classList.contains('hr')) {
+        if (f instanceof Text && sel.focusOffset === f.data.length && isHiddenMark(f) && !this.lineEl()?.matches('.hr, .img')) {
           const spot = this.caretSpot(c);
           if (spot && spot[0] !== f) {
             sel.collapse(spot[0], spot[1]);
@@ -258,13 +272,26 @@ export class MdEditor extends HTMLElement {
       if (w.mark) div.dataset.mark = String(w.mark);
       if (w.indent) div.style.setProperty('--ind', String(w.indent));
       // an empty item still needs a line box, and a place after its hidden mark, to hold the caret
-      div.innerHTML = w.html + (w.mark && w.mark === w.src.length && !w.cls.includes('hr') ? ZW : '');
+      div.innerHTML = w.html + (w.mark && w.mark === w.src.length && !/\b(hr|img)\b/.test(w.cls) ? ZW : '');
       if (cur) cur.replaceWith(div);
       else this.append(div);
     });
     for (const extra of kids.slice(want.length)) extra.remove();
+    this.refreshImages();
     this.classList.toggle('empty', !text);
     this.markActive();
+  }
+
+  /** Puts each photo line's picture in (again): call when the images it shows arrive or change. */
+  refreshImages(): void {
+    for (const box of this.querySelectorAll<HTMLElement>('.md-img')) {
+      const img = box.querySelector('img')!;
+      const url = this.imageUrl?.(box.dataset.ref!) ?? null;
+      if (url && img.getAttribute('src') !== url) img.src = url;
+      if (!url) img.removeAttribute('src');
+      box.classList.toggle('missing', !url);
+      for (const b of box.querySelectorAll<HTMLElement>('.md-img-btn:empty')) b.append(icon(b.dataset.act === 'copy' ? 'copy' : 'x'));
+    }
   }
 
   /** Where `node`/`off` sits in the text. */
@@ -386,6 +413,13 @@ export class MdEditor extends HTMLElement {
       e.preventDefault();
       return;
     }
+    // typing on a photo's line goes on a new line after it (the photo stays whole)
+    if (this.lineEl()?.classList.contains('img') && (e.inputType === 'insertText' || e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak')) {
+      e.preventDefault();
+      const { end } = this.lineAt(this.value, this.caret());
+      this.insert(`\n${e.inputType === 'insertText' ? e.data ?? '' : ''}`, end, end);
+      return;
+    }
     if (!this.pending) this.pending = { text: this.value, caret: this.caret() };
     // a soft break (Shift+Enter) is a new line too: lines are the only breaks
     if (e.inputType === 'insertLineBreak' && !e.defaultPrevented) {
@@ -435,6 +469,25 @@ export class MdEditor extends HTMLElement {
       return;
     }
     if (e.isComposing || e.keyCode === 229) return;
+    // Backspace at the start of the line after a photo (or Delete at the end of the line before one) takes
+    // the photo's line out whole, as a block; joining the two would break the photo's line
+    if ((e.key === 'Backspace' || e.key === 'Delete') && !mod && !e.altKey && this.selectionStart === this.selectionEnd) {
+      const v = this.value;
+      const c = this.selectionStart;
+      const { start, end } = this.lineAt(v, c);
+      const lines = v.split(NL);
+      const i = v.slice(0, c).split(NL).length - 1;
+      const j = e.key === 'Backspace' && c === start ? i - 1 : e.key === 'Delete' && c === end ? i + 1 : -1;
+      if (j >= 0 && j < lines.length && IMG_LINE.test(lines[j]!)) {
+        e.preventDefault();
+        const [gone] = lines.splice(j, 1);
+        this.remember(v, c);
+        this.render(lines.join(NL));
+        this.placeCaret(e.key === 'Backspace' ? c - gone!.length - 1 : c);
+        this.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
+    }
     if ((e.key === 'Backspace' || e.key === 'ArrowLeft') && !mod && !e.shiftKey && !e.altKey) {
       const v = this.value;
       const c = this.selectionStart;
@@ -451,7 +504,7 @@ export class MdEditor extends HTMLElement {
           // nested: step out a level; otherwise the mark goes and the words stay
           const next = b.indent.length >= 2 && b.kind !== 'hr'
             ? b.indent.slice(2) + b.marker + b.rest
-            : b.kind === 'hr' ? '' : b.rest;
+            : b.kind === 'hr' || b.kind === 'img' ? '' : b.rest;
           this.remember(v, c);
           this.render(v.slice(0, start) + next + v.slice(start + text.length));
           this.placeCaret(start + (b.indent.length >= 2 && b.kind !== 'hr' ? mark - 2 : 0));
@@ -553,6 +606,23 @@ ${newRow}${v.slice(end)}`);
   }
   private onClick(e: MouseEvent): void {
     const t = e.target as HTMLElement;
+    // a photo: opens large; its buttons copy it or take it out of the text
+    const photo = t.closest<HTMLElement>('.md-img');
+    if (photo) {
+      const action = t.closest<HTMLElement>('.md-img-btn')?.dataset.act ?? 'open';
+      if (action === 'remove') {
+        const i = [...this.childNodes].indexOf(photo.parentElement!);
+        if (i < 0) return;
+        const v = this.value;
+        const lines = v.split('\n');
+        lines.splice(i, 1);
+        this.remember(v, this.caret());
+        this.render(lines.join('\n'));
+        this.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      this.dispatchEvent(new CustomEvent('md-image', { bubbles: true, detail: { id: photo.dataset.ref, action } }));
+      return;
+    }
     // a box ticks
     const box = t.closest('.mk-task');
     if (box) {

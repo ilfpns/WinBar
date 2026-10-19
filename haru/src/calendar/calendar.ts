@@ -289,7 +289,7 @@ export function mountCalendar(refs: CalendarRefs): void {
     if (ttOpen && selected === dayKey()) void renderTimetable();
   });
   async function attach(files: Blob[]): Promise<void> {
-    const n = await images.add(noteDate, files);
+    const n = (await images.add(noteDate, files)).length;
     if (n) say(`${n} image${n === 1 ? '' : 's'} added`);
   }
   // an image on the clipboard goes in as a picture; plain text pastes as usual
