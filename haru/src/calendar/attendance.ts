@@ -184,6 +184,28 @@ export function createAttendance(): Attendance {
   }, 60_000);
   // whenever the bar changes width (window, drawers) the year scrolls back to this week
   new ResizeObserver(() => (cal.scrollLeft = cal.scrollWidth)).observe(cal);
+  // narrowed past 700px (drawers open on both sides) the bar stacks: its height glides to the new one and the
+  // contents fade back in, instead of the whole bar jumping to its other shape
+  const STACK = 700;
+  const isStacked = () => {
+    const cs = getComputedStyle(root);
+    return root.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) <= STACK;
+  };
+  let stacked = isStacked();
+  let lastH = root.offsetHeight;
+  new ResizeObserver(() => {
+    const now = isStacked();
+    const h = root.offsetHeight;
+    if (now !== stacked && lastH && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const ease = 'cubic-bezier(.22, 1, .36, 1)';
+      root.classList.add('reflowing');
+      root.animate([{ height: `${lastH}px` }, { height: `${h}px` }], { duration: 420, easing: ease })
+        .finished.finally(() => root.classList.remove('reflowing'));
+      for (const el of root.children) (el as HTMLElement).animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 320, delay: 80, easing: ease, fill: 'backwards' });
+    }
+    stacked = now;
+    lastH = h;
+  }).observe(root);
   void load();
   return { el: root };
 }

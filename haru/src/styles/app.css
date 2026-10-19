@@ -316,6 +316,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 }
 /* the bar sizes itself to its own width (drawers open beside it narrow it): too narrow for side by side, it stacks */
 .attend { container: attend / inline-size; }
+.attend.reflowing { overflow: hidden; }
 @container attend (max-width: 700px) {
   .attend > * { grid-column: 1 / -1 !important; grid-row: auto !important; }
   .att-cal .att-months, .att-cal .att-grid { width: calc(53 * 13px); }
@@ -573,10 +574,12 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
   .news-view:is(.current, .leaving) .attend {
     width: min(1040px, calc(100% - var(--shift-l, 0px) - var(--shift-r, 0px)));
     transform: translate3d(calc((var(--shift-l, 0px) - var(--shift-r, 0px)) / 2), 0, 0);
-    transition: transform var(--drawer-dur) var(--drawer-ease);
+    /* its width follows the drawer too (same time and curve), so the grass narrows and widens with it
+       instead of being redrawn at the new size in one jump */
+    transition: transform var(--drawer-dur) var(--drawer-ease), width var(--drawer-dur) var(--drawer-ease);
   }
 }
-body.switching .globe-wrap { transition: none; }
+body.switching .globe-wrap, body.switching .attend, body.resizing .attend { transition: none; }
 #globe { width: min(100%, calc(100svh - 330px), 760px); aspect-ratio: 1; cursor: grab; touch-action: none; }
 /* heatmap toggle: bottom-left of the globe's box */
 .globe-heat { position: absolute; left: calc(50% - min(170px, 38%)); bottom: 0; width: 28px; height: 28px; }

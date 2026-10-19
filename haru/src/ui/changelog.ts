@@ -23,6 +23,7 @@ export const CHANGELOG: Release[] = [
     date: '2026-10-19',
     title: { en: 'A calmer left drawer', ko: '더 차분한 왼쪽 서랍' },
     items: [
+      { en: 'News: as a drawer opens or closes, the attendance bar narrows and widens with it instead of jumping to its new size; when it has to stack, its height glides and the contents fade back in.', ko: '뉴스: 서랍이 열리고 닫힐 때 출석 막대가 새 크기로 툭 바뀌지 않고 서랍과 함께 부드럽게 줄고 늘어나요. 세로로 쌓일 때도 높이가 이어서 바뀌고 내용이 살짝 페이드돼요.' },
       { en: 'The left drawer folds back into the rail when it closes, so only the rail stays; no half panel passes by.', ko: '왼쪽 서랍이 닫힐 때 레일 속으로 접혀 들어가서 레일만 남아요. 반쯤 걸친 판이 지나가지 않아요.' },
       { en: 'The close button at the top of the drawer is gone; close it with [ or a click beside it.', ko: '서랍 위쪽의 닫기 버튼을 없앴어요. [ 키나 바깥을 눌러 닫으면 돼요.' },
     ],
