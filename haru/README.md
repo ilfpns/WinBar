@@ -35,7 +35,7 @@ npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 
 ## Changes
 
-- **2026-10-19** — Journal: *Your days* statistics, page pinning, photos (add, Ctrl+V, drop, copy). School timetable from any school (컴시간알리미 / NEIS). Categories School, Meeting, Meal with darker distinct colours. Today: done badges, task notes, the new-day mark you can drag. Notion attendance both ways (undo included) every 5 minutes. Search removed. Only Today of another member can be looked at.
+- **2026-10-19** — School timetable: subjects were read from the teacher digits, so a class showed the wrong lessons; now decoded as 컴시간알리미 does. Journal: *Your days* statistics, page pinning, photos (add, Ctrl+V, drop, copy). School timetable from any school (컴시간알리미 / NEIS). Categories School, Meeting, Meal with darker distinct colours. Today: done badges, task notes, the new-day mark you can drag. Notion attendance both ways (undo included) every 5 minutes. Search removed. Only Today of another member can be looked at.
 - **2026-10-18** — Invite-only accounts with per-person data, shared Archive, reconnect screen, simpler attendance grass.
 
 ## Design

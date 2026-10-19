@@ -58,9 +58,11 @@ for (const r of [1, 2]) {
         if (!Array.isArray(row)) continue;
         const lessons = [];
         for (let p = 1; p <= Math.min(Number(row[0]) || 0, periods.length); p++) {
-          // ">" marks a lesson changed for that day; the number is teacher * split + subject
+          // ">" marks a lesson changed for that day; as on comci's own page (baSplit), the last three digits
+          // are the teacher and the rest the subject (its thousands are a shared-group letter, hence % split)
           const n = Number(String(row[p] ?? '').replace(/^>/, ''));
-          const subject = n > 0 ? String(subjectNames[n % split] ?? '').trim() : '';
+          const teacher = n % 1000;
+          const subject = teacher > 0 ? String(subjectNames[Math.floor(n / 1000) % split] ?? '').trim() : '';
           if (subject) lessons.push({ period: p, subject });
         }
         days[day] = lessons;
