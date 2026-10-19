@@ -49,6 +49,12 @@ export function mountTemplates(refs: TemplateRefs): void {
   }
   tabs.forEach((t) => t.addEventListener('click', () => showTab(t.dataset.rtab as 'today' | 'templates')));
   showTab('today');
+  // the drawer always comes out on Today; Templates is a visit, not where it stays
+  let rightOpen = state.drawers.right;
+  subscribe(() => {
+    if (state.drawers.right && !rightOpen) showTab('today');
+    rightOpen = state.drawers.right;
+  });
 
   let statusTimer = 0;
   function say(parts: (string | HTMLElement)[], ms = 4000): void {

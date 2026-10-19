@@ -90,8 +90,26 @@ export function mountDial(svg: SVGSVGElement): Dial {
     return draft ? [...rest, draft] : rest;
   }
 
+  // done state as of the last paint: the badge of a task checked since then pops in (never on first paint)
+  let doneSeen: Map<string, boolean> | null = null;
+  // task id → when its badge began popping; a repaint mid-pop resumes the animation instead of restarting it
+  const popping = new Map<string, number>();
+  const popStyle = (id: string | null): string | null => {
+    const t0 = id === null ? undefined : popping.get(id);
+    return t0 === undefined ? null : `--pop-at:${Math.round(t0 - performance.now())}ms`;
+  };
+
   function render(): void {
     const now = nowMinutes();
+    const doneNow = new Map(state.blocks.map((b) => [b.id, b.done]));
+    // only a known task turning done pops; tasks arriving already done (a sync, a restore) just appear
+    if (doneSeen) for (const [id, done] of doneNow) if (done && doneSeen.get(id) === false) popping.set(id, performance.now());
+    for (const id of popping.keys()) if (!doneNow.get(id)) popping.delete(id);
+    doneSeen = doneNow;
+    for (const [id, t0] of popping) if (performance.now() - t0 > 700) popping.delete(id);
+    if (popping.size) window.setTimeout(() => {
+      for (const [id, t0] of popping) if (performance.now() - t0 > 700) popping.delete(id);
+    }, 750);
     const { draft, drag } = state;
     const picked = new Set(state.selected);
 
@@ -99,7 +117,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
     if (dialStyle === 'thin') renderSlices(picked, now);
     else for (const b of visibleBlocks()) {
       const isSel = b === draft || (b.id !== null && picked.has(b.id));
-      gBlocks.append(...blockShapes(b, isSel, !isSel && contains(b, now)));
+      gBlocks.append(...blockShapes(b, isSel, !isSel && contains(b, now), popStyle(b.id)));
     }
 
     renderCallouts(visibleBlocks(), picked, now);
@@ -317,7 +335,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
         const [bx, by] = [right + 17, y - 10];
         const tick = icon('check', 'done-ic');
         for (const [k, v] of Object.entries({ x: bx - 7, y: by - 7, width: 14, height: 14 })) tick.setAttribute(k, String(v));
-        const badge = svgEl('g', { class: 'done-badge' });
+        const pop = popStyle(b.id);
+        const badge = svgEl('g', { class: `done-badge${pop ? ' pop' : ''}`, style: `transform-origin:${bx}px ${by}px;${pop ?? ''}` });
         badge.append(svgEl('circle', { cx: bx, cy: by, r: 11 }), tick);
         g.append(badge);
         after = bx + 18;
@@ -548,7 +567,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
  * One task on the full dial: its slice, its arc on the rim, and (when it fits) its name and hours. A done
  * task reads at a glance: filled in its colour, a full-strength rim, and a check badge by the inner edge.
  */
-function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean): SVGElement[] {
+function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean, pop: string | null = null): SVGElement[] {
   const style = `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)`;
   const out: SVGElement[] = [
     svgEl('path', { class: `block${isSel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }),
@@ -558,7 +577,7 @@ function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean): SVGEleme
     const [cx, cy] = pointAt(R_IN + 26, b.start + b.dur / 2);
     const tick = icon('check', 'done-ic');
     for (const [k, v] of Object.entries({ x: cx - 11, y: cy - 11, width: 22, height: 22 })) tick.setAttribute(k, String(v));
-    const badge = svgEl('g', { class: 'done-badge', style });
+    const badge = svgEl('g', { class: `done-badge${pop ? ' pop' : ''}`, style: `${style};transform-origin:${cx}px ${cy}px;${pop ?? ''}` });
     badge.append(svgEl('circle', { cx, cy, r: 16 }), tick);
     out.push(badge);
   }

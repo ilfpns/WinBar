@@ -152,6 +152,12 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .note-dot { fill: var(--accent); pointer-events: none; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent)); }
 :is(#dial, .peek-dial) .done-badge circle { fill: var(--c); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c) 55%, transparent)); }
 :is(#dial, .peek-dial) .done-badge .done-ic { color: var(--bg); stroke-width: 3; }
+/* a badge for a task just checked: springs in, then its tick draws */
+#dial .done-badge.pop { animation: badge-pop .42s cubic-bezier(.34, 1.56, .64, 1) var(--pop-at, 0ms) both; }
+#dial .done-badge.pop .done-ic * { stroke-dasharray: 1; animation: badge-tick .3s calc(var(--pop-at, 0ms) + 160ms) ease-out both; }
+@keyframes badge-pop { from { transform: scale(0); opacity: 0; } 60% { opacity: 1; } to { transform: scale(1); opacity: 1; } }
+@keyframes badge-tick { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { #dial .done-badge.pop, #dial .done-badge.pop .done-ic * { animation: none; } }
 :is(#dial, .peek-dial) .block-label { font: 500 21px var(--font-sans); letter-spacing: -.01em; fill: var(--text); pointer-events: none; }
 :is(#dial, .peek-dial) .block-label.done { fill: var(--text-strong); }
 :is(#dial, .peek-dial) .block-label.now, :is(#dial, .peek-dial) .block-label.sel { fill: var(--text-strong); }
