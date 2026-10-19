@@ -508,7 +508,11 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-note-status.bad { color: var(--danger); }
 .cal-note:focus { border-color: var(--line-strong); }
 .cal-evs [data-kind="note"] { color: var(--text-strong); }
-.cal-evs [data-kind="note"]::before { background: var(--text-strong); }
+/* your memo reads as a line of your own: a dash, white — not a dot like the calendar's events */
+.cal-evs [data-kind="note"]::before {
+  content: "-"; top: 0; width: auto; height: auto; border-radius: 0; background: none;
+  color: var(--text-strong); font-weight: 500; line-height: inherit;
+}
 .cal-day-list:empty { display: none; }
 .cal-day-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .cal-day-list li { display: grid; grid-template-columns: 6px minmax(0, 1fr); align-items: center; column-gap: 10px; row-gap: 2px; padding: 8px 0; border-top: 1px solid var(--line); }
