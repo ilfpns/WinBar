@@ -21,8 +21,6 @@ export interface AppState {
   draftKey: number;
   drag: DragState | null;
   lastCat: Category;
-  /** Search box filter for the schedule list. */
-  query: string;
   /** Ids picked for batch actions (drag across tasks, or shift/ctrl-click). */
   selected: string[];
   /** Side drawers start tucked away with only their tab showing. */
@@ -35,7 +33,6 @@ export const state: AppState = {
   draftKey: 0,
   drag: null,
   lastCat: 'work',
-  query: '',
   selected: [],
   drawers: { left: false, right: false },
 };

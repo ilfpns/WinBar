@@ -7,7 +7,7 @@ import { mountDial } from './timetable/dial';
 import { mountEditor } from './timetable/editor';
 import { mountOverview } from './timetable/overview';
 import { mountSchedule } from './timetable/schedule';
-import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, setState, state, toggleDrawer } from './timetable/state';
+import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, setState, state } from './timetable/state';
 import { mountDrawers } from './ui/drawers';
 import { hydrateIcons } from './ui/icons';
 import { mountRouter } from './ui/router';
@@ -24,7 +24,7 @@ import { mountWords } from './words/words';
 import { mountJournal } from './journal/journal';
 import { mountSettings } from './ui/settings';
 import { mountI18n } from './ui/i18n';
-import { featureOn, mountFeatures } from './ui/features';
+import { mountFeatures } from './ui/features';
 import { checkinStore, mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountPeek } from './timetable/peek';
@@ -49,8 +49,6 @@ const byId = <T extends HTMLElement>(id: string): T => {
   return node as T;
 };
 
-const search = byId<HTMLInputElement>('search');
-
 const dial = mountDial(document.querySelector<SVGSVGElement>('#dial')!);
 mountEditor(byId<HTMLFormElement>('editor'));
 mountOverview({
@@ -59,7 +57,6 @@ mountOverview({
   nowCard: byId('now-card'),
   dayRings: byId('day-rings'),
   catRings: byId('cat-rings'),
-  search,
   clear: byId('clear'),
 });
 mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
@@ -130,12 +127,6 @@ document.addEventListener('keydown', (e) => {
     const n = state.selected.length;
     if (n) deleteSelected();
     else if (state.draft?.id) deleteDraftBlock();
-  }
-  if (e.key === '/' && featureOn('search')) {
-    e.preventDefault();
-    // the search lives in the overview panel: bring it out of the rail first
-    toggleDrawer('left', true);
-    search.focus({ preventScroll: true });
   }
 });
 

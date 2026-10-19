@@ -5,14 +5,13 @@ import { currentView, goTo, onView, type View } from './router';
  * overview, page turns and its shortcut — never deleted: switching it back on brings everything back.
  * Remembered per browser. Today is always on.
  */
-export type Feature = 'calendar' | 'news' | 'words' | 'journal' | 'archive' | 'search';
+export type Feature = 'calendar' | 'news' | 'words' | 'journal' | 'archive';
 export const FEATURES: { id: Feature; label: string; hint: string }[] = [
   { id: 'calendar', label: 'Calendar', hint: 'Month view, memos and statistics' },
   { id: 'news', label: 'News', hint: 'Headlines on the globe, attendance' },
   { id: 'words', label: 'Words', hint: 'TOEIC vocabulary cards' },
   { id: 'journal', label: 'Journal', hint: 'Pages in folders' },
   { id: 'archive', label: 'Archive', hint: 'Journal pages everyone shared' },
-  { id: 'search', label: 'Search', hint: 'Task search on the rail and the / key' },
 ];
 const KEY = 'haru:features-off';
 const listeners = new Set<() => void>();

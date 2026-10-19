@@ -17,7 +17,6 @@ export interface OverviewRefs {
   nowCard: HTMLElement;
   dayRings: HTMLElement;
   catRings: HTMLElement;
-  search: HTMLInputElement;
   clear: HTMLButtonElement;
 }
 
@@ -25,7 +24,6 @@ export interface OverviewRefs {
 export function mountOverview(refs: OverviewRefs): void {
   refs.date.textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-  refs.search.addEventListener('input', () => setState({ query: refs.search.value }));
   refs.clear.addEventListener('click', async () => {
     if (!state.blocks.length || !(await askConfirm({ title: 'Clear today?', body: 'Every task on today’s timetable is removed.', ok: 'Clear all', danger: true }))) return;
     setState({ blocks: [], draft: null });

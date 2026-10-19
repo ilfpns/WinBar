@@ -10,11 +10,9 @@ export interface ScheduleRefs {
   add: HTMLButtonElement;
 }
 
-/** The day's tasks in list order, filtered by the search box. */
+/** The day's tasks in list order. */
 function visibleTasks(): Block[] {
-  const q = state.query.trim().toLowerCase();
-  const sorted = [...state.blocks].sort((a, b) => a.start - b.start);
-  return q ? sorted.filter((b) => labelOf(b).toLowerCase().includes(q)) : sorted;
+  return [...state.blocks].sort((a, b) => a.start - b.start);
 }
 
 /** Ids from `a` to `b` inclusive, in list order. */

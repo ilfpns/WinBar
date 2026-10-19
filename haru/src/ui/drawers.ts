@@ -32,10 +32,6 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   };
 
   for (const t of toggles) t.addEventListener('click', () => toggleDrawer(t.dataset.drawer as Side));
-  document.getElementById('rail-search')!.addEventListener('click', () => {
-    toggleDrawer('left', true);
-    document.getElementById('search')!.focus({ preventScroll: true });
-  });
   for (const { panel } of drawers) {
     // stagger index for the contents' entrance animation
     [...panel.children].forEach((child, k) => (child as HTMLElement).style.setProperty('--k', String(k)));
