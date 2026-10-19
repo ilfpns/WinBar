@@ -10,7 +10,7 @@ import { mountSchedule } from './timetable/schedule';
 import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, setState, state } from './timetable/state';
 import { mountDrawers } from './ui/drawers';
 import { hydrateIcons } from './ui/icons';
-import { mountRouter } from './ui/router';
+import { currentView, mountRouter } from './ui/router';
 import { mountViewSwipe } from './ui/view-swipe';
 import { mountCalendar } from './calendar/calendar';
 import { mountNews } from './news/news';
@@ -141,8 +141,9 @@ document.addEventListener('keydown', (e) => {
     else if (state.selected.length) clearSelection();
     else if (state.drawers.left || state.drawers.right) setState({ drawers: { left: false, right: false } });
   }
-  // while someone else's Haru is on screen, keys never reach your own tasks
-  if (typing || viewing()) return;
+  // while someone else's Haru is on screen, keys never reach your own tasks; and Today's keys (select all,
+  // delete) belong to Today only: elsewhere Ctrl+A, Delete and the rest keep their usual meaning
+  if (typing || viewing() || currentView() !== 'today') return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
     e.preventDefault();
     select(state.blocks.map((b) => b.id));

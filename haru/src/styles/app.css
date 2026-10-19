@@ -14,6 +14,8 @@ body {
 button, input, select { font: inherit; color: inherit; }
 /* app chrome: no drag-selecting or dragging out labels; text fields keep normal selection */
 body { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* what you read can be selected and copied (Ctrl+C): pages, shared pages, comments, chat, word cards */
+:is(.md-view, .a-title, .a-c-text, .chat-bubble, .w-def, .w-example, .w-ko, .news-item p, .cal-day-list) { user-select: text; -webkit-user-select: text; }
 input, textarea, [contenteditable] { user-select: text; -webkit-user-select: text; }
 img, svg, a { -webkit-user-drag: none; }
 :focus-visible { outline: 1px solid var(--info); outline-offset: 2px; }

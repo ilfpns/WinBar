@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.14',
+    date: '2026-10-20',
+    items: [
+      '채팅 말풍선, 아카이브 본문·댓글, 단어 카드 뜻 등 읽는 글을 선택해서 Ctrl+C로 복사 가능',
+      'Ctrl+A·Delete가 다른 페이지에서 Today 할 일을 선택·삭제하던 문제 수정 (Today에서만)',
+      '모든 글쓰기 칸에서 Ctrl+Z·Y·A·C·V·X 동작 확인',
+    ],
+  },
+  {
     version: '1.13',
     date: '2026-10-20',
     items: [
