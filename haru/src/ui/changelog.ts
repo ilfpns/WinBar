@@ -21,6 +21,14 @@ const SEEN_KEY = 'haru:changelog-seen';
 export const CHANGELOG: Release[] = [
   {
     date: '2026-10-19',
+    title: { en: 'A calmer left drawer', ko: '더 차분한 왼쪽 서랍' },
+    items: [
+      { en: 'The left drawer folds back into the rail when it closes, so only the rail stays; no half panel passes by.', ko: '왼쪽 서랍이 닫힐 때 레일 속으로 접혀 들어가서 레일만 남아요. 반쯤 걸친 판이 지나가지 않아요.' },
+      { en: 'The close button at the top of the drawer is gone; close it with [ or a click beside it.', ko: '서랍 위쪽의 닫기 버튼을 없앴어요. [ 키나 바깥을 눌러 닫으면 돼요.' },
+    ],
+  },
+  {
+    date: '2026-10-19',
     title: { en: 'QA pass and What’s new', ko: 'QA 점검과 새 소식 화면' },
     items: [
       { en: 'This page: what changed in Haru, inside Haru (Settings → What’s new). New entries carry a mark until read.', ko: '이 화면: Haru가 어떻게 바뀌었는지 Haru 안에서 봅니다 (설정 → 새 소식). 아직 안 읽은 항목에는 표시가 붙어요.' },
