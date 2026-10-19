@@ -7,7 +7,8 @@ import { askConfirm } from '../ui/modal';
 
 /** Lucide icon for each category (also used by the Now card). */
 export const CATEGORY_ICON: Record<Category, IconName> = {
-  work: 'briefcase', study: 'book-open', health: 'dumbbell', personal: 'house', sleep: 'moon', etc: 'sparkles',
+  work: 'briefcase', study: 'book-open', school: 'graduation-cap', meeting: 'users', meal: 'utensils',
+  health: 'dumbbell', personal: 'house', sleep: 'moon', etc: 'sparkles',
 };
 
 export interface OverviewRefs {

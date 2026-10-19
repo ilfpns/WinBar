@@ -5,6 +5,10 @@ import { FEATURES, featureOn, onFeatures, setFeature } from './features';
 import { timeField } from './time-field';
 import { DEFAULT_RESET, onResetAt, resetAt, setResetAt } from '../timetable/day-reset';
 import { notionName, notionTaken, notionView, onNotionAttendance, setNotionName } from '../calendar/notion-attendance';
+import { applyLessons, lessonsToday, schoolClass, schoolTimetable, setSchoolClass } from '../timetable/school';
+import { askConfirm } from './modal';
+import { labelOf } from '../timetable/model';
+import { hhmm } from '../timetable/time';
 
 /**
  * The Haru logo (on the rail, or in the open overview) opens a small menu: Settings, the overview, a quick
@@ -146,6 +150,46 @@ export function mountSettings(): void {
   };
   onResetAt(paintReset);
   paintReset();
+
+  // ---- school timetable: pick your class, Apply lays today's lessons on Today
+  const classSel = dialog.querySelector<HTMLSelectElement>('#school-class')!;
+  const schoolStatus = dialog.querySelector<HTMLElement>('#school-status')!;
+  const schoolApply = dialog.querySelector<HTMLButtonElement>('#school-apply')!;
+  const schoolSay = (text: string, ok?: boolean) => {
+    schoolStatus.textContent = text;
+    schoolStatus.className = `set-status${ok === undefined ? '' : ok ? ' ok' : ' bad'}`;
+  };
+  void schoolTimetable().then((t) => {
+    const classes = t?.weeks[0] ? Object.keys(t.weeks[0].classes) : [];
+    if (!classes.length) {
+      schoolSay('The school timetable isn’t available right now', false);
+      schoolApply.disabled = true;
+      return;
+    }
+    for (const c of classes) {
+      const [g, n] = c.split('-');
+      classSel.append(new Option(`${g}학년 ${n}반`, c, false, c === schoolClass()));
+    }
+  });
+  classSel.addEventListener('change', () => setSchoolClass(classSel.value));
+  schoolApply.addEventListener('click', async () => {
+    await schoolTimetable();
+    if (!classSel.value) {
+      schoolSay('Pick your class first', false);
+      return;
+    }
+    const lessons = lessonsToday(classSel.value);
+    if (typeof lessons === 'string') {
+      schoolSay(lessons, false);
+      return;
+    }
+    const first = lessons[0]!;
+    const last = lessons.at(-1)!;
+    const span = `${hhmm(first.start)}–${hhmm(last.start + last.dur)}`;
+    if (!(await askConfirm({ title: 'Put today’s lessons on Today?', body: `${lessons.length} lessons, ${span}. Tasks in those hours are replaced.`, ok: 'Apply', icon: 'graduation-cap' }))) return;
+    const replaced = applyLessons(lessons);
+    schoolSay(`Added ${lessons.length} lessons${replaced.length ? ` · replaced ${replaced.map(labelOf).join(', ')}` : ''}`, true);
+  });
 
   // ---- name in Notion: which column of the Notion attendance table is yours, and whether it was found
   const notionIn = dialog.querySelector<HTMLInputElement>('#notion-name')!;

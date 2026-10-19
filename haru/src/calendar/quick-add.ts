@@ -5,6 +5,9 @@ import { type Category, type Draft, CATEGORIES } from '../timetable/model';
 const ALIASES: Record<string, Category> = {
   work: 'work', 업무: 'work', 일: 'work',
   study: 'study', 공부: 'study',
+  school: 'school', 학교: 'school', 수업: 'school',
+  meeting: 'meeting', 회의: 'meeting', 미팅: 'meeting',
+  meal: 'meal', 식사: 'meal', 밥: 'meal',
   health: 'health', 운동: 'health',
   personal: 'personal', 개인: 'personal',
   sleep: 'sleep', 수면: 'sleep', 잠: 'sleep',

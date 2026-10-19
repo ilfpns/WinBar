@@ -66,14 +66,21 @@
   --petrol-1: #153a44; --petrol-2: #1f5a68; --petrol-3: #2e7a8e;
   --navy-1: #18184a;   --navy-2: #24226a;   --navy-3: #34308e;
   --plum-1: #431844;   --plum-2: #6a226a;   --plum-3: #8a2e8a;
+  --steel-1: #17304a;  --steel-2: #24507a;  --steel-3: #346c9e;
+  --wine-1: #44141f;   --wine-2: #6e2234;   --wine-3: #933248;
+  --amber-1: #44300c;  --amber-2: #7a5512;  --amber-3: #a0721c;
+  --slate-1: #26282e;  --slate-2: #474b55;  --slate-3: #686d79;
 
-  /* schedule categories: line/dot = mid shade, fill = deep shade pushed further toward black */
-  --cat-work: var(--petrol-2);    --cat-work-fill: color-mix(in srgb, var(--petrol-1) 55%, #000);
-  --cat-study: var(--navy-3);     --cat-study-fill: color-mix(in srgb, var(--navy-1) 55%, #000);
-  --cat-health: var(--moss-2);    --cat-health-fill: color-mix(in srgb, var(--moss-1) 55%, #000);
-  --cat-personal: var(--green-2); --cat-personal-fill: color-mix(in srgb, var(--green-1) 55%, #000);
-  --cat-sleep: var(--plum-2);     --cat-sleep-fill: color-mix(in srgb, var(--plum-1) 55%, #000);
-  --cat-etc: var(--brown-2);      --cat-etc-fill: color-mix(in srgb, var(--brown-1) 55%, #000);
+  /* schedule categories, each its own hue: line/dot = mid shade, fill = deep shade pushed well toward black */
+  --cat-work: var(--petrol-2);    --cat-work-fill: color-mix(in srgb, var(--petrol-1) 42%, #000);
+  --cat-study: var(--navy-3);     --cat-study-fill: color-mix(in srgb, var(--navy-1) 42%, #000);
+  --cat-school: var(--steel-2);   --cat-school-fill: color-mix(in srgb, var(--steel-1) 42%, #000);
+  --cat-meeting: var(--wine-2);   --cat-meeting-fill: color-mix(in srgb, var(--wine-1) 42%, #000);
+  --cat-meal: var(--amber-2);     --cat-meal-fill: color-mix(in srgb, var(--amber-1) 42%, #000);
+  --cat-health: var(--moss-2);    --cat-health-fill: color-mix(in srgb, var(--moss-1) 42%, #000);
+  --cat-personal: var(--green-2); --cat-personal-fill: color-mix(in srgb, var(--green-1) 42%, #000);
+  --cat-sleep: var(--plum-2);     --cat-sleep-fill: color-mix(in srgb, var(--plum-1) 42%, #000);
+  --cat-etc: var(--slate-2);      --cat-etc-fill: color-mix(in srgb, var(--slate-1) 42%, #000);
 
   /* type */
   --font-sans: "Geist", "Pretendard Variable", Pretendard, system-ui, sans-serif;
@@ -161,8 +168,11 @@
   /* task colours: the same hues, as light tints */
   --cat-work-fill: color-mix(in srgb, var(--petrol-3) 26%, #fff);
   --cat-study-fill: color-mix(in srgb, var(--navy-3) 22%, #fff);
+  --cat-school-fill: color-mix(in srgb, var(--steel-3) 24%, #fff);
+  --cat-meeting-fill: color-mix(in srgb, var(--wine-3) 22%, #fff);
+  --cat-meal-fill: color-mix(in srgb, var(--amber-3) 26%, #fff);
   --cat-health-fill: color-mix(in srgb, var(--moss-3) 28%, #fff);
   --cat-personal-fill: color-mix(in srgb, var(--green-3) 24%, #fff);
   --cat-sleep-fill: color-mix(in srgb, var(--plum-3) 22%, #fff);
-  --cat-etc-fill: color-mix(in srgb, var(--brown-3) 26%, #fff);
+  --cat-etc-fill: color-mix(in srgb, var(--slate-3) 26%, #fff);
 }

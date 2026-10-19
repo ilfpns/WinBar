@@ -33,12 +33,17 @@ jobs:
           node-version: 22
       - name: Fetch headlines
         run: node haru/scripts/fetch-news.mjs site/data/news.json
+      # the school's class timetable (컴시간알리미) rides along: it changes from day to day only now and then
+      - name: Fetch school timetable
+        continue-on-error: true
+        run: node haru/scripts/fetch-school-timetable.mjs site/data/school-timetable.json
       - name: Publish
         working-directory: site
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/news.json
+          git add data/school-timetable.json 2>/dev/null || true
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           # keep gh-pages a single snapshot commit instead of growing by 144 commits a day
           git commit -q --amend -m "Deploy to GitHub Pages"

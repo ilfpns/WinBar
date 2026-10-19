@@ -3,6 +3,9 @@ import { DAY, SNAP, mod } from './time';
 export const CATEGORIES = {
   work: 'Work',
   study: 'Study',
+  school: 'School',
+  meeting: 'Meeting',
+  meal: 'Meal',
   health: 'Health',
   personal: 'Personal',
   sleep: 'Sleep',
