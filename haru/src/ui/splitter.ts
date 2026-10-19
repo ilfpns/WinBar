@@ -20,6 +20,8 @@ export interface SplitOptions {
   min: number;
   /** The largest size, worked out when a drag starts. */
   max: () => number;
+  /** Whether the seam applies right now (it hides otherwise). */
+  enabled?: () => boolean;
 }
 
 const read = (key: string): number | null => {
@@ -57,7 +59,7 @@ export function addSplit(host: HTMLElement, o: SplitOptions): void {
 
   /** Lays the seam over the gap beside (or under) the pane. */
   const place = () => {
-    const hidden = !o.pane.offsetParent || getComputedStyle(host).display === 'flex' && o.axis === 'x';
+    const hidden = !o.pane.offsetParent || (getComputedStyle(host).display === 'flex' && o.axis === 'x') || (o.enabled ? !o.enabled() : false);
     seam.hidden = hidden;
     if (hidden) return;
     const h = host.getBoundingClientRect();

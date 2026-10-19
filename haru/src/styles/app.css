@@ -1549,6 +1549,8 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 
 /* ---- Journal */
 .journal-body { position: relative; display: grid; grid-template-columns: var(--side-w, 300px) minmax(0, 1fr); gap: 16px; min-height: 0; }
+/* panels narrowed by a seam shrink with it (their contents wrap or scroll, never push out of the card) */
+:is(.journal-body, .words-body, .cal-body) > * { min-width: 0; }
 /* the seams between panels (src/ui/splitter.ts): an invisible strip over the gap that lights up to grab */
 .split { position: absolute; z-index: 4; touch-action: none; outline: none; }
 .split[hidden] { display: none; }
@@ -1671,7 +1673,7 @@ body.splitting-y { cursor: row-resize; }
 .j-i-prev { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
 .j-i-prev:empty { display: none; }
 .j-empty { padding: 10px 4px; font-size: 13px; color: var(--text-subtle); }
-.j-editor { display: grid; grid-template-rows: auto auto minmax(160px, 1fr) auto auto; gap: 12px; min-height: 0; }
+.j-editor { display: grid; grid-template-rows: auto auto minmax(160px, 1fr) auto auto; gap: 12px; min-height: 0; min-width: 0; }
 
 /* ---------- Your days: Today's history at the top of Journal */
 /* the pages keep a usable height under an opened Your days; past that the page scrolls */
@@ -1772,7 +1774,10 @@ body.splitting-y { cursor: row-resize; }
   .ins-fold { transition: none; }
   .ins-bar, .ins-col-fill, .ins-ring-arc { transition: none; }
 }
-.j-ed-head { display: flex; align-items: center; gap: 12px; }
+/* a narrowed editor wraps its head instead of pushing the buttons out of the card */
+.j-ed-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.j-ed-head .j-folder { min-width: 0; max-width: 100%; }
+.j-ed-head .j-folder-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .j-date { font: 400 12.5px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
 .j-head-fill { flex: 1; }
 .j-del[hidden] { display: none; }

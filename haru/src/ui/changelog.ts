@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.11',
+    date: '2026-10-19',
+    items: [
+      '일기: 목록 폭을 넓혀도 편집기 위 버튼이 카드 밖으로 밀리지 않음 (줄바꿈)',
+      '나의 하루들 높이 조절은 펼친 상태에서만 (접혀 있으면 경계 숨김)',
+      '경계를 눌렀을 때 왼쪽 서랍이 열리던 문제 수정',
+    ],
+  },
+  {
     version: '1.10',
     date: '2026-10-19',
     items: [

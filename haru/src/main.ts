@@ -125,7 +125,8 @@ mountCalendar({
   // Journal's Your days: its height (it scrolls inside when made shorter than its contents)
   const jv = byId('journal');
   const card = jv.querySelector<HTMLElement>('.insights')!;
-  addSplit(jv, { key: 'journal-top', axis: 'y', pane: card, target: card, prop: '--top-h', min: 56, max: () => card.scrollHeight });
+  // only while it is opened: closed, it is just its numbers
+  addSplit(jv, { key: 'journal-top', axis: 'y', pane: card, target: card, prop: '--top-h', min: 120, max: () => card.scrollHeight, enabled: () => card.classList.contains('open') });
 }
 
 document.addEventListener('keydown', (e) => {

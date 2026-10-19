@@ -110,7 +110,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     if (e.button !== 0) return;
     const t = e.target as Element;
     // controls and cards (the attendance bar, menus) are not background
-    if (t.closest('.drawer, .time-pop, button, input, textarea, select, a, .cal-day, .attend, .glass-card, .logo-menu, dialog')) return;
+    if (t.closest('.drawer, .time-pop, button, input, textarea, select, a, .cal-day, .attend, .glass-card, .logo-menu, dialog, .split')) return;
     const view = currentView();
     if (view === 'words' || view === 'journal' || view === 'archive') {
       // text pages: only the margin around the content pulls the overview out
