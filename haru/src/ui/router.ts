@@ -3,7 +3,6 @@ export type View = 'today' | 'calendar' | 'news' | 'words' | 'journal' | 'archiv
 /** Views are stacked like pages: Today on top, then Calendar, News, Words, Journal and Archive. */
 export const VIEW_ORDER: View[] = ['today', 'calendar', 'news', 'words', 'journal', 'archive'];
 
-const TITLES: Record<View, string> = { today: 'Today', calendar: 'Calendar', news: 'News', words: 'Words', journal: 'Journal', archive: 'Archive' };
 
 type Listener = (view: View, prev: View | null) => void;
 const listeners = new Set<Listener>();
@@ -25,7 +24,6 @@ export function mountRouter(): void {
     const view = currentView();
     if (view === prev) return;
     document.body.dataset.view = view;
-    document.title = `Haru — ${TITLES[view]}`;
     document.querySelectorAll<HTMLElement>('a[data-view]').forEach((a) => {
       if (a.dataset.view === view) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');

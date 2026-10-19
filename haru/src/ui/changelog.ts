@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.8',
+    date: '2026-10-19',
+    items: [
+      '브라우저 탭 제목을 "Haru"로 고정',
+      'Haru 로고 추가 (24시간 다이얼 모양, 탭 아이콘·홈 화면 아이콘)',
+    ],
+  },
+  {
     version: '1.7',
     date: '2026-10-19',
     items: [

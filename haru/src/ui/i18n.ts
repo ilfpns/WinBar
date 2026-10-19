@@ -325,14 +325,6 @@ export function mountI18n(): void {
   document.documentElement.lang = 'ko';
   koreanDates();
   translateNode(document.body);
-  // the tab's title too (the router sets it per page)
-  const title = () => {
-    const m = /^Haru — (.+)$/.exec(document.title);
-    if (m && KO[m[1]!]) document.title = `Haru — ${KO[m[1]!]}`;
-  };
-  title();
-  const head = document.querySelector('title');
-  if (head) new MutationObserver(title).observe(head, { childList: true, characterData: true, subtree: true });
   new MutationObserver((records) => {
     for (const r of records) {
       if (r.type === 'childList') r.addedNodes.forEach(translateNode);
