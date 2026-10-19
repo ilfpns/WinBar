@@ -27,6 +27,7 @@ import { mountI18n } from './ui/i18n';
 import { mountFeatures } from './ui/features';
 import { checkinStore, mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
+import { mountInsights } from './journal/insights';
 import { mountPeek } from './timetable/peek';
 import { mountViewing, viewing } from './cloud/viewing';
 import { mountNotionAttendance } from './calendar/notion-attendance';
@@ -68,6 +69,7 @@ mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
 mountSettings();
 mountWords(byId('words-body'), byId('words-sum'));
 mountJournal(byId('journal-body'));
+mountInsights(byId('journal'));
 mountArchive(byId('archive-body'), byId('archive-sum'));
 // someone else's Today, read only
 mountViewing();

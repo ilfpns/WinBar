@@ -45,9 +45,10 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 ## 빌드·배포
 
 - 타입 검사: `npx tsc --noEmit -p .` / 개발 서버: `npm run dev`
-- 배포: `npm run deploy` (달력·뉴스 데이터를 받고, `/WinBar/` 경로로 빌드해 `gh-pages` 브랜치에 올린다)
-- 배포 후 `git checkout -- public/data/calendar.json public/data/news.json` (시각만 바뀐 파일 되돌리기)
-- 뉴스는 GitHub Actions(`.github/workflows/haru-news.yml`)가 10분마다 `gh-pages`의 `data/news.json`만 갱신한다.
+- 배포: `npm run deploy` (달력·뉴스·학교 시간표 데이터를 받고, `/WinBar/` 경로로 빌드해 `gh-pages` 브랜치에 올린다)
+- 배포 후 `git checkout -- public/data/calendar.json public/data/news.json public/data/school-timetable.json` (시각만 바뀐 파일 되돌리기)
+- 뉴스·학교 시간표는 `.github/workflows/haru-news.yml`, Notion 출석은 `.github/workflows/haru-attendance.yml`이 `gh-pages`의 `data/`만 갱신한다 (GitHub 예약 실행은 몇 시간씩 늦을 수 있다).
+- `firestore.rules`가 바뀌면 Firebase 콘솔에 다시 게시해야 한다 (사용자에게 알린다).
 
 ## 작업 규칙
 

@@ -25,6 +25,8 @@ export interface Entry {
   updated: number;
   /** The folder it is filed in (an id from folderStore). Older entries had none: they are filed on start. */
   folder?: string;
+  /** Kept at the top of its folder's list. */
+  pinned?: boolean;
 }
 export interface Folder { id: string; name: string; created: number }
 
@@ -69,6 +71,7 @@ export function mountJournal(body: HTMLElement): void {
         <span class="j-date"></span>
         <button type="button" class="j-folder" aria-haspopup="menu" title="Move to another folder"><span class="j-folder-name"></span></button>
         <span class="j-head-fill"></span>
+        <button type="button" class="icon-btn j-pin" aria-pressed="false" aria-label="Pin to top" title="Pin to top"></button>
         <button type="button" class="icon-btn j-add-img" aria-label="Add photos" title="Add photos (or paste with Ctrl+V)"></button>
         <input type="file" class="j-img-file" accept="image/*" multiple hidden>
         <button type="button" class="icon-btn j-share" aria-label="Share to Archive" title="Share to Archive" hidden></button>
@@ -375,6 +378,7 @@ export function mountJournal(body: HTMLElement): void {
     del.hidden = !e;
     renderFoot();
     renderPhotos();
+    paintPin();
     renderFolders();
     renderList();
   }
@@ -443,6 +447,31 @@ export function mountJournal(body: HTMLElement): void {
   del.addEventListener('click', () => {
     if (openId) void removePage(openId);
   });
+
+  // ---- pinning: a pinned page stays at the top of its folder's list
+  const pinBtn = $<HTMLButtonElement>('.j-pin');
+  pinBtn.append(icon('pin'));
+  function togglePin(id: string): void {
+    if (id === openId) flush();
+    const page = entries().find((e) => e.id === id);
+    if (!page) return;
+    // unpinned pages carry no flag at all (no empty field in the store)
+    const { pinned, ...rest } = page;
+    journalStore.set(entries().map((e) => (e.id === id ? (pinned ? rest : { ...rest, pinned: true }) : e)));
+    tell(pinned ? 'Unpinned' : 'Pinned to the top');
+  }
+  function paintPin(): void {
+    const page = openId ? entries().find((e) => e.id === openId) : undefined;
+    pinBtn.hidden = !page;
+    const on = !!page?.pinned;
+    pinBtn.setAttribute('aria-pressed', String(on));
+    pinBtn.setAttribute('aria-label', on ? 'Unpin' : 'Pin to top');
+    pinBtn.title = on ? 'Unpin' : 'Pin to top';
+  }
+  pinBtn.addEventListener('click', () => {
+    if (openId) togglePin(openId);
+  });
+  journalStore.onChange(paintPin);
 
   // ---- photos: pick, paste (Ctrl+V) or drop them onto the page; each can be opened large, copied or removed.
   // They live with the calendar's images (synced and backed up the same way), filed under the page.
@@ -575,15 +604,24 @@ export function mountJournal(body: HTMLElement): void {
       return;
     }
     const out: HTMLElement[] = [];
+    const heading = (text: string) => {
+      const h = document.createElement('li');
+      h.className = 'j-month meta';
+      h.textContent = text;
+      out.push(h);
+    };
+    // pinned pages first, under their own heading; the rest by month
+    const pinned = shown.filter((e) => e.pinned);
     let month = '';
-    for (const e of shown) {
-      const m = e.date.slice(0, 7);
-      if (m !== month) {
-        month = m;
-        const h = document.createElement('li');
-        h.className = 'j-month meta';
-        h.textContent = new Date(`${m}-01T00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        out.push(h);
+    for (const e of [...pinned, ...shown.filter((e) => !e.pinned)]) {
+      if (e.pinned) {
+        if (e === pinned[0]) heading('Pinned');
+      } else {
+        const m = e.date.slice(0, 7);
+        if (m !== month) {
+          month = m;
+          heading(new Date(`${m}-01T00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+        }
       }
       const li = document.createElement('li');
       li.className = 'j-row';
@@ -595,6 +633,7 @@ export function mountJournal(body: HTMLElement): void {
       // the list shows words, not Markdown marks
       const lines = e.body.split(/\r?\n/).map(plain).filter(Boolean);
       b.querySelector('.j-i-title')!.textContent = e.title || lines[0] || 'Untitled';
+      if (e.pinned) b.querySelector('.j-i-top')!.prepend(icon('pin', 'ic j-pin-mark'));
       b.querySelector('.j-i-date')!.textContent = fmtDay(e.date);
       b.querySelector('.j-i-prev')!.textContent = (e.title ? lines : lines.slice(1)).join(' · ').slice(0, 140);
       b.addEventListener('click', () => open(e.id));
@@ -602,6 +641,7 @@ export function mountJournal(body: HTMLElement): void {
       b.addEventListener('contextmenu', (ev) => {
         ev.preventDefault();
         showMenu({ x: ev.clientX, y: ev.clientY }, [
+          { label: e.pinned ? 'Unpin' : 'Pin to top', icon: 'pin', run: () => togglePin(e.id) },
           ...folders().filter((f) => f.id !== e.folder).map((f) => ({ label: `Move to ${f.name}`, icon: 'arrow-right', run: () => moveTo([e.id], f.id) })),
           { label: 'Delete page', icon: 'trash', danger: true, run: () => void removePage(e.id) },
         ]);

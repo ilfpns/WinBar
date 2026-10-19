@@ -4,13 +4,14 @@ Haru is WinBar's day planner: a web app built around a 24-hour dial, opened from
 
 **Live:** https://ilfpns.github.io/WinBar/
 
-- Drag on the ring to add a block, drag across tasks (on the dial or in the list) to select several and edit them together.
+- **Today** — drag on the ring to add a block; drag across tasks to select several and edit them together. Done tasks are filled and carry a check; a task can hold a note (a dot by its name). A new day starts at a time you set (drag the ↺ mark on the ring, or Settings → Today); the day that ended stays in the calendar.
+- **School timetable** — Settings → Today: find a school, pick a class, Apply puts today's lessons on Today. 대덕소프트웨어마이스터고 comes from 컴시간알리미 (with its bell times); other schools from NEIS.
+- **Calendar** — Korean holidays & observances, the school's academic calendar, day memos (with images) and statistics.
+- **News** — headlines on the globe, and attendance: check in daily; the grass also fills from the Notion attendance table.
+- **Words**, **Journal** (pages in folders, photos, pinning, share to **Archive**), and **Your days** — Today's history as statistics at the top of Journal.
+- **Accounts** — invite-only Google sign-in; everyone's planner is their own and syncs across devices (Firestore). Today of another member can be looked at, read only.
 - Progress is measured against the whole day: finishing every block of a fully planned 24h is 100%.
-- Side drawers stay tucked away; click the background left or right of the dial, their tabs, or `[` / `]` to slide them out.
-- Works from phone to desktop: drawers push the dial aside on wide screens and overlay it on narrow ones.
 - Opened from WinBar (`?winbar=1`), finishing tasks updates the WinBar menu-bar emblem via `winbar://`.
-- Calendar view (`#/calendar`): Korean public holidays & observances and the 대덕소프트웨어마이스터고 academic calendar, from a snapshot refreshed on every deploy (`npm run calendar`; set `NEIS_KEY` to use an NEIS API key).
-- Data stays in your browser (localStorage).
 
 ## Develop
 
@@ -20,10 +21,22 @@ npm install
 npm run dev      # http://localhost:5173
 npm run build    # type-check + production build into dist/
 npm run calendar # refresh holidays + school calendar (public/data/calendar.json)
+npm run school   # refresh the school timetable from 컴시간알리미 (public/data/school-timetable.json)
 npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 ```
 
 `npm run deploy` builds for GitHub Pages and publishes `dist/` to the `gh-pages` branch.
+
+### Cloud & data
+
+- `firestore.rules` — paste into Firebase console → Firestore → Rules after it changes (owners, invites, profiles, Archive, Notion check-ins, `config`).
+- GitHub Actions: `haru-news.yml` (headlines + school timetable) and `haru-attendance.yml` (Notion attendance both ways) publish into `gh-pages`. GitHub runs scheduled jobs late, sometimes by hours.
+- Secrets: `NOTION_TOKEN` (Notion integration), `FIREBASE_API_KEY` (reads the open `notion-checkins` collection). An NEIS API key, if any, goes in Firestore `config/neis` (`{ key }`), never in the site.
+
+## Changes
+
+- **2026-10-19** — Journal: *Your days* statistics, page pinning, photos (add, Ctrl+V, drop, copy). School timetable from any school (컴시간알리미 / NEIS). Categories School, Meeting, Meal with darker distinct colours. Today: done badges, task notes, the new-day mark you can drag. Notion attendance both ways (undo included) every 5 minutes. Search removed. Only Today of another member can be looked at.
+- **2026-10-18** — Invite-only accounts with per-person data, shared Archive, reconnect screen, simpler attendance grass.
 
 ## Design
 

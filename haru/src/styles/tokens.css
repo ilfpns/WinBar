@@ -53,6 +53,8 @@
 
   /* signals, pulled from the palette and lifted for contrast on black */
   --accent: #4fbf7a;
+  /* chart bars: the accent's hue, stepped into the dark-surface lightness band (validated) */
+  --chart-bar: #3fa366;
   --info: #4a9fb3;
   --danger: #c0503c;
 
@@ -160,6 +162,7 @@
   --text-muted: #686a73;
   --text-subtle: #9a9ca5;
   --accent: #2c9a5a;
+  --chart-bar: #2c9a5a;
   --sheet: linear-gradient(180deg, #ffffff, #f4f4f7);
   --sheet-solid: #ffffff;
   --card-bg: #ffffff;
