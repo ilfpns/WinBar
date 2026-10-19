@@ -7,6 +7,7 @@ import { printPdf } from '../ui/print';
 import { IMG_LINE, imageLine } from '../ui/markdown';
 import { askConfirm, askText, showMenu } from '../ui/modal';
 import { onSession, session } from '../cloud/session';
+import { memberList } from '../cloud/viewing';
 import { sharePage, unsharePage } from '../archive/archive';
 import { imagesStore, onImagesChanged } from '../calendar/images';
 
@@ -55,7 +56,7 @@ const plain = (line: string) =>
   IMG_LINE.test(line) || /^\s*(```|([-*_])(\s*\2){2,}\s*$|\|(\s*:?-{3,}:?\s*\|)+\s*$)/.test(line) ? '' : line
     .replace(/^\s*\|(.*)\|\s*$/, (_, cells: string) => cells.split('|').map((x) => x.trim()).filter(Boolean).join(' · '))
     .replace(/^\s*(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> )/, '')
-    .replace(/\*\*|__|~~|`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
+    .replace(/@\[([^\]]+)\]\(user:[\w-]+\)/g, '@$1').replace(/\*\*|__|~~|`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
 const fmtDay = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
 export function mountJournal(body: HTMLElement): void {
@@ -524,6 +525,8 @@ export function mountJournal(body: HTMLElement): void {
     text.dispatchEvent(new Event('input', { bubbles: true }));
   }
   text.imageUrl = photoUrl;
+  // @ names someone invited (yourself aside); shared to Archive, they see a dot until they read it
+  text.people = () => memberList().filter((p) => p.uid !== session()?.uid);
   text.addEventListener('md-image', (e) => {
     const { id, action } = (e as CustomEvent<{ id: string; action: string }>).detail;
     const store = imagesStore();

@@ -13,6 +13,8 @@ const SAFE_URL = /^(https?:\/\/|mailto:)/i;
  * Only the device that holds the image can show it; elsewhere (someone else's shared page) the line is dropped.
  */
 export const IMG_LINE = /^!\[[^\]]*\]\(img:([\w-]+)\)\s*$/;
+/** The people a text mentions (`@[name](user:uid)`), each once. */
+export const mentionsIn = (text: string): string[] => [...new Set([...text.matchAll(/@\[[^\]]+\]\(user:([\w-]+)\)/g)].map((m) => m[1]!))];
 export const imageLine = (id: string, width?: number | null) => `![${width ? `|${Math.round(width)}` : ''}](img:${id})`;
 /** The width a photo line asks for (Obsidian's `![|320](…)`), or null: as large as it comes, up to the page. */
 export const imageWidth = (line: string): number | null => {
@@ -26,6 +28,7 @@ function inline(text: string): string {
   const keep = (html: string) => `\u0000${kept.push(html) - 1}\u0000`;
   const link = (url: string, label: string) => keep(`<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
   const s = esc(text)
+    .replace(/@\[([^\]]+)\]\(user:([\w-]+)\)/g, (_, name: string, uid: string) => keep(`<span class="md-mention" data-uid="${uid}">@${name}</span>`))
     .replace(/`([^`]+)`/g, (_, c: string) => keep(`<code>${c}</code>`))
     .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label: string, url: string) => (SAFE_URL.test(url) ? link(url, label) : m))
     .replace(/(^|[\s(])(https?:\/\/[^\s<)\u0000]+)/g, (_, pre: string, url: string) => pre + link(url, url))

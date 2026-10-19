@@ -315,7 +315,15 @@ export function mountInsights(page: HTMLElement): void {
   tiles.className = 'ins-tiles';
   const more = document.createElement('div');
   more.className = 'ins-more';
-  card.append(head, tiles, more);
+  // the charts fold down and up (grid rows 0fr <-> 1fr) instead of appearing at once
+  const fold = document.createElement('div');
+  fold.className = 'ins-fold';
+  fold.append(more);
+  card.append(head, tiles, fold);
+  // tooltips may rise past the fold's edge once it has settled open
+  fold.addEventListener('transitionend', (e) => {
+    if (e.target === fold && e.propertyName === 'grid-template-rows') fold.classList.toggle('settled', open);
+  });
   page.insertBefore(card, page.querySelector('.pg-body'));
 
   let open = false;
@@ -328,7 +336,8 @@ export function mountInsights(page: HTMLElement): void {
   let animateTiles = false;
   let animateMore = false;
   const paintOpen = () => {
-    more.hidden = !open;
+    fold.inert = !open;
+    fold.classList.remove('settled');
     head.setAttribute('aria-expanded', String(open));
     card.classList.toggle('open', open);
     toggle.textContent = open ? 'Less' : 'More';

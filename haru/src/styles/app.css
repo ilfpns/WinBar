@@ -1644,7 +1644,9 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 /* ---------- Your days: Today's history at the top of Journal */
 /* the pages keep a usable height under an opened Your days; past that the page scrolls */
 .journal-view { grid-template-rows: auto auto minmax(min(520px, 80svh), 1fr); }
-.insights { display: grid; gap: 14px; padding: 14px 18px; }
+/* no grid gap: each block brings its own space on top, so the folded charts leave none behind */
+.insights { display: grid; padding: 14px 18px; }
+.insights > .ins-tiles { margin-top: 14px; }
 .ins-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: left; }
 .ins-head > .ic { width: 14px; height: 14px; color: var(--text-muted); transition: transform var(--dur-base) var(--ease-out); }
 .ins-toggle { margin-left: auto; text-transform: none; color: var(--text-muted); }
@@ -1686,9 +1688,13 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 }
 @keyframes ins-tip { from { opacity: 0; transform: translate(-50%, 3px); } }
 
-.ins-more { display: grid; gap: 18px; padding-top: 2px; }
-.ins-more[hidden] { display: none; }
-.insights.open .ins-more { animation: ins-rise .35s var(--ease-out); }
+/* opened, the charts fold down under the numbers; closed, they fold back up (no gap left behind) */
+.ins-fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .45s var(--ease-out), opacity .3s var(--ease-out); }
+.insights.open .ins-fold { grid-template-rows: 1fr; opacity: 1; }
+.ins-more { display: grid; gap: 18px; min-height: 0; overflow: hidden; }
+/* the space over the charts sits inside the fold, so a closed fold takes none */
+.ins-more > :first-child { margin-top: 16px; }
+.ins-fold.settled > .ins-more { overflow: visible; }
 .ins-group-title { display: flex; align-items: center; gap: 6px; }
 .ins-legend { display: flex; gap: 12px; font-size: 11.5px; color: var(--text-muted); }
 .ins-legend > span { display: inline-flex; align-items: center; gap: 5px; }
@@ -1730,7 +1736,8 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
   .ins-tile { grid-template-columns: minmax(0, 1fr); gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ins-tile.rise, .insights.open .ins-more, .ins-info::after { animation: none; }
+  .ins-tile.rise, .ins-info::after { animation: none; }
+  .ins-fold { transition: none; }
   .ins-bar, .ins-col-fill, .ins-ring-arc { transition: none; }
 }
 .j-ed-head { display: flex; align-items: center; gap: 12px; }
@@ -2053,6 +2060,26 @@ md-editor :is(.md-l.code, .md-l.fence) { font: 400 .88em/1.7 var(--font-mono); b
 md-editor .md-l.fence { color: var(--text-subtle); }
 md-editor code { padding: 1px 4px; border-radius: 5px; background: rgb(var(--ink) / .08); font: 400 .9em var(--font-mono); color: var(--text-strong); }
 md-editor strong { font-weight: 650; color: var(--text-strong); }
+/* a mention: @name as a chip */
+.md-mention { padding: 0 5px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 600; white-space: nowrap; }
+md-editor .md-mention .mk { font-weight: 400; }
+/* in the editor the @ is drawn (the text keeps only @[name](user:uid), shown while its line is edited) */
+md-editor .md-l:not(.active) .md-mention::before { content: "@"; }
+/* the @ menu: people's faces where the blocks have icons */
+.slash-face { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; background: var(--gray-btn); font: 600 11px var(--font-sans); color: var(--text-strong); }
+.slash-face img { width: 100%; height: 100%; object-fit: cover; }
+/* Archive has a page that names you, unread: a dot that bounces on its button */
+[data-view="archive"].has-mention { position: relative; }
+[data-view="archive"].has-mention::after {
+  content: ""; position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--surface), 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent);
+  animation: mention-bounce 1.6s cubic-bezier(.3, 0, .3, 1) infinite;
+}
+.nav-item[data-view="archive"].has-mention::after { top: 50%; right: 12px; margin-top: -4px; }
+@keyframes mention-bounce { 0%, 60%, 100% { transform: translateY(0); } 20% { transform: translateY(-5px); } 40% { transform: translateY(0) scale(1.15, .85); } 50% { transform: translateY(-2px); } }
+.a-mention-tag { flex: none; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); font: 600 10.5px var(--font-sans); }
+.j-item.mentioned { box-shadow: inset 2px 0 0 var(--accent); }
+@media (prefers-reduced-motion: reduce) { [data-view="archive"].has-mention::after { animation: none; } }
 /* a link: the site's logo and a short name, bold; the URL shows only on the line being edited */
 md-editor .md-link { color: var(--text-strong); font-weight: 600; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; cursor: pointer; }
 md-editor .md-link:hover { text-decoration-color: var(--text-muted); }

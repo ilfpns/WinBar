@@ -84,17 +84,21 @@ const fav = (url: string) => `<span class="md-fav" contenteditable="false" data-
 
 /** Inline marks, keeping every character (the marks show only on the line being edited). */
 function inline(src: string): string {
-  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(\*[^*\s][^*]*\*)|(\[[^\]]+\]\([^)\s]+\))|(https?:\/\/[^\s<>]*[^\s<>.,;:!?)\]'"])/g;
+  const re = /(@\[[^\]]+\]\(user:[\w-]+\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(\*[^*\s][^*]*\*)|(\[[^\]]+\]\([^)\s]+\))|(https?:\/\/[^\s<>]*[^\s<>.,;:!?)\]'"])/g;
   let out = '';
   let at = 0;
   for (let m = re.exec(src); m; m = re.exec(src)) {
     out += esc(src.slice(at, m.index));
     const t = m[0];
-    if (m[1]) out += `<code>${mk('`')}${esc(t.slice(1, -1))}${mk('`')}</code>`;
-    else if (m[2]) out += `<strong>${mk('**')}${esc(t.slice(2, -2))}${mk('**')}</strong>`;
-    else if (m[3]) out += `<del>${mk('~~')}${esc(t.slice(2, -2))}${mk('~~')}</del>`;
-    else if (m[4]) out += `<em>${mk('*')}${esc(t.slice(1, -1))}${mk('*')}</em>`;
-    else if (m[6]) {
+    if (m[1]) {
+      // a mention: @name as a chip (its uid stays in the text)
+      const [, name, uid] = /^@\[([^\]]+)\]\(user:([\w-]+)\)$/.exec(t)!;
+      out += `<span class="md-mention" data-uid="${attr(uid!)}">${mk('@[')}${esc(name!)}${mk(`](user:${uid})`)}</span>`;
+    } else if (m[2]) out += `<code>${mk('`')}${esc(t.slice(1, -1))}${mk('`')}</code>`;
+    else if (m[3]) out += `<strong>${mk('**')}${esc(t.slice(2, -2))}${mk('**')}</strong>`;
+    else if (m[4]) out += `<del>${mk('~~')}${esc(t.slice(2, -2))}${mk('~~')}</del>`;
+    else if (m[5]) out += `<em>${mk('*')}${esc(t.slice(1, -1))}${mk('*')}</em>`;
+    else if (m[7]) {
       askTitle(t);
       out += `<span class="md-link bare" data-href="${attr(t)}" data-label="${attr(shortLink(t))}" title="Ctrl+click to open">${fav(t)}<span class="mk mk-in">${esc(t)}</span></span>`;
     } else {
@@ -194,6 +198,27 @@ const BLOCKS: { id: string; label: string; hint: string; icon: IconName; keys: s
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   } },
 ];
+/** A row of the / or @ menu: a block to turn the line into, or a person to name. */
+interface MenuItem {
+  label: string;
+  hint: string;
+  icon?: IconName;
+  face?: { name: string; photo: string | null };
+  run: () => void;
+}
+/** A person's round face for the @ menu: their photo, or their initial. */
+function faceOf(p: { name: string; photo: string | null }): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'slash-face';
+  if (p.photo) {
+    const img = document.createElement('img');
+    img.src = p.photo;
+    img.alt = '';
+    img.referrerPolicy = 'no-referrer';
+    el.append(img);
+  } else el.textContent = (p.name.trim()[0] ?? '?').toUpperCase();
+  return el;
+}
 /** List markers a line can carry (stripped when a / block replaces them). */
 const MARKER = /^(\s*)(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> )?/;
 
@@ -204,6 +229,8 @@ export class MdEditor extends HTMLElement {
    * remove the line is gone already.
    */
   imageUrl: ((id: string) => string | null) | null = null;
+  /** The people `@` can name (null: no mentions here). */
+  people: (() => { uid: string; name: string; photo: string | null }[]) | null = null;
   private composing = false;
   private placeholderText = '';
   private history: { text: string; caret: number }[] = [];
@@ -211,7 +238,7 @@ export class MdEditor extends HTMLElement {
   private lastPush = 0;
   private lastCaret = 0;
   private menu: HTMLElement | null = null;
-  private menuItems: typeof BLOCKS = [];
+  private menuItems: MenuItem[] = [];
   private menuAt = 0;
   private menuPick = 0;
 
@@ -232,7 +259,11 @@ export class MdEditor extends HTMLElement {
       const grip = (e.target as Element).closest('.md-img-grip');
       if (grip) this.resizePhoto(grip.closest<HTMLElement>('.md-img')!, null);
     });
-    this.addEventListener('blur', () => this.closeMenu());
+    this.addEventListener('blur', () => {
+      this.closeMenu();
+      // away from the editor no line is being edited: links and mentions read as chips again
+      this.querySelectorAll('.md-l.active').forEach((l) => l.classList.remove('active'));
+    });
     document.addEventListener('selectionchange', () => {
       if (document.activeElement !== this || this.composing) return;
       this.markActive();
@@ -772,14 +803,26 @@ ${newRow}${v.slice(end)}`);
     if (link && (e.ctrlKey || e.metaKey)) window.open(link.dataset.href, '_blank', 'noopener');
   }
 
-  // ---------- the / menu
+  // ---------- the / menu (blocks) and the @ menu (people)
   private updateMenu(text: string, caret: number): void {
     const { start, text: ln } = this.lineAt(text, caret);
     const before = ln.slice(0, caret - start);
+    const at = this.people ? /(^|\s)@([^\s@\[\]()]{0,20})$/.exec(before) : null;
+    if (at) {
+      const q = at[2]!.toLowerCase();
+      const items: MenuItem[] = this.people!().filter((p) => !q || p.name.toLowerCase().includes(q))
+        .slice(0, 8).map((p) => ({ label: p.name, hint: '@', face: p, run: () => this.applyMention(p) }));
+      if (!items.length) return this.closeMenu();
+      this.menuAt = caret - at[2]!.length - 1;
+      this.menuItems = items;
+      this.menuPick = Math.min(this.menuPick, items.length - 1);
+      return this.drawMenu();
+    }
     const m = /(^|\s)\/([^\s/]{0,20})$/.exec(before);
     if (!m) return this.closeMenu();
     const q = m[2]!.toLowerCase();
-    const items = BLOCKS.filter((b) => !q || b.label.toLowerCase().includes(q) || b.keys.includes(q));
+    const items: MenuItem[] = BLOCKS.filter((b) => !q || b.label.toLowerCase().includes(q) || b.keys.includes(q))
+      .map((b) => ({ label: b.label, hint: b.hint, icon: b.icon, run: () => this.applyBlock(b) }));
     if (!items.length) return this.closeMenu();
     this.menuAt = caret - m[2]!.length - 1;
     this.menuItems = items;
@@ -801,10 +844,11 @@ ${newRow}${v.slice(end)}`);
       it.setAttribute('role', 'option');
       it.setAttribute('aria-selected', String(i === this.menuPick));
       it.innerHTML = '<span class="slash-ic"></span><span class="slash-label"></span><span class="slash-hint"></span>';
-      it.querySelector('.slash-ic')!.append(icon(b.icon));
+      const face = b.face ? faceOf(b.face) : icon(b.icon ?? 'chevron-right');
+      it.querySelector('.slash-ic')!.append(face);
       it.querySelector('.slash-label')!.textContent = b.label;
       it.querySelector('.slash-hint')!.textContent = b.hint;
-      it.addEventListener('click', () => this.applyBlock(b));
+      it.addEventListener('click', () => b.run());
       it.addEventListener('mousemove', () => {
         if (this.menuPick === i) return;
         this.menuPick = i;
@@ -837,7 +881,7 @@ ${newRow}${v.slice(end)}`);
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
       e.stopImmediatePropagation();
-      this.applyBlock(this.menuItems[this.menuPick]!);
+      this.menuItems[this.menuPick]!.run();
       return true;
     }
     if (e.key === 'Escape') {
@@ -847,6 +891,17 @@ ${newRow}${v.slice(end)}`);
       return true;
     }
     return false;
+  }
+  /** Puts a mention of `p` where "@query" was typed (a space after it, to type on). */
+  private applyMention(p: { uid: string; name: string }): void {
+    const v = this.value;
+    const caret = this.caret();
+    this.closeMenu();
+    const ins = `@[${p.name.replace(/[\[\]()]/g, '')}](user:${p.uid}) `;
+    this.remember(v, caret);
+    this.render(v.slice(0, this.menuAt) + ins + v.slice(caret));
+    this.placeCaret(this.menuAt + ins.length);
+    this.dispatchEvent(new Event('input', { bubbles: true }));
   }
   /** Turns the line into the block (the "/query" typed for it goes). */
   private applyBlock(b: (typeof BLOCKS)[number]): void {

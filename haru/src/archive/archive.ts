@@ -1,6 +1,6 @@
 import { avatar, onSession, session, type Session } from '../cloud/session';
 import { icon } from '../ui/icons';
-import { renderMarkdown } from '../ui/markdown';
+import { mentionsIn, renderMarkdown } from '../ui/markdown';
 import { askConfirm } from '../ui/modal';
 
 /**
@@ -18,6 +18,8 @@ export interface Shared {
   /** YYYY-MM-DD the page is about. */
   date: string;
   sharedAt: number;
+  /** Who the page names with @ (their uids). */
+  mentions?: string[];
 }
 
 /** One archive document per author and page, so sharing a page again replaces its copy. */
@@ -29,6 +31,7 @@ export async function sharePage(s: Session, page: { id: string; title: string; b
   const doc: Shared = {
     authorUid: s.uid, authorName: s.name, authorPhoto: s.photo,
     entryId: page.id, title: page.title, body: page.body, date: page.date, sharedAt: Date.now(),
+    mentions: mentionsIn(page.body).filter((uid) => uid !== s.uid),
   };
   await fs.setDoc(fs.doc(db, 'archive', sharedId(s.uid, page.id)), doc);
 }
@@ -57,6 +60,50 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
 
   const keyOf = (p: Shared) => sharedId(p.authorUid, p.entryId);
 
+  // ---- mentions: a page that names you and you haven't read (since it was last shared) carries a dot, and so
+  // does Archive's button wherever it shows, until you open the page
+  const seenKey = (uid: string) => `haru:mentions-seen:${uid}`;
+  const seenSet = (uid: string): Set<string> => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(seenKey(uid)) ?? '[]') as string[]);
+    } catch {
+      return new Set();
+    }
+  };
+  const stamp = (p: Shared) => `${keyOf(p)}@${p.sharedAt}`;
+  const unread = (p: Shared, s: Session | null): boolean =>
+    !!s && p.authorUid !== s.uid && !!p.mentions?.includes(s.uid) && !seenSet(s.uid).has(stamp(p));
+  function markRead(p: Shared): void {
+    const s = session();
+    if (!unread(p, s)) return;
+    const set = seenSet(s!.uid);
+    set.add(stamp(p));
+    try {
+      // only the pages still shared are worth remembering
+      const live = new Set(pages.map(stamp));
+      localStorage.setItem(seenKey(s!.uid), JSON.stringify([...set].filter((k) => live.has(k))));
+    } catch {
+      // for this visit
+    }
+    paintDots();
+  }
+  function paintDots(): void {
+    const s = session();
+    const n = pages.filter((p) => unread(p, s)).length;
+    for (const el of document.querySelectorAll<HTMLElement>('[data-view="archive"]')) {
+      el.classList.toggle('has-mention', n > 0);
+      if (n) el.dataset.mentions = String(n);
+      else delete el.dataset.mentions;
+    }
+  }
+  const archiveShown = () => location.hash.startsWith('#/archive');
+  addEventListener('hashchange', () => {
+    // turning to Archive reads the page it opens on
+    if (!archiveShown()) return;
+    const p = pages.find((x) => keyOf(x) === openKey);
+    if (p) markRead(p);
+  });
+
   function note(text: string): HTMLElement {
     const p = document.createElement('p');
     p.className = 'a-note';
@@ -81,10 +128,18 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
       b.innerHTML = '<span class="j-i-top"><span class="j-i-title"></span><span class="meta j-i-date"></span></span><span class="a-by"></span>';
       b.querySelector('.j-i-title')!.textContent = p.title || 'Untitled';
       b.querySelector('.j-i-date')!.textContent = fmtDay(p.date).replace(/, \d{4}$/, '');
+      if (unread(p, session())) {
+        const tag = document.createElement('span');
+        tag.className = 'a-mention-tag';
+        tag.textContent = '@ you';
+        b.querySelector('.j-i-top')!.prepend(tag);
+        b.classList.add('mentioned');
+      }
       const by = b.querySelector('.a-by')!;
       by.append(avatar({ name: p.authorName, photo: p.authorPhoto }, 'a-avatar'), p.authorName);
       b.addEventListener('click', () => {
         openKey = keyOf(p);
+        markRead(p);
         renderList();
         renderReader();
       });
@@ -105,6 +160,7 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
       return;
     }
     openKey = keyOf(p);
+    if (archiveShown()) markRead(p);
     const head = document.createElement('div');
     head.className = 'j-ed-head';
     const by = document.createElement('span');
@@ -151,12 +207,20 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
       const { fs, db } = s.fb;
       stop = fs.onSnapshot(fs.query(fs.collection(db, 'archive'), fs.orderBy('sharedAt', 'desc')), (snap) => {
         pages = snap.docs.map((d) => d.data() as Shared);
+        // a page that names you opens first
+        const s2 = session();
+        if (!openKey || !pages.some((x) => keyOf(x) === openKey)) {
+          const first = pages.find((x) => unread(x, s2)) ?? pages[0];
+          openKey = first ? keyOf(first) : null;
+        }
+        paintDots();
         renderList();
         renderReader();
       }, () => {
         reader.replaceChildren(note('The Archive couldn’t be loaded. Check your connection.'));
       });
     }
+    paintDots();
     renderList();
     renderReader();
   }

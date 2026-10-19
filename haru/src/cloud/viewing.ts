@@ -14,6 +14,10 @@ const listeners = new Set<(p: Profile | null) => void>();
 
 /** Whose Haru is on screen: null is your own. */
 export const viewing = (): Profile | null => current;
+/** Everyone invited (their profiles), kept while signed in. */
+let members: Profile[] = [];
+/** Everyone invited, for naming people with @. */
+export const memberList = (): Profile[] => members;
 
 export function onViewing(fn: (p: Profile | null) => void): void {
   listeners.add(fn);
@@ -54,7 +58,6 @@ export function mountViewing(): void {
   bar.hidden = true;
   document.body.append(bar);
 
-  let members: Profile[] = [];
   let stopMembers: (() => void) | null = null;
 
   btn.addEventListener('click', () => {

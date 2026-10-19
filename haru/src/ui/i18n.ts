@@ -164,7 +164,7 @@ const KO: Record<string, string> = {
   'Ctrl+click to open': 'Ctrl+클릭으로 열기', 'Copy photo': '사진 복사', 'Remove photo': '사진 지우기', 'Drag to resize · double-click for the original size': '끌어서 크기 조절 · 더블클릭하면 원래 크기', 'Photo removed': '사진을 지웠어요', 'Rename or delete this folder': '폴더 이름 바꾸기 또는 삭제',
   'A folder with that name already exists': '같은 이름의 폴더가 이미 있어요', 'A template of Today': 'Today를 템플릿으로',
   // Your days
-  Less: '접기', 'Last 14 days': '최근 14일', List: '목록', Tree: '트리', 'Tree: every folder and its pages': '트리: 모든 폴더와 페이지', 'Show pages as': '페이지 보기 방식', Empty: '비어 있음',
+  Less: '접기', 'Last 14 days': '최근 14일', '@ you': '@나', List: '목록', Tree: '트리', 'Tree: every folder and its pages': '트리: 모든 폴더와 페이지', 'Show pages as': '페이지 보기 방식', Empty: '비어 있음',
   'Days with at least one task planned on Today': 'Today에 할 일을 하나 이상 계획한 날 수',
   'Time planned on Today, averaged over the days tracked (24h is a full day)': '기록한 날들의 하루 평균 계획 시간 (24시간이 꽉 찬 하루)',
   'How much of all the planned time was checked off as done': '계획한 전체 시간 중 완료로 체크한 비율',
