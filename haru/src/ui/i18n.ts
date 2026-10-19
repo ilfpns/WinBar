@@ -163,7 +163,7 @@ const KO: Record<string, string> = {
   'Copy photo': '사진 복사', 'Remove photo': '사진 지우기', 'Photo removed': '사진을 지웠어요', 'Rename or delete this folder': '폴더 이름 바꾸기 또는 삭제',
   'A folder with that name already exists': '같은 이름의 폴더가 이미 있어요', 'A template of Today': 'Today를 템플릿으로',
   // what's new
-  'What’s new': '새 소식', 'What changed in Haru, newest first.': 'Haru가 어떻게 바뀌었는지, 최신 순으로.',
+  'What’s new': '새 소식', 'Patch notes, newest first.': '패치노트, 최신 순.',
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -176,6 +176,7 @@ const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^(.+)’s Today$/, (_, n) => `${n}의 오늘`],
   [/^(.+)’s Today \(read only\)$/, (_, n) => `${n}의 오늘 (보기 전용)`],
   [/^(.+)’s words$/, (_, n) => `${n}의 단어장`],
+  [/^What’s new · (\d+) unread$/, (_, n) => `새 소식 · 안 읽은 버전 ${n}개`],
   [/^(\d+) words$/, (_, n) => `단어 ${n}개`],
   [/^Found in Notion · (\d+) days$/, (_, n) => `Notion에서 찾음 · ${n}일`],
   [/^Saved Today as “(.+)”$/, (_, n) => `오늘을 “${n}”(으)로 저장했어요`],

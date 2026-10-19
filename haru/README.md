@@ -35,8 +35,13 @@ npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 
 ## Changes
 
-- **2026-10-19** — The left drawer folds into the rail on closing (only the rail stays); its close button is gone. News: the attendance bar resizes with the drawers instead of jumping; stacking glides. QA pass: a six-week month scrolls inside its card on short screens; on phones the calendar's month buttons no longer cover the title and Journal / Words scroll to the end; folder names are unique; Done in the editor applies at once; missing Korean labels; bigger touch targets for the small delete buttons. *What's new* in Settings shows this record inside Haru (`src/ui/changelog.ts`). Journal photos go into the text where the caret is (or where they're dropped), as in Notion or Obsidian; older photos stay under the text. Today: a check badge pops in when a task is done; the right drawer always opens on Today. School timetable: subjects were read from the teacher digits, so a class showed the wrong lessons; now decoded as 컴시간알리미 does. Journal: *Your days* statistics, page pinning, photos (add, Ctrl+V, drop, copy). School timetable from any school (컴시간알리미 / NEIS). Categories School, Meeting, Meal with darker distinct colours. Today: done badges, task notes, the new-day mark you can drag. Notion attendance both ways (undo included) every 5 minutes. Search removed. Only Today of another member can be looked at.
-- **2026-10-18** — Invite-only accounts with per-person data, shared Archive, reconnect screen, simpler attendance grass.
+앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
+
+- **v1.4** (2026-10-19) — 뉴스 출석 잔디가 서랍과 함께 부드럽게 크기 변경 / 왼쪽 서랍이 레일 속으로 접히며 닫힘 / 서랍 닫기 버튼 제거 / 패치노트 한국어 정리
+- **v1.3** (2026-10-19) — 설정에 새 소식 추가 / 캘린더·휴대폰 레이아웃 수정 / 같은 이름 폴더 막음 / 편집기 완료 즉시 반영 / 번역 보충
+- **v1.2** (2026-10-19) — 일기 사진이 글 사이에 들어감 / 완료 배지 애니메이션 / 오른쪽 창 Today 탭 고정 / 학교 시간표 반 오류 수정
+- **v1.1** (2026-10-19) — 나의 하루들 통계, 페이지 고정, 일기 사진 / 학교 시간표 / 카테고리 추가 / Notion 출석 양방향 / 검색 제거
+- **v1.0** (2026-10-18) — 초대 전용 계정, 공유 아카이브, 연결 화면, 출석 잔디 단순화
 
 ## Design
 
