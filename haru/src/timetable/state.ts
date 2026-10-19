@@ -144,7 +144,10 @@ export function commitDraft(): string | null {
 }
 
 export function toggleDone(id: string): void {
-  setState({ blocks: state.blocks.map((b) => (b.id === id ? { ...b, done: !b.done } : b)) });
+  const done = !state.blocks.find((b) => b.id === id)?.done;
+  // the same task open in the editor follows, so the dial (which draws the draft) and a later Save agree
+  const draft = state.draft?.id === id ? { ...state.draft, done } : state.draft;
+  setState({ blocks: state.blocks.map((b) => (b.id === id ? { ...b, done } : b)), draft });
 }
 
 // ---------- selection & batch actions
