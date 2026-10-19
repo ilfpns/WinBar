@@ -1622,6 +1622,11 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 .jt-page.on .jt-ic { color: var(--accent); }
 .jt-date { font: 400 10.5px var(--font-mono); color: var(--text-subtle); white-space: nowrap; }
 .jt-empty { padding: 4px 8px; text-transform: none; font-size: 12px; }
+/* the root: pages outside every folder sit at the top level, and the tree's empty space takes a dropped page there */
+.jt-root-page { margin-top: 1px; }
+.j-side.tree .j-list { min-height: 120px; border-radius: 10px; transition: background-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.j-side.tree .j-list.drop-root { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+.j-tab-root .j-tab-name { font-family: var(--font-mono); }
 @media (prefers-reduced-motion: reduce) { .jt-kids, .jt-caret { transition: none; } }
 .j-new { gap: 4px; border-radius: 10px; }
 .j-list { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 4px; overflow-y: auto; overscroll-behavior: contain; }

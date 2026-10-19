@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.9',
+    date: '2026-10-19',
+    items: [
+      '일기: 폴더 밖 루트에도 페이지를 둘 수 있음 (트리 맨 바깥, 목록의 Root 탭)',
+      '일기: 트리의 빈 곳이나 Root 탭으로 끌어 놓으면 폴더에서 꺼내기, 폴더 선택·우클릭 메뉴에 "Root로 옮기기"',
+    ],
+  },
+  {
     version: '1.8',
     date: '2026-10-19',
     items: [

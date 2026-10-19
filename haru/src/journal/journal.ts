@@ -25,7 +25,7 @@ export interface Entry {
   body: string;
   created: number;
   updated: number;
-  /** The folder it is filed in (an id from folderStore). Older entries had none: they are filed on start. */
+  /** The folder it is filed in (an id from folderStore); none: it sits at the top level (root). */
   folder?: string;
   /** Kept at the top of its folder's list. */
   pinned?: boolean;
@@ -46,8 +46,8 @@ export const folderStore = listStore<Folder>('journal-folders', isFolder);
 const TAB_KEY = 'haru:journal-folder';
 const VIEW_KEY = 'haru:journal-view';
 const TREE_KEY = 'haru:journal-tree-open';
-/** The folder made when there is none (and where pages from before folders are filed). */
-const FIRST_FOLDER = 'Journal';
+/** The top level: pages outside every folder (no folder, or one deleted elsewhere). Also a tab of its own. */
+const ROOT = '/';
 
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const wordCount = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
@@ -178,8 +178,17 @@ export function mountJournal(body: HTMLElement): void {
   } catch {
     // the first folder
   }
-  const validTab = () => (folders().some((f) => f.id === tab) ? tab : folders()[0]?.id ?? '');
-  const inTab = (e: Entry) => e.folder === validTab();
+  const isFolder = (id: string | undefined) => !!id && folders().some((f) => f.id === id);
+  const validTab = () => (tab === ROOT || isFolder(tab) ? tab : folders()[0]?.id ?? ROOT);
+  /** Where a page sits: its folder, or the root. */
+  const folderOf = (e: Entry) => (isFolder(e.folder) ? e.folder! : ROOT);
+  const inTab = (e: Entry) => folderOf(e) === validTab();
+  const placeName = (id: string) => (id === ROOT ? 'Root' : folders().find((f) => f.id === id)?.name ?? '');
+  /** A page put in `folder` (the root: no folder at all). */
+  const filedIn = (e: Entry, folder: string | undefined): Entry => {
+    const { folder: _, ...rest } = e;
+    return folder && folder !== ROOT ? { ...rest, folder } : rest;
+  };
   function setTab(next: string): void {
     tab = next;
     try {
@@ -198,24 +207,7 @@ export function mountJournal(body: HTMLElement): void {
     renderList();
   }
 
-  /**
-   * Every page in a folder: makes the first folder when there is none and files pages that have no (or a
-   * missing) folder into the open one. Runs once both stores have their IndexedDB copies, so it never
-   * stamps a stale list as the newest.
-   */
-  let filed = false;
-  function fileEverything(): void {
-    if (!filed) return;
-    if (!folders().length) folderStore.set([{ id: newId(), name: FIRST_FOLDER, created: Date.now() }]);
-    const home = validTab();
-    const ids = new Set(folders().map((f) => f.id));
-    if (entries().some((e) => !e.folder || !ids.has(e.folder))) {
-      journalStore.set(entries().map((e) => (e.folder && ids.has(e.folder) ? e : { ...e, folder: home })));
-    }
-  }
   void Promise.all([journalStore.ready, folderStore.ready]).then(() => {
-    filed = true;
-    fileEverything();
     renderFolders();
     renderList();
   });
@@ -225,17 +217,16 @@ export function mountJournal(body: HTMLElement): void {
    * so the open page stays in the list beside it instead of vanishing from the old folder's.
    */
   function moveTo(ids: string[], folder: string, follow = false): void {
-    const f = folders().find((x) => x.id === folder);
-    if (!f) return;
+    if (folder !== ROOT && !isFolder(folder)) return;
     const before = entries();
-    const moving = before.filter((e) => ids.includes(e.id) && e.folder !== folder);
+    const moving = before.filter((e) => ids.includes(e.id) && folderOf(e) !== folder);
     if (!moving.length) return;
     const from = validTab();
-    journalStore.set(before.map((e) => (moving.includes(e) ? { ...e, folder, updated: Date.now() } : e)));
+    journalStore.set(before.map((e) => (moving.includes(e) ? { ...filedIn(e, folder), updated: Date.now() } : e)));
     if (follow) setTab(folder);
-    tell(`Moved to ${f.name}`, () => {
+    tell(`Moved to ${placeName(folder)}`, () => {
       const back = new Map(moving.map((e) => [e.id, e.folder]));
-      journalStore.set(entries().map((e) => (back.has(e.id) ? { ...e, folder: back.get(e.id) } : e)));
+      journalStore.set(entries().map((e) => (back.has(e.id) ? filedIn(e, back.get(e.id)) : e)));
       if (follow) setTab(from);
     });
   }
@@ -263,8 +254,7 @@ export function mountJournal(body: HTMLElement): void {
     journalStore.set(entries().filter((e) => e.folder !== f.id));
     folderStore.set(folders().filter((x) => x.id !== f.id));
     if (openId && pages.some((p) => p.id === openId)) forget();
-    fileEverything();
-    setTab(folders()[Math.max(0, at - 1)]?.id ?? '');
+    setTab(folders()[Math.max(0, at - 1)]?.id ?? ROOT);
     open(null);
     tell(`Deleted ${f.name}`, () => {
       // back where it was, with its pages
@@ -341,33 +331,54 @@ export function mountJournal(body: HTMLElement): void {
       // a new folder starts on a blank page
       open(null);
     });
-    tabsEl.replaceChildren(...chips, add, more);
+    const rootChip = document.createElement('button');
+    rootChip.type = 'button';
+    rootChip.className = 'chip j-tab j-tab-root';
+    rootChip.setAttribute('role', 'tab');
+    rootChip.setAttribute('aria-selected', String(cur === ROOT));
+    rootChip.innerHTML = '<span class="j-tab-name"></span><span class="j-tab-n"></span>';
+    rootChip.firstElementChild!.textContent = 'Root';
+    rootChip.lastElementChild!.textContent = String(all.filter((e) => folderOf(e) === ROOT).length);
+    rootChip.title = 'Pages outside every folder · drop a page here to move it out';
+    rootChip.addEventListener('click', () => setTab(ROOT));
+    rootChip.addEventListener('dragover', (e) => {
+      if (!e.dataTransfer?.types.includes('text/x-haru-page')) return;
+      e.preventDefault();
+      rootChip.classList.add('drop');
+    });
+    rootChip.addEventListener('dragleave', () => rootChip.classList.remove('drop'));
+    rootChip.addEventListener('drop', (e) => {
+      e.preventDefault();
+      rootChip.classList.remove('drop');
+      const id = e.dataTransfer?.getData('text/x-haru-page');
+      if (id) moveTo([id], ROOT);
+    });
+    tabsEl.replaceChildren(rootChip, ...chips, add, more);
     // the editor's picker: which folder this page is in
     const e = openId ? entries().find((x) => x.id === openId) : undefined;
-    pageFolder = e?.folder && folders().some((x) => x.id === e.folder) ? e.folder : cur;
-    folderBtn.querySelector('.j-folder-name')!.textContent = folders().find((x) => x.id === pageFolder)?.name ?? '';
+    pageFolder = e ? folderOf(e) : cur;
+    folderBtn.querySelector('.j-folder-name')!.textContent = placeName(pageFolder);
     folderBtn.setAttribute('aria-label', `In ${folderBtn.textContent}. Move to another folder`);
   }
   // moving the page: a menu of the other folders
   folderBtn.addEventListener('click', () => {
     flush();
-    const others = folders().filter((f) => f.id !== pageFolder);
-    if (!others.length) {
+    const places = [ROOT, ...folders().map((f) => f.id)].filter((id) => id !== pageFolder);
+    if (!places.length) {
       tell('Make another folder to move pages into');
       return;
     }
-    showMenu(folderBtn, others.map((f) => ({
-      label: `Move to ${f.name}`,
-      icon: 'arrow-right',
+    showMenu(folderBtn, places.map((id) => ({
+      label: `Move to ${placeName(id)}`,
+      icon: id === ROOT ? 'folder-tree' : 'arrow-right',
       run: () => {
-        if (openId) moveTo([openId], f.id, true);
-        // a blank page: it will be written into that folder, so its tab opens now
-        else setTab(f.id);
+        if (openId) moveTo([openId], id, true);
+        // a blank page: it will be written there, so its tab opens now
+        else setTab(id);
       },
     })));
   });
   folderStore.onChange(() => {
-    fileEverything();
     renderFolders();
     renderList();
   });
@@ -416,7 +427,8 @@ export function mountJournal(body: HTMLElement): void {
       if (!create && !title && !bodyText.trim()) return;
       const now = Date.now();
       // into the open folder (filed later if the folders haven't loaded yet)
-      const folder = pageFolder || validTab() || undefined;
+      const place = pageFolder || validTab();
+      const folder = place && place !== ROOT ? place : undefined;
       const e: Entry = { id: newId(), date: draftDate, title, body: bodyText, created: now, updated: now, ...(folder ? { folder } : {}) };
       openId = e.id;
       del.hidden = false;
@@ -690,16 +702,51 @@ export function mountJournal(body: HTMLElement): void {
   /** The menu a page row offers (list and tree alike). */
   const pageMenu = (e: Entry) => [
     { label: e.pinned ? 'Unpin' : 'Pin to top', icon: 'pin' as const, run: () => togglePin(e.id) },
-    ...folders().filter((f) => f.id !== e.folder).map((f) => ({ label: `Move to ${f.name}`, icon: 'arrow-right' as const, run: () => moveTo([e.id], f.id) })),
+    ...[ROOT, ...folders().map((f) => f.id)].filter((id) => id !== folderOf(e))
+      .map((id) => ({ label: `Move to ${placeName(id)}`, icon: (id === ROOT ? 'folder-tree' : 'arrow-right') as 'folder-tree' | 'arrow-right', run: () => moveTo([e.id], id) })),
     { label: 'Delete page', icon: 'trash' as const, danger: true, run: () => void removePage(e.id) },
   ];
   const pageTitle = (e: Entry) => e.title || e.body.split(/\r?\n/).map(plain).find(Boolean) || 'Untitled';
+
+  const byPin = (a: Entry, b: Entry) => Number(!!b.pinned) - Number(!!a.pinned) || b.date.localeCompare(a.date) || b.created - a.created;
+  /** A page in the tree (in a folder, or at the root). */
+  function pageRow(e: Entry): HTMLLIElement {
+    const p = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `jt-row jt-page${e.id === openId ? ' on' : ''}`;
+    b.draggable = true;
+    const t = document.createElement('span');
+    t.className = 'jt-name';
+    t.textContent = pageTitle(e);
+    const d = document.createElement('span');
+    d.className = 'jt-date';
+    d.textContent = fmtDay(e.date);
+    b.append(icon(e.pinned ? 'pin' : 'file-text', 'ic jt-ic'), t, d);
+    b.title = `${pageTitle(e)} · ${fmtDay(e.date)}`;
+    b.addEventListener('click', () => {
+      if (folderOf(e) !== validTab()) setTab(folderOf(e));
+      open(e.id);
+    });
+    b.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();
+      showMenu({ x: ev.clientX, y: ev.clientY }, pageMenu(e));
+    });
+    b.addEventListener('dragstart', (ev) => {
+      if (e.id === openId) flush();
+      ev.dataTransfer?.setData('text/x-haru-page', e.id);
+      if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
+    });
+    p.append(b);
+    return p;
+  }
 
   function renderTree(): void {
     const all = entries();
     const here = validTab();
     // a page opened (or a folder switched to) unfolds its folder; folding it again afterwards is up to you
-    const at = openId ? all.find((e) => e.id === openId)?.folder : here;
+    const openEntry = openId ? all.find((e) => e.id === openId) : undefined;
+    const at = openEntry ? folderOf(openEntry) : here;
     const mark = `${openId}|${here}`;
     if (at && mark !== unfolded) {
       unfolded = mark;
@@ -707,8 +754,7 @@ export function mountJournal(body: HTMLElement): void {
       writeJson(TREE_KEY, [...treeOpen]);
     }
     const rows = folders().map((f) => {
-      const pages = all.filter((e) => e.folder === f.id)
-        .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.date.localeCompare(a.date) || b.created - a.created);
+      const pages = all.filter((e) => e.folder === f.id).sort(byPin);
       const isOpen = treeOpen.has(f.id);
       const li = document.createElement('li');
       li.className = `jt-folder${isOpen ? ' open' : ''}${f.id === here ? ' here' : ''}`;
@@ -748,42 +794,36 @@ export function mountJournal(body: HTMLElement): void {
       const kids = document.createElement('div');
       kids.className = 'jt-kids';
       const ul = document.createElement('ul');
-      ul.append(...(pages.length ? pages.map((e) => {
-        const p = document.createElement('li');
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = `jt-row jt-page${e.id === openId ? ' on' : ''}`;
-        b.draggable = true;
-        const t = document.createElement('span');
-        t.className = 'jt-name';
-        t.textContent = pageTitle(e);
-        const d = document.createElement('span');
-        d.className = 'jt-date';
-        d.textContent = fmtDay(e.date);
-        b.append(icon(e.pinned ? 'pin' : 'file-text', 'ic jt-ic'), t, d);
-        b.title = `${pageTitle(e)} · ${fmtDay(e.date)}`;
-        b.addEventListener('click', () => {
-          if (e.folder !== validTab()) setTab(e.folder!);
-          open(e.id);
-        });
-        b.addEventListener('contextmenu', (ev) => {
-          ev.preventDefault();
-          showMenu({ x: ev.clientX, y: ev.clientY }, pageMenu(e));
-        });
-        b.addEventListener('dragstart', (ev) => {
-          if (e.id === openId) flush();
-          ev.dataTransfer?.setData('text/x-haru-page', e.id);
-          if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
-        });
-        p.append(b);
-        return p;
-      }) : [Object.assign(document.createElement('li'), { className: 'jt-empty meta', textContent: 'Empty' })]));
+      ul.append(...(pages.length ? pages.map(pageRow) : [Object.assign(document.createElement('li'), { className: 'jt-empty meta', textContent: 'Empty' })]));
       kids.append(ul);
       li.append(row, kids);
       return li;
     });
-    list.replaceChildren(...rows);
+    // the root's pages after the folders, at the top level
+    const rootPages = all.filter((e) => folderOf(e) === ROOT).sort(byPin).map((e) => {
+      const li = pageRow(e);
+      li.classList.add('jt-root-page');
+      return li;
+    });
+    list.replaceChildren(...rows, ...rootPages);
   }
+  // the tree's empty space is the root: a page dropped there leaves its folder
+  list.addEventListener('dragover', (ev) => {
+    if (view !== 'tree' || !ev.dataTransfer?.types.includes('text/x-haru-page') || (ev.target as Element).closest('.jt-dir')) return;
+    ev.preventDefault();
+    list.classList.add('drop-root');
+  });
+  list.addEventListener('dragleave', (ev) => {
+    if (!list.contains(ev.relatedTarget as Node)) list.classList.remove('drop-root');
+  });
+  list.addEventListener('drop', (ev) => {
+    list.classList.remove('drop-root');
+    if (view !== 'tree' || (ev.target as Element).closest('.jt-dir')) return;
+    const id = ev.dataTransfer?.getData('text/x-haru-page');
+    if (!id) return;
+    ev.preventDefault();
+    moveTo([id], ROOT);
+  });
 
   function renderList(): void {
     if (view === 'tree') return renderTree();
@@ -857,7 +897,6 @@ export function mountJournal(body: HTMLElement): void {
   }
 
   journalStore.onChange(() => {
-    fileEverything();
     renderFolders();
     renderList();
   });
