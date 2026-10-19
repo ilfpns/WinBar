@@ -22,6 +22,7 @@ export const CHANGELOG: Release[] = [
     items: [
       '브라우저 탭 제목을 "Haru"로 고정',
       'Haru 로고 추가 (24시간 다이얼 모양, 탭 아이콘·홈 화면 아이콘)',
+      '탭 아이콘도 홈 화면 아이콘과 같은 PNG 로고로 통일',
     ],
   },
   {
