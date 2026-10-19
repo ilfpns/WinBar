@@ -17,8 +17,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <script type="module" crossorigin src="/WinBar/assets/index-DC6r0P7R.js"></script>
-  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-XRCr2U-t.css">
+  <script type="module" crossorigin src="/WinBar/assets/index-jZ43B0Yr.js"></script>
+  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-DmdI-B9W.css">
 </head>
 <body>
   <main class="stage page" id="stage">
@@ -369,6 +369,17 @@
               <button type="button" class="switch" role="switch" id="reset-on" aria-label="Start a new day automatically"><i></i></button>
             </div>
           </div>
+          <div class="set-row">
+            <div class="set-label">
+              <strong>School</strong>
+              <span id="school-name"></span>
+            </div>
+            <form class="set-reset" id="school-search" autocomplete="off">
+              <input type="search" class="set-input" id="school-q" placeholder="Find a school" maxlength="30" aria-label="Find a school">
+              <button type="submit" class="btn-sm">Find</button>
+            </form>
+          </div>
+          <div class="set-row school-results" id="school-results" hidden></div>
           <div class="set-row">
             <div class="set-label">
               <strong>School timetable</strong>
