@@ -299,26 +299,31 @@ export function mountDial(svg: SVGSVGElement): Dial {
       const p1 = [(R_OUT + 70) * dx, y];
       const p2 = [side * (legX - 8), y];
       const anchor = side > 0 ? 'start' : 'end';
-      // a done task's leader starts from a check badge instead of a dot, so it reads at a glance here too
-      let start: SVGElement = svgEl('circle', { class: 'callout-dot', cx: p0[0]!, cy: p0[1]!, r: 3.5 });
-      if (b.done) {
-        const tick = icon('check', 'done-ic');
-        for (const [k, v] of Object.entries({ x: p0[0]! - 8, y: p0[1]! - 8, width: 16, height: 16 })) tick.setAttribute(k, String(v));
-        start = svgEl('g', { class: 'done-badge' });
-        start.append(svgEl('circle', { cx: p0[0]!, cy: p0[1]!, r: 12 }), tick);
-      }
+      // a done task gets a check badge right after its name; on the left the name steps aside so the badge
+      // sits between it and the leader's end
+      const label = labelOf(b);
+      const nameW = textWidth(label) * (22 / 21);
+      const tx = side > 0 ? legX : -(legX + (b.done ? 34 : 0));
+      const right = side > 0 ? tx + nameW : tx;
       g.append(
         svgEl('polyline', { class: 'callout-line', points: `${p0.join(',')} ${p1.join(',')} ${p2.join(',')}` }),
-        start,
-        svgEl('text', { class: 'callout-name', x: side * legX, y: y - 3, 'text-anchor': anchor }, labelOf(b)),
-        svgEl('text', { class: 'callout-detail', x: side * legX, y: y + DETAIL + 3, 'text-anchor': anchor },
+        svgEl('circle', { class: 'callout-dot', cx: p0[0]!, cy: p0[1]!, r: 3.5 }),
+        svgEl('text', { class: 'callout-name', x: tx, y: y - 3, 'text-anchor': anchor }, label),
+        svgEl('text', { class: 'callout-detail', x: tx, y: y + DETAIL + 3, 'text-anchor': anchor },
           `${hhmm(b.start)}–${hhmm(b.start + b.dur)} · ${Math.round((b.dur / DAY) * 100)}%`),
       );
-      // a note on the task: a small dot at the name's top right
-      if (b.note?.trim()) {
-        const right = side > 0 ? side * legX + textWidth(labelOf(b)) * (22 / 21) : side * legX;
-        g.append(noteDot(right + 7, y - 20));
+      let after = right + 7;
+      if (b.done) {
+        const [bx, by] = [right + 17, y - 10];
+        const tick = icon('check', 'done-ic');
+        for (const [k, v] of Object.entries({ x: bx - 7, y: by - 7, width: 14, height: 14 })) tick.setAttribute(k, String(v));
+        const badge = svgEl('g', { class: 'done-badge' });
+        badge.append(svgEl('circle', { cx: bx, cy: by, r: 11 }), tick);
+        g.append(badge);
+        after = bx + 18;
       }
+      // a note on the task: a small dot at the name's top right (past the check, when there is one)
+      if (b.note?.trim()) g.append(noteDot(after, y - 20));
       return g;
     });
     // the middle keeps the dot emblem; either side of it, on its channel's line, what is on and how long it still runs
