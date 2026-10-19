@@ -1322,6 +1322,10 @@ body.drawer-moving .rail-btn[aria-current="page"]::after { animation-play-state:
   background: var(--well); color: var(--text-strong); font: 400 13.5px var(--font-sans); outline: none;
 }
 .set-input:focus { border-color: var(--line-strong); }
+.set-label .set-status { font: 400 11.5px var(--font-mono); }
+.set-label .set-status:empty { display: none; }
+.set-label .set-status.ok { color: var(--accent); }
+.set-label .set-status.bad { color: var(--danger); }
 /* new day: the time, then its on/off switch */
 .set-reset { display: flex; flex: none; align-items: center; gap: 12px; }
 .set-reset .time-field { width: 104px; height: 32px; }

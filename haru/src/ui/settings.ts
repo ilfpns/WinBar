@@ -4,7 +4,7 @@ import { shownTheme, showTheme } from './theme';
 import { FEATURES, featureOn, onFeatures, setFeature } from './features';
 import { timeField } from './time-field';
 import { DEFAULT_RESET, onResetAt, resetAt, setResetAt } from '../timetable/day-reset';
-import { notionName, onNotionAttendance, setNotionName } from '../calendar/notion-attendance';
+import { notionName, notionTaken, notionView, onNotionAttendance, setNotionName } from '../calendar/notion-attendance';
 
 /**
  * The Haru logo (on the rail, or in the open overview) opens a small menu: Settings, the overview, a quick
@@ -147,13 +147,26 @@ export function mountSettings(): void {
   onResetAt(paintReset);
   paintReset();
 
-  // ---- Notion name: which column of the Notion attendance database is yours
+  // ---- name in Notion: which column of the Notion attendance table is yours, and whether it was found
   const notionIn = dialog.querySelector<HTMLInputElement>('#notion-name')!;
-  notionIn.value = notionName();
-  notionIn.addEventListener('change', () => setNotionName(notionIn.value));
-  onNotionAttendance(() => {
+  const notionStatus = dialog.querySelector<HTMLElement>('#notion-status')!;
+  let notionPaint = 0;
+  async function paintNotion(): Promise<void> {
+    // only the latest paint writes (an earlier one still waiting must not overwrite a newer answer)
+    const turn = ++notionPaint;
     if (document.activeElement !== notionIn) notionIn.value = notionName();
-  });
+    const name = notionName();
+    const v = name && !notionTaken() ? await notionView(name) : null;
+    if (turn !== notionPaint) return;
+    notionStatus.className = 'set-status';
+    notionStatus.textContent = !name ? ''
+      : notionTaken() ? 'This name is linked to another Haru account'
+        : v?.known ? `Found in Notion · ${v.days.size} days` : 'Not a column in the Notion table yet';
+    if (name) notionStatus.classList.add(!notionTaken() && v?.known ? 'ok' : 'bad');
+  }
+  notionIn.addEventListener('change', () => setNotionName(notionIn.value));
+  onNotionAttendance(() => void paintNotion());
+  void paintNotion();
 
   // ---- theme: dark (default), light, or whatever the system uses
   const themeBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-theme-pick]')];

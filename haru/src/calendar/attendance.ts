@@ -1,7 +1,7 @@
 import { allDays, dayKey } from '../timetable/history';
 import { listStore } from '../storage/list-store';
 import { icon } from '../ui/icons';
-import { notionDays, notionName, onNotionAttendance } from './notion-attendance';
+import { type NotionView, checkinMarks, markCheckin, notionName, notionView, onNotionAttendance } from './notion-attendance';
 
 /**
  * Attendance, on the News (globe) page: a Check in button for today and the recent weeks as a grass grid
@@ -72,17 +72,28 @@ export function createAttendance(): Attendance {
   /** Days with a saved timetable from before check-ins existed. */
   let opened = new Set<string>();
 
-  /** Your days checked in Notion (see notion-attendance). */
-  let notion = new Set<string>();
+  /** What Notion says for your column (see notion-attendance). */
+  let notion: NotionView | null = null;
   const refreshNotion = async () => {
-    notion = await notionDays(notionName());
+    notion = notionName() ? await notionView(notionName()) : null;
     paint();
   };
   onNotionAttendance(() => void refreshNotion());
   void refreshNotion();
 
-  /** Every attended day: check-ins (Haru's and Notion's), plus the days Haru was opened before check-ins existed. */
-  const attendedDays = () => new Set([...checkinStore.all(), ...[...opened].filter((k) => k < CHECKIN_SINCE), ...notion]);
+  /**
+   * Every attended day: Haru's check-ins and Notion's, plus the days Haru was opened before check-ins existed.
+   * A check-in or undo made here counts over Notion for that date until the Notion row is edited after it.
+   */
+  function attendedDays(): Set<string> {
+    const days = new Set([...checkinStore.all(), ...[...opened].filter((k) => k < CHECKIN_SINCE), ...(notion?.days ?? [])]);
+    for (const [date, m] of Object.entries(checkinMarks())) {
+      if (notion && m.at <= notion.editedAt(date)) continue;
+      if (m.on) days.add(date);
+      else days.delete(date);
+    }
+    return days;
+  }
 
   function paint(): void {
     const today = dayKey();
@@ -149,12 +160,14 @@ export function createAttendance(): Attendance {
     paint();
   }
 
+  // check in, or undo today's — wherever it was ticked (here or in Notion), it goes both ways
   check.addEventListener('click', () => {
     const today = dayKey();
-    const list = checkinStore.all();
-    if (list.includes(today)) checkinStore.set(list.filter((k) => k !== today));
-    else {
-      checkinStore.set([...list, today]);
+    const on = !attendedDays().has(today);
+    const list = checkinStore.all().filter((k) => k !== today);
+    markCheckin(today, on);
+    checkinStore.set(on ? [...list, today] : list);
+    if (on) {
       check.classList.remove('pop');
       void check.offsetWidth;
       check.classList.add('pop');

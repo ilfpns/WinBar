@@ -1,0 +1,56 @@
+# Haru's attendance and the Notion database "출석 체크", both ways, every 5 minutes (GitHub's shortest schedule):
+# check-ins and undos made on Haru are set in Notion, and Notion's days come back as data/attendance.json on the
+# published site (gh-pages). See haru/scripts/fetch-attendance.mjs.
+name: Haru attendance
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write   # keep-alive below
+
+# shared with haru-news.yml: both rewrite the one gh-pages commit, so they take turns
+concurrency:
+  group: haru-pages
+  cancel-in-progress: false
+
+jobs:
+  attendance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: haru/scripts
+      - uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+          path: site
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Sync attendance
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        run: node haru/scripts/fetch-attendance.mjs site/data/attendance.json
+      - name: Publish
+        working-directory: site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/attendance.json
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          # keep gh-pages a single snapshot commit
+          git commit -q --amend -m "Deploy to GitHub Pages"
+          git push -q -f origin gh-pages
+      # GitHub pauses scheduled workflows in a repo with no activity for 60 days;
+      # re-enabling the workflow through the API restarts that clock, so it keeps running indefinitely
+      - name: Keep the schedule alive
+        if: github.event_name == 'workflow_dispatch' || endsWith(format('{0}', github.run_number), '0')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/haru-attendance.yml/enable"

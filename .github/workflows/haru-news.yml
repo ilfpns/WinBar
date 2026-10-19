@@ -1,5 +1,5 @@
-# Haru's News page: refresh the headlines (and the Notion attendance) on the published site (gh-pages) every
-# 10 minutes. Only data/news.json and data/attendance.json change; the rest is published by `npm run deploy`.
+# Haru's News page: refresh the headlines on the published site (gh-pages) every 10 minutes.
+# Only data/news.json changes; the rest of the site is published by `npm run deploy` in haru/.
 name: Haru news
 
 on:
@@ -11,8 +11,9 @@ permissions:
   contents: write
   actions: write   # keep-alive below
 
+# shared with haru-attendance.yml: both rewrite the one gh-pages commit, so they take turns
 concurrency:
-  group: haru-news
+  group: haru-pages
   cancel-in-progress: false
 
 jobs:
@@ -32,21 +33,12 @@ jobs:
           node-version: 22
       - name: Fetch headlines
         run: node haru/scripts/fetch-news.mjs site/data/news.json
-      # attendance both ways with the Notion database: Haru check-ins ticked there, Notion's brought here
-      # (a failure here never holds up the headlines)
-      - name: Sync attendance
-        continue-on-error: true
-        env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
-        run: node haru/scripts/fetch-attendance.mjs site/data/attendance.json
       - name: Publish
         working-directory: site
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/news.json
-          git add data/attendance.json 2>/dev/null || true
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           # keep gh-pages a single snapshot commit instead of growing by 144 commits a day
           git commit -q --amend -m "Deploy to GitHub Pages"
