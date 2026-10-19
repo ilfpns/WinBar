@@ -75,6 +75,11 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   let commentsFor: string | null = null;
   let stopComments: (() => void) | null = null;
   let draft = '';
+  // the comments fold open under their count; the ones already drawn don't animate in again
+  let commentsOpen = false;
+  let drawn = new Set<string>();
+  let lastCount = -1;
+  let postError = '';
 
   const keyOf = (p: Shared) => sharedId(p.authorUid, p.entryId);
 
@@ -225,6 +230,10 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
     commentsFor = key;
     comments = [];
     draft = '';
+    commentsOpen = false;
+    drawn = new Set();
+    lastCount = -1;
+    postError = '';
     const { fs, db } = s.fb;
     stopComments = fs.onSnapshot(fs.query(fs.collection(db, 'archive', key, 'comments'), fs.orderBy('at', 'asc')), (snap) => {
       comments = snap.docs.map((d) => ({ id: d.id, c: d.data() as Comment }));
@@ -236,15 +245,37 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
     const box = document.createElement('section');
     box.className = 'a-comments';
     box.setAttribute('aria-label', 'Comments');
-    const h = document.createElement('div');
-    h.className = 'a-c-head';
-    h.append(icon('message'), Object.assign(document.createElement('span'), { className: 'card-title', textContent: 'Comments' }),
-      Object.assign(document.createElement('span'), { className: 'meta a-c-n', textContent: comments.length ? String(comments.length) : '' }));
+    // the count, as a speech bubble over the box you write in: a click folds the comments open or shut
+    const h = document.createElement('button');
+    h.type = 'button';
+    h.className = 'a-c-toggle';
+    h.setAttribute('aria-expanded', String(commentsOpen));
+    const n = document.createElement('span');
+    n.className = `a-c-n${lastCount >= 0 && comments.length !== lastCount ? ' bump' : ''}`;
+    n.textContent = String(comments.length);
+    const label = document.createElement('span');
+    label.className = 'a-c-label';
+    label.textContent = comments.length ? (commentsOpen ? 'Hide comments' : 'Show comments') : 'No comments yet';
+    h.append(icon('message'), n, label, icon('chevron-down', 'ic a-c-caret'));
+    h.disabled = !comments.length;
+    lastCount = comments.length;
+    const fold = document.createElement('div');
+    fold.className = `a-c-fold${commentsOpen && comments.length ? ' open' : ''}`;
     const ul = document.createElement('ul');
     ul.className = 'a-c-list';
+    h.addEventListener('click', () => {
+      commentsOpen = !commentsOpen;
+      fold.classList.toggle('open', commentsOpen);
+      h.setAttribute('aria-expanded', String(commentsOpen));
+      label.textContent = commentsOpen ? 'Hide comments' : 'Show comments';
+      if (commentsOpen) requestAnimationFrame(() => (ul.scrollTop = ul.scrollHeight));
+    });
+    fold.append(ul);
     ul.append(...comments.map(({ id, c }) => {
       const li = document.createElement('li');
-      li.className = `a-c${c.uid === s.uid ? ' mine' : ''}`;
+      // only a comment not drawn before comes in with its animation
+      li.className = `a-c${c.uid === s.uid ? ' mine' : ''}${drawn.has(id) ? '' : ' new'}`;
+      drawn.add(id);
       const top = document.createElement('div');
       top.className = 'a-c-top';
       const when = document.createElement('span');
@@ -272,7 +303,6 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
       li.append(top, body);
       return li;
     }));
-    if (!comments.length) ul.append(Object.assign(document.createElement('li'), { className: 'meta a-c-empty', textContent: 'No comments yet' }));
     const form = document.createElement('form');
     form.className = 'a-c-form';
     const input = document.createElement('textarea');
@@ -309,26 +339,37 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
       send.disabled = true;
       const { fs, db } = s.fb;
       const c: Comment = { uid: s.uid, name: s.name, photo: s.photo, text: textValue.slice(0, MAX_COMMENT), at: Date.now() };
-      // cleared first: the comment shows (and the box redraws) before the write is confirmed
+      // cleared first: the comment shows (and the box redraws) before the write is confirmed; sent, the
+      // comments open to show it
       draft = '';
       input.value = '';
+      commentsOpen = true;
+      postError = '';
       try {
         await fs.addDoc(fs.collection(db, 'archive', keyOf(p), 'comments'), c);
-      } catch {
+      } catch (err) {
         draft = textValue;
-        const now = reader.querySelector<HTMLTextAreaElement>('.a-c-input') ?? input;
-        now.value = textValue;
-        now.classList.add('bad');
-        setTimeout(() => now.classList.remove('bad'), 1500);
+        // say why: a refusal from the rules reads differently from a lost connection
+        postError = String((err as { code?: string })?.code ?? '').includes('permission')
+          ? 'Comments aren’t allowed yet: the Firestore rules need publishing again'
+          : 'Couldn’t post. Check your connection.';
+        const box2 = reader.querySelector('.a-comments');
+        if (box2) box2.replaceWith(commentsBox(s, p));
       }
       fit();
       (reader.querySelector<HTMLTextAreaElement>('.a-c-input') ?? input).focus();
     });
     form.append(input, send);
-    box.append(h, ul, form);
+    const err = document.createElement('p');
+    err.className = 'a-c-err';
+    err.setAttribute('role', 'alert');
+    err.textContent = postError;
+    err.hidden = !postError;
+    box.append(h, fold, form, err);
     requestAnimationFrame(() => {
       fit();
       ul.scrollTop = ul.scrollHeight;
+      if (postError) input.classList.add('bad');
     });
     return box;
   }

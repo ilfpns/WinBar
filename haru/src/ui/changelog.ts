@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.12',
+    date: '2026-10-19',
+    items: [
+      '아카이브: 글 쓰는 칸 위에 💬 댓글 수, 누르면 댓글이 부드럽게 펼쳐지고 접힘',
+      '아카이브: 새 댓글만 나타나는 애니메이션, 댓글 수가 바뀌면 숫자가 튀어 오름',
+      '아카이브: 댓글이 안 올라가면 이유를 표시 (규칙 미게시 / 연결 문제), 쓴 글은 그대로 남음',
+    ],
+  },
+  {
     version: '1.11',
     date: '2026-10-19',
     items: [
