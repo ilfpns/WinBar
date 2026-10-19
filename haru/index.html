@@ -170,9 +170,6 @@
     <form id="editor" class="card editor" hidden autocomplete="off">
       <div class="editor-head">
         <span class="dot"></span><span id="ed-head">New task</span>
-        <button type="button" class="chip done-toggle" id="ed-done" aria-pressed="false">
-          <i data-icon="check"></i>Done
-        </button>
       </div>
       <input class="title-input" name="title" placeholder="What are you doing?" maxlength="40">
       <div class="chips" id="chips" role="radiogroup" aria-label="Category"></div>
@@ -431,7 +428,7 @@
         <p class="set-lead">A day planner: timetable, calendar, news, words and journal.</p>
         <div class="set-card">
           <div class="set-row"><div class="set-label"><strong>Build</strong><span id="settings-build"></span></div></div>
-          <div class="set-row"><div class="set-label"><strong>Your data</strong><span>Kept in this browser (local storage and IndexedDB), never sent anywhere while sign-in is off</span></div></div>
+          <div class="set-row"><div class="set-label"><strong>Your data</strong><span id="about-data">Kept in this browser (local storage and IndexedDB), never sent anywhere while sign-in is off</span></div></div>
           <div class="set-row"><div class="set-label"><strong>Word list</strong><span>TOEIC Service List 1.2 by Browne &amp; Culligan, CC BY-SA 4.0</span></div></div>
         </div>
       </section>

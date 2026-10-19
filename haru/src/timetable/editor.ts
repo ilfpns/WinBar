@@ -1,6 +1,6 @@
 import { mod } from './time';
 import { CATEGORIES, CATEGORY_KEYS, type Category } from './model';
-import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, state, subscribe, toggleDone } from './state';
+import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, state, subscribe } from './state';
 import { timeField } from '../ui/time-field';
 
 interface EditorFields extends HTMLFormControlsCollection {
@@ -20,9 +20,6 @@ export function mountEditor(form: HTMLFormElement): void {
   const err = req<HTMLElement>(form, '#err');
   const del = req<HTMLButtonElement>(form, '#del');
   const chips = req<HTMLElement>(form, '#chips');
-  const doneBtn = req<HTMLButtonElement>(form, '#ed-done');
-  // a saved task is ticked for real (the list and the dial follow at once); a task still being created only in its draft
-  doneBtn.addEventListener('click', () => (state.draft?.id ? toggleDone(state.draft.id) : patchDraft({ done: !state.draft?.done })));
 
   // custom 24h pickers: native <select>/<input type=time> follow OS styling and the 12h locale
   const setTimes = (start: number, end: number) => {
@@ -69,7 +66,6 @@ export function mountEditor(form: HTMLFormElement): void {
       queueMicrotask(() => f.title.focus());
     }
     form.style.setProperty('--c', `var(--cat-${d.cat})`);
-    doneBtn.setAttribute('aria-pressed', String(d.done));
     startField.set(d.start);
     endField.set(mod(d.start + d.dur));
     chips.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.cat === d.cat)));

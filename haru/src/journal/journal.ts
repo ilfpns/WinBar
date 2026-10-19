@@ -43,6 +43,8 @@ const isFolder = (v: unknown): v is Folder => {
 export const folderStore = listStore<Folder>('journal-folders', isFolder);
 /** Which folder was open (per browser). */
 const TAB_KEY = 'haru:journal-folder';
+const VIEW_KEY = 'haru:journal-view';
+const TREE_KEY = 'haru:journal-tree-open';
 /** The folder made when there is none (and where pages from before folders are filed). */
 const FIRST_FOLDER = 'Journal';
 
@@ -61,6 +63,10 @@ export function mountJournal(body: HTMLElement): void {
     <aside class="j-side glass-card" aria-label="Pages">
       <div class="j-side-head">
         <span class="card-title">Folders</span>
+        <span class="seg j-view" role="radiogroup" aria-label="Show pages as">
+          <button type="button" role="radio" data-view="list" aria-label="List" title="List"></button>
+          <button type="button" role="radio" data-view="tree" aria-label="Tree" title="Tree: every folder and its pages"></button>
+        </span>
         <button type="button" class="btn-sm j-new"></button>
       </div>
       <div class="j-folders" role="tablist" aria-label="Folders"></div>
@@ -645,7 +651,139 @@ export function mountJournal(body: HTMLElement): void {
   }
 
 
+  // ---- list or tree: the tree (as Octotree draws a repository) shows every folder with its pages under it
+  const viewBtns = [...body.querySelectorAll<HTMLButtonElement>('.j-view [data-view]')];
+  viewBtns.forEach((b) => b.append(icon(b.dataset.view === 'tree' ? 'folder-tree' : 'list')));
+  const readJson = <T,>(key: string, fallback: T): T => {
+    try {
+      return (JSON.parse(localStorage.getItem(key) ?? 'null') as T) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const writeJson = (key: string, v: unknown) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(v));
+    } catch {
+      // for this visit
+    }
+  };
+  let view: 'list' | 'tree' = readJson<string>(VIEW_KEY, 'list') === 'tree' ? 'tree' : 'list';
+  let unfolded = '';
+  /** Folders unfolded in the tree. */
+  const treeOpen = new Set<string>(readJson<string[]>(TREE_KEY, []));
+  const paintView = () => {
+    viewBtns.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.view === view)));
+    body.querySelector('.j-side')!.classList.toggle('tree', view === 'tree');
+  };
+  viewBtns.forEach((b) => b.addEventListener('click', () => {
+    view = b.dataset.view === 'tree' ? 'tree' : 'list';
+    writeJson(VIEW_KEY, view);
+    paintView();
+    renderList();
+  }));
+  paintView();
+
+  /** The menu a page row offers (list and tree alike). */
+  const pageMenu = (e: Entry) => [
+    { label: e.pinned ? 'Unpin' : 'Pin to top', icon: 'pin' as const, run: () => togglePin(e.id) },
+    ...folders().filter((f) => f.id !== e.folder).map((f) => ({ label: `Move to ${f.name}`, icon: 'arrow-right' as const, run: () => moveTo([e.id], f.id) })),
+    { label: 'Delete page', icon: 'trash' as const, danger: true, run: () => void removePage(e.id) },
+  ];
+  const pageTitle = (e: Entry) => e.title || e.body.split(/\r?\n/).map(plain).find(Boolean) || 'Untitled';
+
+  function renderTree(): void {
+    const all = entries();
+    const here = validTab();
+    // a page opened (or a folder switched to) unfolds its folder; folding it again afterwards is up to you
+    const at = openId ? all.find((e) => e.id === openId)?.folder : here;
+    const mark = `${openId}|${here}`;
+    if (at && mark !== unfolded) {
+      unfolded = mark;
+      treeOpen.add(at);
+      writeJson(TREE_KEY, [...treeOpen]);
+    }
+    const rows = folders().map((f) => {
+      const pages = all.filter((e) => e.folder === f.id)
+        .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.date.localeCompare(a.date) || b.created - a.created);
+      const isOpen = treeOpen.has(f.id);
+      const li = document.createElement('li');
+      li.className = `jt-folder${isOpen ? ' open' : ''}${f.id === here ? ' here' : ''}`;
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'jt-row jt-dir';
+      row.setAttribute('aria-expanded', String(isOpen));
+      const count = document.createElement('span');
+      count.className = 'jt-count';
+      count.textContent = String(pages.length);
+      const name = document.createElement('span');
+      name.className = 'jt-name';
+      name.textContent = f.name;
+      row.append(icon('chevron-right', 'ic jt-caret'), icon(isOpen ? 'folder-open' : 'folder', 'ic jt-ic'), name, count);
+      row.addEventListener('click', () => {
+        if (treeOpen.has(f.id)) treeOpen.delete(f.id);
+        else treeOpen.add(f.id);
+        writeJson(TREE_KEY, [...treeOpen]);
+        renderTree();
+      });
+      row.addEventListener('dblclick', () => setTab(f.id));
+      // drop a page on a folder to move it there
+      row.addEventListener('dragover', (ev) => {
+        if (!ev.dataTransfer?.types.includes('text/x-haru-page')) return;
+        ev.preventDefault();
+        row.classList.add('drop');
+      });
+      row.addEventListener('dragleave', () => row.classList.remove('drop'));
+      row.addEventListener('drop', (ev) => {
+        row.classList.remove('drop');
+        const id = ev.dataTransfer?.getData('text/x-haru-page');
+        if (!id) return;
+        ev.preventDefault();
+        treeOpen.add(f.id);
+        moveTo([id], f.id);
+      });
+      const kids = document.createElement('div');
+      kids.className = 'jt-kids';
+      const ul = document.createElement('ul');
+      ul.append(...(pages.length ? pages.map((e) => {
+        const p = document.createElement('li');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `jt-row jt-page${e.id === openId ? ' on' : ''}`;
+        b.draggable = true;
+        const t = document.createElement('span');
+        t.className = 'jt-name';
+        t.textContent = pageTitle(e);
+        const d = document.createElement('span');
+        d.className = 'jt-date';
+        d.textContent = fmtDay(e.date);
+        b.append(icon(e.pinned ? 'pin' : 'file-text', 'ic jt-ic'), t, d);
+        b.title = `${pageTitle(e)} · ${fmtDay(e.date)}`;
+        b.addEventListener('click', () => {
+          if (e.folder !== validTab()) setTab(e.folder!);
+          open(e.id);
+        });
+        b.addEventListener('contextmenu', (ev) => {
+          ev.preventDefault();
+          showMenu({ x: ev.clientX, y: ev.clientY }, pageMenu(e));
+        });
+        b.addEventListener('dragstart', (ev) => {
+          if (e.id === openId) flush();
+          ev.dataTransfer?.setData('text/x-haru-page', e.id);
+          if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
+        });
+        p.append(b);
+        return p;
+      }) : [Object.assign(document.createElement('li'), { className: 'jt-empty meta', textContent: 'Empty' })]));
+      kids.append(ul);
+      li.append(row, kids);
+      return li;
+    });
+    list.replaceChildren(...rows);
+  }
+
   function renderList(): void {
+    if (view === 'tree') return renderTree();
     const shown = [...entries()]
       .filter(inTab)
       .sort((a, b) => b.date.localeCompare(a.date) || b.created - a.created);
@@ -693,11 +831,7 @@ export function mountJournal(body: HTMLElement): void {
       // right-click: delete it, or move it to another folder
       b.addEventListener('contextmenu', (ev) => {
         ev.preventDefault();
-        showMenu({ x: ev.clientX, y: ev.clientY }, [
-          { label: e.pinned ? 'Unpin' : 'Pin to top', icon: 'pin', run: () => togglePin(e.id) },
-          ...folders().filter((f) => f.id !== e.folder).map((f) => ({ label: `Move to ${f.name}`, icon: 'arrow-right', run: () => moveTo([e.id], f.id) })),
-          { label: 'Delete page', icon: 'trash', danger: true, run: () => void removePage(e.id) },
-        ]);
+        showMenu({ x: ev.clientX, y: ev.clientY }, pageMenu(e));
       });
       // drag onto a folder tab to move it there
       b.addEventListener('dragstart', (ev) => {

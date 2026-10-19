@@ -7,6 +7,7 @@ import { DEFAULT_RESET, onResetAt, resetAt, setResetAt } from '../timetable/day-
 import { notionName, notionTaken, notionView, onNotionAttendance, setNotionName } from '../calendar/notion-attendance';
 import { NEIS_KEYLESS_ROWS, type School, applyLessons, classesOf, hasNeisKey, isComci, lessonsToday, myClass, mySchool, searchSchools, setMyClass, setMySchool } from '../timetable/school';
 import { askConfirm } from './modal';
+import { type Session, avatar, onSession, session } from '../cloud/session';
 import { labelOf } from '../timetable/model';
 import { hhmm } from '../timetable/time';
 
@@ -105,6 +106,24 @@ export function mountSettings(): void {
   }
   navBtns.forEach((b) => b.addEventListener('click', () => showPage(b.dataset.setPage!)));
   dialog.querySelector<HTMLButtonElement>('.set-me')!.addEventListener('click', () => showPage('account'));
+  // the card at the sidebar's foot, the backup note over it and About's data line follow who is signed in
+  const me = dialog.querySelector<HTMLElement>('.set-me')!;
+  const meName = me.querySelector<HTMLElement>('.set-me-text strong')!;
+  const meSub = me.querySelector<HTMLElement>('.set-me-text .meta')!;
+  const promoText = dialog.querySelector<HTMLElement>('.set-promo p')!;
+  const aboutData = dialog.querySelector<HTMLElement>('#about-data');
+  const paintMe = (s: Session | null) => {
+    me.querySelector('.set-me-avatar')!.replaceWith(s ? avatar(s, 'set-me-avatar') : Object.assign(document.createElement('span'), { className: 'set-me-avatar', textContent: 'H' }));
+    meName.textContent = s ? s.name || s.email : 'This device';
+    meSub.textContent = s ? s.email : 'Local · sign-in off';
+    me.setAttribute('aria-label', s ? `Account · ${s.name || s.email}` : 'Account · this device');
+    promoText.textContent = s ? 'Synced to your account. A backup file is a second copy you keep.' : 'Everything lives on this device. A backup file keeps it safe.';
+    if (aboutData) aboutData.textContent = s
+      ? 'Kept in this browser and synced to your account (Firestore), so your other devices have it too'
+      : 'Kept in this browser (local storage and IndexedDB), never sent anywhere while sign-in is off';
+  };
+  onSession(paintMe);
+  paintMe(session());
   search.addEventListener('input', filter);
   dialog.querySelector('#set-promo-export')!.addEventListener('click', () => document.getElementById('backup-export')!.click());
   filter();
@@ -159,6 +178,67 @@ export function mountSettings(): void {
   const schoolForm = dialog.querySelector<HTMLFormElement>('#school-search')!;
   const schoolQ = dialog.querySelector<HTMLInputElement>('#school-q')!;
   const schoolResults = dialog.querySelector<HTMLElement>('#school-results')!;
+  // the class picker: a field like the time fields that opens grades as rows of class chips (the <select>
+  // underneath keeps the value and the logic that reads it)
+  classSel.hidden = true;
+  const classBtn = document.createElement('button');
+  classBtn.type = 'button';
+  classBtn.className = 'time-field class-field';
+  classBtn.setAttribute('aria-haspopup', 'dialog');
+  classBtn.setAttribute('aria-expanded', 'false');
+  classBtn.setAttribute('aria-label', 'Class');
+  const classText = document.createElement('span');
+  classText.className = 'time-text';
+  classBtn.append(classText, icon('chevron-down'));
+  classSel.before(classBtn);
+  const classPop = document.createElement('div');
+  classPop.className = 'class-pop';
+  classPop.popover = 'auto';
+  document.body.append(classPop);
+  const paintClassBtn = () => {
+    classText.textContent = classSel.selectedOptions[0]?.value ? classSel.selectedOptions[0]!.text : 'Class';
+    classBtn.classList.toggle('empty', !classSel.value);
+    classBtn.disabled = classSel.options.length <= 1;
+  };
+  function openClassPop(): void {
+    const byGrade = new Map<string, HTMLOptionElement[]>();
+    for (const o of [...classSel.options].filter((x) => x.value)) {
+      const g = o.value.split('-')[0]!;
+      byGrade.set(g, [...(byGrade.get(g) ?? []), o]);
+    }
+    classPop.replaceChildren(...[...byGrade].map(([g, opts]) => {
+      const row = document.createElement('div');
+      row.className = 'class-row';
+      const label = document.createElement('span');
+      label.className = 'meta class-grade';
+      label.textContent = `${g}학년`;
+      const chips = document.createElement('div');
+      chips.className = 'class-chips';
+      chips.append(...opts.map((o) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = `${o.value.split('-')[1]}반`;
+        b.setAttribute('aria-pressed', String(o.value === classSel.value));
+        b.addEventListener('click', () => {
+          classSel.value = o.value;
+          classSel.dispatchEvent(new Event('change'));
+          classPop.hidePopover();
+        });
+        return b;
+      }));
+      row.append(label, chips);
+      return row;
+    }));
+    classPop.showPopover();
+    const r = classBtn.getBoundingClientRect();
+    const w = classPop.offsetWidth;
+    const h = classPop.offsetHeight;
+    classPop.style.left = `${Math.max(8, Math.min(r.right - w, innerWidth - w - 8))}px`;
+    classPop.style.top = `${r.bottom + 6 + h > innerHeight - 8 ? r.top - h - 6 : r.bottom + 6}px`;
+    classPop.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+  }
+  classBtn.addEventListener('click', () => (classPop.matches(':popover-open') ? classPop.hidePopover() : openClassPop()));
+  classPop.addEventListener('toggle', (e) => classBtn.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open')));
   const schoolSay = (text: string, ok?: boolean) => {
     schoolStatus.textContent = text;
     schoolStatus.className = `set-status${ok === undefined ? '' : ok ? ' ok' : ' bad'}`;
@@ -169,6 +249,7 @@ export function mountSettings(): void {
     schoolName.textContent = `${s.name} · ${s.region}`;
     classSel.replaceChildren(new Option('Class', ''));
     schoolApply.disabled = true;
+    paintClassBtn();
     let classes: string[] = [];
     try {
       classes = await classesOf(s);
@@ -185,6 +266,7 @@ export function mountSettings(): void {
       classSel.append(new Option(`${g}학년 ${n}반`, c, false, c === myClass()));
     }
     schoolApply.disabled = false;
+    paintClassBtn();
   }
   schoolForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -216,7 +298,10 @@ export function mountSettings(): void {
     }));
   });
   void paintSchool();
-  classSel.addEventListener('change', () => setMyClass(classSel.value));
+  classSel.addEventListener('change', () => {
+    setMyClass(classSel.value);
+    paintClassBtn();
+  });
   schoolApply.addEventListener('click', async () => {
     if (!classSel.value) {
       schoolSay('Pick your class first', false);

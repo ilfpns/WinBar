@@ -13,7 +13,12 @@ const SAFE_URL = /^(https?:\/\/|mailto:)/i;
  * Only the device that holds the image can show it; elsewhere (someone else's shared page) the line is dropped.
  */
 export const IMG_LINE = /^!\[[^\]]*\]\(img:([\w-]+)\)\s*$/;
-export const imageLine = (id: string) => `![](img:${id})`;
+export const imageLine = (id: string, width?: number | null) => `![${width ? `|${Math.round(width)}` : ''}](img:${id})`;
+/** The width a photo line asks for (Obsidian's `![|320](…)`), or null: as large as it comes, up to the page. */
+export const imageWidth = (line: string): number | null => {
+  const w = Number(/^!\[(?:[^\]|]*\|)?([0-9]{2,4})\]/.exec(line)?.[1]);
+  return w >= 40 ? w : null;
+};
 
 function inline(text: string): string {
   // code spans and links first, set aside so the emphasis rules never reach into them
@@ -110,7 +115,8 @@ export function renderMarkdown(src: string, imageUrl?: (id: string) => string | 
     if (img) {
       flush();
       const url = imageUrl?.(img[1]!);
-      if (url) out.push(`<figure class="md-img"><img src="${esc(url)}" alt=""></figure>`);
+      const w = imageWidth(line);
+      if (url) out.push(`<figure class="md-img"><img src="${esc(url)}" alt=""${w ? ` style="width:${w}px"` : ''}></figure>`);
       continue;
     }
     const h = line.match(/^(#{1,6})\s+(.*)$/);

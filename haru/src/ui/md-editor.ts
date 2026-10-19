@@ -1,5 +1,5 @@
 import { icon, type IconName } from './icons';
-import { IMG_LINE } from './markdown';
+import { IMG_LINE, imageLine, imageWidth } from './markdown';
 
 /**
  * <md-editor>: a note you write in Markdown that shows its formatting as you type — a `# ` line is a
@@ -26,9 +26,65 @@ const isHiddenMark = (t: Text) => !!t.parentElement?.closest('.mk-ind, .mk-h, .m
 const mk = (s: string) => `<span class="mk mk-in">${esc(s)}</span>`;
 const SAFE_URL = /^(https?:\/\/|mailto:)/i;
 
+/**
+ * Links read like Notion's: the site's logo (a chain when it has none) and a short name — the label of a
+ * `[label](url)`, or for a bare URL its page title when known (YouTube and the like) or its address cut short.
+ * The URL itself stays in the text; it shows only on the line being edited.
+ */
+const TITLES_KEY = 'haru:link-titles';
+const titles: Record<string, string> = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(TITLES_KEY) ?? '{}') as Record<string, string>;
+  } catch {
+    return {};
+  }
+})();
+const asked = new Set<string>();
+const hostOf = (url: string): string => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+};
+/** What a bare URL shows: its title when known, else host and path, cut short. */
+function shortLink(url: string): string {
+  if (titles[url]) return titles[url]!;
+  try {
+    const u = new URL(url);
+    const path = decodeURIComponent(u.pathname).replace(/\/$/, '');
+    const s = hostOf(url) + (path && path !== '/' ? path : '');
+    return s.length > 42 ? `${s.slice(0, 40)}…` : s;
+  } catch {
+    return url;
+  }
+}
+/** Pages that oEmbed (noembed.com, open to any site) can name: videos and the like. */
+const NAMED = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|spotify\.com|twitter\.com|x\.com|tiktok\.com|flickr\.com)$/;
+function askTitle(url: string): void {
+  if (titles[url] || asked.has(url) || !NAMED.test(hostOf(url))) return;
+  asked.add(url);
+  void fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`)
+    .then((r) => r.json() as Promise<{ title?: string }>)
+    .then(({ title }) => {
+      if (!title) return;
+      titles[url] = title.length > 60 ? `${title.slice(0, 58)}…` : title;
+      try {
+        localStorage.setItem(TITLES_KEY, JSON.stringify(titles));
+      } catch { /* storage may be off */ }
+      for (const el of document.querySelectorAll<HTMLElement>('md-editor .md-link.bare')) {
+        if (el.dataset.href === url) el.dataset.label = titles[url]!;
+      }
+    })
+    .catch(() => {});
+}
+const attr = (s: string) => esc(s).replace(/"/g, '&quot;');
+/** The logo slot at a link's start (filled after drawing; a chain when the site has none). */
+const fav = (url: string) => `<span class="md-fav" contenteditable="false" data-host="${attr(hostOf(url))}"></span>`;
+
 /** Inline marks, keeping every character (the marks show only on the line being edited). */
 function inline(src: string): string {
-  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(\*[^*\s][^*]*\*)|(\[[^\]]+\]\([^)\s]+\))/g;
+  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(\*[^*\s][^*]*\*)|(\[[^\]]+\]\([^)\s]+\))|(https?:\/\/[^\s<>]*[^\s<>.,;:!?)\]'"])/g;
   let out = '';
   let at = 0;
   for (let m = re.exec(src); m; m = re.exec(src)) {
@@ -38,10 +94,13 @@ function inline(src: string): string {
     else if (m[2]) out += `<strong>${mk('**')}${esc(t.slice(2, -2))}${mk('**')}</strong>`;
     else if (m[3]) out += `<del>${mk('~~')}${esc(t.slice(2, -2))}${mk('~~')}</del>`;
     else if (m[4]) out += `<em>${mk('*')}${esc(t.slice(1, -1))}${mk('*')}</em>`;
-    else {
+    else if (m[6]) {
+      askTitle(t);
+      out += `<span class="md-link bare" data-href="${attr(t)}" data-label="${attr(shortLink(t))}" title="Ctrl+click to open">${fav(t)}<span class="mk mk-in">${esc(t)}</span></span>`;
+    } else {
       const [, label, url] = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(t)!;
       out += SAFE_URL.test(url!)
-        ? `<span class="md-link" data-href="${esc(url!).replace(/"/g, '&quot;')}">${mk('[')}${esc(label!)}${mk(`](${url})`)}</span>`
+        ? `<span class="md-link" data-href="${attr(url!)}" title="Ctrl+click to open">${fav(url!)}${mk('[')}${esc(label!)}${mk(`](${url})`)}</span>`
         : esc(t);
     }
     at = m.index + t.length;
@@ -104,7 +163,8 @@ function line(src: string, fence: boolean, next?: string): Drawn {
   if (b.kind === 'hr') return { cls: 'md-l hr', html: `<span class="mk mk-hr">${esc(src)}</span>`, mark: src.length, indent: 0 };
   // a photo: its line hidden, the picture drawn in its place (filled in from the editor's imageUrl)
   if (b.kind === 'img') {
-    const html = `<span class="mk mk-img">${esc(src)}</span><span class="md-img" contenteditable="false" data-ref="${IMG_LINE.exec(src)![1]}"><img alt="" draggable="false"><span class="md-img-bar"><button type="button" class="md-img-btn" data-act="copy" aria-label="Copy photo" title="Copy"></button><button type="button" class="md-img-btn" data-act="remove" aria-label="Remove photo" title="Remove"></button></span></span>`;
+    const w = imageWidth(src);
+    const html = `<span class="mk mk-img">${esc(src)}</span><span class="md-img${w ? ' sized' : ''}" contenteditable="false" data-ref="${IMG_LINE.exec(src)![1]}"><img alt="" draggable="false"${w ? ` style="width:${w}px"` : ''}><span class="md-img-grip" aria-hidden="true" title="Drag to resize · double-click for the original size"></span><span class="md-img-bar"><button type="button" class="md-img-btn" data-act="copy" aria-label="Copy photo" title="Copy"></button><button type="button" class="md-img-btn" data-act="remove" aria-label="Remove photo" title="Remove"></button></span></span>`;
     return { cls: 'md-l img', html, mark: src.length, indent: 0 };
   }
   // a numbered item keeps its number visible; the other marks are drawn (a dot, a box, a bar) instead
@@ -167,6 +227,11 @@ export class MdEditor extends HTMLElement {
     this.addEventListener('beforeinput', (e) => this.onBeforeInput(e));
     this.addEventListener('paste', (e) => this.onPaste(e));
     this.addEventListener('click', (e) => this.onClick(e));
+    this.addEventListener('pointerdown', (e) => this.onGrip(e));
+    this.addEventListener('dblclick', (e) => {
+      const grip = (e.target as Element).closest('.md-img-grip');
+      if (grip) this.resizePhoto(grip.closest<HTMLElement>('.md-img')!, null);
+    });
     this.addEventListener('blur', () => this.closeMenu());
     document.addEventListener('selectionchange', () => {
       if (document.activeElement !== this || this.composing) return;
@@ -291,6 +356,27 @@ export class MdEditor extends HTMLElement {
       if (!url) img.removeAttribute('src');
       box.classList.toggle('missing', !url);
       for (const b of box.querySelectorAll<HTMLElement>('.md-img-btn:empty')) b.append(icon(b.dataset.act === 'copy' ? 'copy' : 'x'));
+    }
+    // links: the site's logo, or a chain when it has none (or can't be reached)
+    for (const slot of this.querySelectorAll<HTMLElement>('.md-fav:empty')) {
+      const host = slot.dataset.host;
+      const chain = () => slot.replaceChildren(icon('link', 'ic md-fav-ic'));
+      if (!host) {
+        chain();
+        continue;
+      }
+      const img = document.createElement('img');
+      img.alt = '';
+      img.decoding = 'async';
+      img.addEventListener('error', chain, { once: true });
+      // the service answers a site it has no logo for with its own 48px placeholder (status 404, which an
+      // <img> can't see): that, or a blank 1px answer, counts as no logo
+      img.addEventListener('load', () => {
+        const [w, h] = [img.naturalWidth, img.naturalHeight];
+        if (w <= 1 || (w === 48 && h === 48)) chain();
+      }, { once: true });
+      img.src = `https://icons.duckduckgo.com/ip3/${encodeURIComponent(host)}.ico`;
+      slot.append(img);
     }
   }
 
@@ -604,8 +690,53 @@ ${newRow}${v.slice(end)}`);
       this.insert(`\n${m[1]}${next}`);
     }
   }
+  /** Dragging a photo's corner: it follows the pointer live, and the width goes into its line on release. */
+  private onGrip(e: PointerEvent): void {
+    const grip = (e.target as Element).closest<HTMLElement>('.md-img-grip');
+    if (!grip || e.button !== 0) return;
+    e.preventDefault();
+    const box = grip.closest<HTMLElement>('.md-img')!;
+    const img = box.querySelector('img')!;
+    const x0 = e.clientX;
+    const w0 = img.getBoundingClientRect().width;
+    const max = this.clientWidth;
+    let w = w0;
+    box.classList.add('resizing', 'sized');
+    try {
+      grip.setPointerCapture(e.pointerId);
+    } catch { /* a pointer that can't be captured still drags while over the corner */ }
+    const move = (ev: PointerEvent) => {
+      w = Math.max(80, Math.min(max, w0 + ev.clientX - x0));
+      img.style.width = `${w}px`;
+    };
+    const up = () => {
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+      grip.removeEventListener('pointercancel', up);
+      box.classList.remove('resizing');
+      // a click on the corner leaves the size alone
+      if (Math.abs(w - w0) >= 2) this.resizePhoto(box, w >= max - 1 ? max : w);
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+    grip.addEventListener('pointercancel', up);
+  }
+  /** Writes a photo's width into its line (null: back to its own size), as one undo step. */
+  private resizePhoto(box: HTMLElement, width: number | null): void {
+    const i = [...this.childNodes].indexOf(box.parentElement!);
+    if (i < 0) return;
+    const v = this.value;
+    const lines = v.split(NL);
+    const next = imageLine(box.dataset.ref!, width);
+    if (lines[i] === next) return;
+    lines[i] = next;
+    this.remember(v, this.caret());
+    this.render(lines.join(NL));
+    this.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   private onClick(e: MouseEvent): void {
     const t = e.target as HTMLElement;
+    if (t.closest('.md-img-grip')) return;
     // a photo: opens large; its buttons copy it or take it out of the text
     const photo = t.closest<HTMLElement>('.md-img');
     if (photo) {
