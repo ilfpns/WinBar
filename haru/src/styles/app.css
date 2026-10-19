@@ -1344,6 +1344,15 @@ body.drawer-moving .rail-btn[aria-current="page"]::after { animation-play-state:
 }
 .set-input:focus { border-color: var(--line-strong); }
 .set-select { width: 110px; cursor: pointer; }
+/* school search results: one chip per school, pick to switch */
+.school-results { flex-wrap: wrap; justify-content: flex-start; gap: 6px; min-height: 0; padding-top: 0; }
+.school-results[hidden] { display: none; }
+.school-pick { width: auto; height: 30px; font-size: 12.5px; }
+/* journal photos: the calendar's image row under the page; copy sits opposite remove */
+.j-editor .j-images { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.j-img-copy { right: auto; left: 4px; }
+.j-img-copy .ic { width: 12px; height: 12px; }
+.j-editor.drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
 .set-select option { background: var(--popover); color: var(--text-strong); }
 .set-label .set-status { font: 400 11.5px var(--font-mono); }
 .set-label .set-status:empty { display: none; }
@@ -1544,7 +1553,7 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
 .j-i-prev { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
 .j-i-prev:empty { display: none; }
 .j-empty { padding: 10px 4px; font-size: 13px; color: var(--text-subtle); }
-.j-editor { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 12px; min-height: 0; }
+.j-editor { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; gap: 12px; min-height: 0; }
 .j-ed-head { display: flex; align-items: center; gap: 12px; }
 .j-date { font: 400 12.5px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
 .j-head-fill { flex: 1; }

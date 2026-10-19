@@ -40,6 +40,12 @@ service cloud.firestore {
       allow read: if isInvited();
     }
 
+    // app settings the owners keep out of the public site (the NEIS API key): invited accounts read, owners write
+    match /config/{doc} {
+      allow read: if isInvited();
+      allow write: if isOwner();
+    }
+
     // check-ins on their way to the Notion attendance database: one document per Notion column, keyed by a hash
     // of its name (no names here). GitHub Actions reads them without signing in, so reading is open; writing is
     // for invited accounts, and a document stays with the account that first wrote it

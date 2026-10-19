@@ -7,6 +7,7 @@ import { printPdf } from '../ui/print';
 import { askConfirm, askText, showMenu } from '../ui/modal';
 import { onSession, session } from '../cloud/session';
 import { sharePage, unsharePage } from '../archive/archive';
+import { imagesStore, onImagesChanged } from '../calendar/images';
 
 /**
  * Journal: pages written in your own words — a summary of the day, a thought, a plan — always filed in a
@@ -68,12 +69,15 @@ export function mountJournal(body: HTMLElement): void {
         <span class="j-date"></span>
         <button type="button" class="j-folder" aria-haspopup="menu" title="Move to another folder"><span class="j-folder-name"></span></button>
         <span class="j-head-fill"></span>
+        <button type="button" class="icon-btn j-add-img" aria-label="Add photos" title="Add photos (or paste with Ctrl+V)"></button>
+        <input type="file" class="j-img-file" accept="image/*" multiple hidden>
         <button type="button" class="icon-btn j-share" aria-label="Share to Archive" title="Share to Archive" hidden></button>
         <button type="button" class="icon-btn j-pdf" aria-label="Export this page as PDF" title="Export as PDF"></button>
         <button type="button" class="icon-btn j-del" aria-label="Delete page" title="Delete page"></button>
       </div>
       <input class="j-title" placeholder="Title" maxlength="120" aria-label="Title">
       <md-editor class="j-text" aria-label="Page (Markdown)"></md-editor>
+      <div class="cal-images j-images" hidden></div>
       <div class="j-foot meta"></div>
     </article>`;
   const $ = <T extends Element>(sel: string) => body.querySelector<T>(sel)!;
@@ -370,6 +374,7 @@ export function mountJournal(body: HTMLElement): void {
     pad.refresh();
     del.hidden = !e;
     renderFoot();
+    renderPhotos();
     renderFolders();
     renderList();
   }
@@ -380,7 +385,8 @@ export function mountJournal(body: HTMLElement): void {
     clearTimeout(timer);
     timer = window.setTimeout(flush, 500);
   }
-  function flush(): void {
+  /** Saves the page. `create`: make the page even with nothing written (a photo added to a blank page). */
+  function flush(create = false): void {
     clearTimeout(timer);
     timer = 0;
     const title = titleIn.value.trim();
@@ -389,7 +395,7 @@ export function mountJournal(body: HTMLElement): void {
     const cur = openId ? all.find((x) => x.id === openId) : undefined;
     if (!cur) {
       // nothing written yet: no empty pages
-      if (!title && !bodyText.trim()) return;
+      if (!create && !title && !bodyText.trim()) return;
       const now = Date.now();
       // into the open folder (filed later if the folders haven't loaded yet)
       const folder = pageFolder || validTab() || undefined;
@@ -411,7 +417,7 @@ export function mountJournal(body: HTMLElement): void {
     renderFoot();
   });
   // leaving the page or tab never loses the last few keystrokes
-  addEventListener('pagehide', flush);
+  addEventListener('pagehide', () => flush());
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush();
   });
@@ -437,6 +443,119 @@ export function mountJournal(body: HTMLElement): void {
   del.addEventListener('click', () => {
     if (openId) void removePage(openId);
   });
+
+  // ---- photos: pick, paste (Ctrl+V) or drop them onto the page; each can be opened large, copied or removed.
+  // They live with the calendar's images (synced and backed up the same way), filed under the page.
+  const gallery = $<HTMLElement>('.j-images');
+  const addImg = $<HTMLButtonElement>('.j-add-img');
+  const imgFile = $<HTMLInputElement>('.j-img-file');
+  addImg.append(icon('image-plus'));
+  const photoKey = (id: string) => `journal:${id}`;
+  async function attach(files: Blob[]): Promise<void> {
+    const store = imagesStore();
+    if (!store || !files.some((f) => f.type.startsWith('image/'))) return;
+    // a photo on a blank page starts the page
+    flush(true);
+    if (!openId) return;
+    const n = await store.add(photoKey(openId), files);
+    if (n) tell(`${n} photo${n === 1 ? '' : 's'} added`);
+  }
+  addImg.addEventListener('click', () => imgFile.click());
+  imgFile.addEventListener('change', () => {
+    void attach([...(imgFile.files ?? [])]);
+    imgFile.value = '';
+  });
+  // an image on the clipboard goes in as a photo; text pastes as usual
+  const onPaste = (e: ClipboardEvent) => {
+    const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+    if (!files.length) return;
+    e.preventDefault();
+    void attach(files);
+  };
+  text.addEventListener('paste', onPaste);
+  titleIn.addEventListener('paste', onPaste);
+  const editorEl = $<HTMLElement>('.j-editor');
+  editorEl.addEventListener('dragover', (e) => {
+    if (![...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file')) return;
+    e.preventDefault();
+    editorEl.classList.add('drop');
+  });
+  editorEl.addEventListener('dragleave', (e) => {
+    if (!editorEl.contains(e.relatedTarget as Node)) editorEl.classList.remove('drop');
+  });
+  editorEl.addEventListener('drop', (e) => {
+    const files = [...(e.dataTransfer?.files ?? [])];
+    editorEl.classList.remove('drop');
+    if (!files.length) return;
+    e.preventDefault();
+    void attach(files);
+  });
+
+  /** A photo onto the clipboard as an image (browsers take PNG, so other formats are redrawn as one). */
+  async function copyPhoto(blob: Blob): Promise<void> {
+    let png = blob;
+    if (blob.type !== 'image/png') {
+      const bmp = await createImageBitmap(blob);
+      const c = document.createElement('canvas');
+      c.width = bmp.width;
+      c.height = bmp.height;
+      c.getContext('2d')!.drawImage(bmp, 0, 0);
+      bmp.close();
+      png = await new Promise<Blob>((ok, fail) => c.toBlob((b) => (b ? ok(b) : fail(new Error('no png'))), 'image/png'));
+    }
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+  }
+
+  // full-size view: any click or Esc closes it
+  const viewer = document.createElement('dialog');
+  viewer.className = 'img-view';
+  const big = document.createElement('img');
+  big.alt = '';
+  viewer.append(big);
+  viewer.addEventListener('click', () => viewer.close());
+  document.body.append(viewer);
+
+  function renderPhotos(): void {
+    const store = imagesStore();
+    const list = store && openId ? store.get(photoKey(openId)) : [];
+    gallery.hidden = !list.length;
+    gallery.replaceChildren(...list.map((rec, k) => {
+      const item = document.createElement('div');
+      item.className = 'cal-img';
+      const open = document.createElement('button');
+      open.type = 'button';
+      open.className = 'cal-img-open';
+      open.setAttribute('aria-label', `Open photo ${k + 1}`);
+      const img = document.createElement('img');
+      img.src = store!.url(rec);
+      img.alt = '';
+      img.loading = 'lazy';
+      open.append(img);
+      open.addEventListener('click', () => {
+        big.src = store!.url(rec);
+        viewer.showModal();
+      });
+      const copy = document.createElement('button');
+      copy.type = 'button';
+      copy.className = 'cal-img-del j-img-copy';
+      copy.setAttribute('aria-label', `Copy photo ${k + 1}`);
+      copy.title = 'Copy';
+      copy.append(icon('copy'));
+      copy.addEventListener('click', () => {
+        void copyPhoto(rec.blob).then(() => tell('Photo copied'), () => tell('Couldn’t copy the photo'));
+      });
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'cal-img-del';
+      del.setAttribute('aria-label', `Remove photo ${k + 1}`);
+      del.title = 'Remove';
+      del.append(icon('x'));
+      del.addEventListener('click', () => store!.remove(rec.id));
+      item.append(open, copy, del);
+      return item;
+    }));
+  }
+  onImagesChanged(renderPhotos);
 
   function renderFoot(): void {
     const n = wordCount(`${titleIn.value} ${text.value}`);

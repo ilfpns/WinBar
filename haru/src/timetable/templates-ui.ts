@@ -89,16 +89,16 @@ export function mountTemplates(refs: TemplateRefs): void {
     input.value = '';
     openEditor(t.id);
   });
+  // From today saves Today as it is: under the name typed, or (none typed) under today's date
   document.getElementById('tpl-from-today')!.addEventListener('click', () => {
-    const name = nameOrAsk();
-    if (!name) return;
     if (!state.blocks.length) {
       say(['Today is empty']);
       return;
     }
+    const name = input.value.trim() || new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     saveTemplate(name);
     input.value = '';
-    say(['Saved from Today']);
+    say([`Saved Today as “${name}”`]);
   });
 
   // ---- the list

@@ -369,6 +369,17 @@
           </div>
           <div class="set-row">
             <div class="set-label">
+              <strong>School</strong>
+              <span id="school-name"></span>
+            </div>
+            <form class="set-reset" id="school-search" autocomplete="off">
+              <input type="search" class="set-input" id="school-q" placeholder="Find a school" maxlength="30" aria-label="Find a school">
+              <button type="submit" class="btn-sm">Find</button>
+            </form>
+          </div>
+          <div class="set-row school-results" id="school-results" hidden></div>
+          <div class="set-row">
+            <div class="set-label">
               <strong>School timetable</strong>
               <span>Puts your class's lessons for today on Today, at their periods (컴시간알리미)</span>
               <span class="set-status" id="school-status" aria-live="polite"></span>

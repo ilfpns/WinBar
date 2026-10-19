@@ -5,7 +5,7 @@ import { FEATURES, featureOn, onFeatures, setFeature } from './features';
 import { timeField } from './time-field';
 import { DEFAULT_RESET, onResetAt, resetAt, setResetAt } from '../timetable/day-reset';
 import { notionName, notionTaken, notionView, onNotionAttendance, setNotionName } from '../calendar/notion-attendance';
-import { applyLessons, lessonsToday, schoolClass, schoolTimetable, setSchoolClass } from '../timetable/school';
+import { NEIS_KEYLESS_ROWS, type School, applyLessons, classesOf, hasNeisKey, isComci, lessonsToday, myClass, mySchool, searchSchools, setMyClass, setMySchool } from '../timetable/school';
 import { askConfirm } from './modal';
 import { labelOf } from '../timetable/model';
 import { hhmm } from '../timetable/time';
@@ -151,34 +151,78 @@ export function mountSettings(): void {
   onResetAt(paintReset);
   paintReset();
 
-  // ---- school timetable: pick your class, Apply lays today's lessons on Today
+  // ---- school timetable: find your school, pick your class, Apply lays today's lessons on Today
   const classSel = dialog.querySelector<HTMLSelectElement>('#school-class')!;
   const schoolStatus = dialog.querySelector<HTMLElement>('#school-status')!;
   const schoolApply = dialog.querySelector<HTMLButtonElement>('#school-apply')!;
+  const schoolName = dialog.querySelector<HTMLElement>('#school-name')!;
+  const schoolForm = dialog.querySelector<HTMLFormElement>('#school-search')!;
+  const schoolQ = dialog.querySelector<HTMLInputElement>('#school-q')!;
+  const schoolResults = dialog.querySelector<HTMLElement>('#school-results')!;
   const schoolSay = (text: string, ok?: boolean) => {
     schoolStatus.textContent = text;
     schoolStatus.className = `set-status${ok === undefined ? '' : ok ? ' ok' : ' bad'}`;
   };
-  void schoolTimetable().then((t) => {
-    const classes = t?.weeks[0] ? Object.keys(t.weeks[0].classes) : [];
+  /** Shows the chosen school and fills its classes. */
+  async function paintSchool(): Promise<void> {
+    const s = mySchool();
+    schoolName.textContent = `${s.name} · ${s.region}`;
+    classSel.replaceChildren(new Option('Class', ''));
+    schoolApply.disabled = true;
+    let classes: string[] = [];
+    try {
+      classes = await classesOf(s);
+    } catch {
+      // NEIS unreachable
+    }
     if (!classes.length) {
       schoolSay('The school timetable isn’t available right now', false);
-      schoolApply.disabled = true;
       return;
     }
+    schoolSay('');
     for (const c of classes) {
       const [g, n] = c.split('-');
-      classSel.append(new Option(`${g}학년 ${n}반`, c, false, c === schoolClass()));
+      classSel.append(new Option(`${g}학년 ${n}반`, c, false, c === myClass()));
     }
+    schoolApply.disabled = false;
+  }
+  schoolForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = schoolQ.value.trim();
+    if (q.length < 2) return;
+    let found: School[] = [];
+    try {
+      found = await searchSchools(q);
+    } catch {
+      // NEIS unreachable
+    }
+    schoolResults.hidden = false;
+    if (!found.length) {
+      schoolResults.replaceChildren(Object.assign(document.createElement('span'), { className: 'meta', textContent: 'No schools found' }));
+      return;
+    }
+    schoolResults.replaceChildren(...found.slice(0, 12).map((s) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip school-pick';
+      b.textContent = `${s.name} · ${s.region}`;
+      b.addEventListener('click', () => {
+        setMySchool(s);
+        schoolResults.hidden = true;
+        schoolQ.value = '';
+        void paintSchool();
+      });
+      return b;
+    }));
   });
-  classSel.addEventListener('change', () => setSchoolClass(classSel.value));
+  void paintSchool();
+  classSel.addEventListener('change', () => setMyClass(classSel.value));
   schoolApply.addEventListener('click', async () => {
-    await schoolTimetable();
     if (!classSel.value) {
       schoolSay('Pick your class first', false);
       return;
     }
-    const lessons = lessonsToday(classSel.value);
+    const lessons = await lessonsToday(mySchool(), classSel.value);
     if (typeof lessons === 'string') {
       schoolSay(lessons, false);
       return;
@@ -189,6 +233,10 @@ export function mountSettings(): void {
     if (!(await askConfirm({ title: 'Put today’s lessons on Today?', body: `${lessons.length} lessons, ${span}. Tasks in those hours are replaced.`, ok: 'Apply', icon: 'graduation-cap' }))) return;
     const replaced = applyLessons(lessons);
     schoolSay(`Added ${lessons.length} lessons${replaced.length ? ` · replaced ${replaced.map(labelOf).join(', ')}` : ''}`, true);
+    // NEIS without a key stops at its first rows: the day may go on past them
+    if (!isComci(mySchool()) && !(await hasNeisKey()) && lessons.length >= NEIS_KEYLESS_ROWS) {
+      schoolSay(`Added ${lessons.length} lessons · NEIS gives only the first ${NEIS_KEYLESS_ROWS} periods without a key`, true);
+    }
   });
 
   // ---- name in Notion: which column of the Notion attendance table is yours, and whether it was found
