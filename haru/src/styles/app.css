@@ -202,6 +202,8 @@ img, svg, a { -webkit-user-drag: none; }
    swap it for a near-identical solid fill for those 0.38 s */
 /* (the glass is nearly opaque, so dropping the blur doesn't change its colour: no darkening mid-turn) */
 body.switching :is(.panel, .drawer-tab, .rail) { backdrop-filter: none; }
+/* the same while a drawer slides: its blur would be redone over the whole panel every frame of the move */
+body.drawer-moving :is(.panel, .drawer-tab) { backdrop-filter: none; }
 .leaving { pointer-events: none; }
 
 .icon-btn {
@@ -522,7 +524,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
   transition: border-color var(--dur-fast) var(--ease-out);
 }
 .cal-note.empty::before { font: 400 12px/1.7 var(--font-mono); }
-.cal-note-hint { margin: 0; white-space: pre; font: 400 11px/1.7 var(--font-mono); color: var(--text-subtle); }
+.cal-note-hint { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; font: 400 11px/1.7 var(--font-mono); color: var(--text-subtle); }
 .cal-note-status { margin: -6px 0 0; min-height: 16px; font: 400 11px/16px var(--font-mono); color: var(--text-muted); }
 .cal-note-status:empty { display: none; }
 .cal-note-status.bad { color: var(--danger); }
@@ -1488,7 +1490,8 @@ body.switching .text-page, .text-page:not(.current) { transition: none; }
   box-shadow: inset 0 1px 0 rgb(var(--ink) / 0.07), 0 30px 60px -24px rgba(0, 0, 0, .8);
 }
 .w-back { transform: rotateY(180deg); background: radial-gradient(120% 90% at 70% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%), var(--card-bg); }
-.w-word { font-size: clamp(34px, 4.4vw, 56px); font-weight: 500; letter-spacing: -.03em; color: var(--text-strong); overflow-wrap: anywhere; }
+.w-front { container-type: inline-size; }
+.w-word { font-size: clamp(20px, min(4.4vw, calc((100cqi - 56px) / (var(--n, 6) * 0.56))), 56px); font-weight: 500; letter-spacing: -.03em; color: var(--text-strong); overflow-wrap: break-word; hyphens: manual; }
 .w-hint { text-transform: none; }
 .w-tag { text-transform: none; letter-spacing: .04em; color: var(--accent); }
 .w-word-sm { font: 500 13px var(--font-mono); letter-spacing: .02em; color: var(--text-muted); }
@@ -2495,3 +2498,58 @@ md-editor .md-l.tsep .mk-sep { font-size: 0; }
 md-editor .md-l.tr:first-child { border-radius: 6px 6px 0 0; }
 .md-view table, .pr-body table { width: 100%; border-collapse: collapse; margin: .4em 0 .8em; font-size: .95em; }
 .md-view :is(th, td), .pr-body :is(th, td) { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+
+/* ---------- phones: the rail becomes a tab bar along the bottom, so every page has the whole width */
+@media (max-width: 640px) {
+  :root {
+    --nav-h: 54px;
+    --nav-room: calc(var(--nav-h) + max(var(--panel-inset), env(safe-area-inset-bottom)) + 10px);
+    --rail-room: 16px;
+  }
+  .rail {
+    top: auto; right: var(--panel-inset); bottom: max(var(--panel-inset), env(safe-area-inset-bottom)); width: auto; height: var(--nav-h);
+    flex-direction: row; justify-content: space-around; gap: 0; padding: 0 4px;
+  }
+  .rail .rail-rule, .rail .rail-fill, .rail .rail-brand { display: none; }
+  /* the buttons share the bar's width (eight of them fit a 320px screen) */
+  .rail .rail-btn { flex: 1 1 0; width: auto; min-width: 0; max-width: 48px; height: 40px; }
+  /* the overview opens upward from the bar */
+  .rail [data-drawer="left"] .ic { transform: rotate(-90deg); }
+  /* the current page's bar lies along the top edge instead of the side */
+  .rail-btn[aria-current="page"]::before { left: 10px; right: 10px; top: -8px; bottom: auto; width: auto; height: 3px; border-radius: 0 0 3px 3px; }
+  /* everything stays clear of the bar */
+  .stage { padding-bottom: calc(var(--nav-room) + 4px); padding-left: 16px; padding-right: 30px; }
+  .calendar-view, .text-page { padding-bottom: var(--nav-room); }
+  .news-view { padding-bottom: var(--nav-room); padding-left: 16px; }
+  .today-views { bottom: calc(var(--nav-room) + 4px); }
+  .toast-stack { bottom: calc(var(--nav-room) + 6px); right: 12px; left: 12px; }
+  .who-card { bottom: calc(var(--nav-room) + 56px); }
+  .drawer-tab { height: 110px; }
+  /* a page's title with its summary: the summary goes under the title instead of squeezing beside it */
+  .pg-head { flex-wrap: wrap; row-gap: 2px; }
+}
+/* short windows (a phone on its side, a small laptop window): the rail packs closer, and scrolls if it must */
+@media (max-height: 560px) and (min-width: 641px) {
+  .rail { gap: 2px; padding: 6px 0; overflow-y: auto; scrollbar-width: none; }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail .rail-btn { width: 34px; height: 32px; }
+  .rail .rail-rule { display: none; }
+  /* News: the globe keeps a size worth looking at; the page scrolls to the attendance under it */
+  .news-view { overflow-y: auto; grid-template-rows: min(calc(100svh - 48px), 760px) auto; }
+  #globe { width: min(100%, calc(100svh - 48px), 760px); }
+}
+/* ---------- big screens: the pages use more of the width, and the dial and globe grow with it */
+@media (min-width: 1800px) {
+  .calendar-view, .news-view, .text-page { max-width: min(1680px, 80vw); }
+  .dial-wrap { width: min(100%, calc(100svh - 60px), 1100px); }
+  #globe { width: min(100%, calc(100svh - 330px), 1000px); }
+}
+
+/* ---------- Motion: Less (Settings → Appearance): decoration stops, drawers and pages move briefly and plainly */
+html.calm {
+  --drawer-dur: .2s; --drawer-ease: cubic-bezier(.2, 0, 0, 1); --drawer-pop: cubic-bezier(.2, 0, 0, 1);
+}
+html.calm *, html.calm *::before, html.calm *::after {
+  animation-duration: 1ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+}
+html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animation: none !important; }

@@ -1,3 +1,4 @@
+import './ui/motion';
 import './styles/tokens.css';
 
 const byIdEarly = (id: string): HTMLElement => document.getElementById(id)!;

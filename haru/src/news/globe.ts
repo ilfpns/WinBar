@@ -175,9 +175,9 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
   let zoom = 1, zoomTo = 1;
   /** The bitmap still shows the latest picture (nothing turned or changed size since it was drawn). */
   let fresh = false;
-  const fit = () => {
+  const fit = (width?: number) => {
     dpr = Math.min(devicePixelRatio || 1, 2.5);
-    size = canvas.offsetWidth;
+    size = width ?? canvas.offsetWidth;
     const w = Math.max(1, Math.round(size * dpr));
     // assigning width clears and re-allocates the bitmap: only do it when the size actually changed
     if (canvas.width !== w) {
@@ -192,7 +192,8 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
   };
   /** Radius of the visible disc: the sphere, or the round window onto it while zoomed in. */
   const disc = () => Math.min(R, canvas.width / 2 - dpr);
-  new ResizeObserver(fit).observe(canvas);
+  // the size as the browser reports it (reading offsetWidth on a page turn would stop it to lay the page out)
+  new ResizeObserver((entries) => fit(entries[0]?.contentBoxSize?.[0]?.inlineSize)).observe(canvas);
   onTheme(() => (colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong'), accent: css('--accent') }));
   fit();
 
@@ -341,6 +342,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
   let raf = 0;
   let last = performance.now();
   let lastReadout = '';
+  let lastDraw = 0;
 
   function frame(now: number): void {
     const dt = Math.min(64, now - last) / 1000;
@@ -380,7 +382,14 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     // while pages slide, or a drawer moves, the canvas holds its last frame: no re-raster of a moving layer, and
     // the slide gets the frame to itself
     const bodyCls = document.body.classList;
-    if (!bodyCls.contains('switching') && !bodyCls.contains('drawer-moving')) draw(now);
+    // left alone (only the slow auto-spin and the home pulse moving), every other frame is enough: the same look
+    // at half the cost; anything touched, zoomed, picked or sweeping draws every frame
+    const calm = !drag && !pointer && !aim && Math.abs(zoomTo - zoom) <= 1e-3 && !fading && now - lastTouch > 1500 && now - heatAt > 3000;
+    const due = !calm || now - lastDraw >= 30;
+    if (due && !bodyCls.contains('switching') && !bodyCls.contains('drawer-moving')) {
+      lastDraw = now;
+      draw(now);
+    }
 
     const pin = pointer && !drag ? pinAt(pointer) : null;
     if (pin !== hoverPin) {
@@ -674,7 +683,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       if (on === active) return;
       active = on;
       if (on) {
-        fit();
+        // the size and colours are already current (the observer and the theme keep them)
         last = performance.now();
         // up to date the moment it starts sliding in; when it held still while away, its last frame already is
         if (!fresh) draw(last);

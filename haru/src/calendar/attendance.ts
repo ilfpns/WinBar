@@ -2,6 +2,7 @@ import { allDays, dayKey } from '../timetable/history';
 import { listStore } from '../storage/list-store';
 import { icon } from '../ui/icons';
 import { type NotionView, checkinMarks, markCheckin, notionName, notionView, onNotionAttendance } from './notion-attendance';
+import { lessMotion } from '../ui/motion';
 
 /**
  * Attendance, on the News (globe) page: a Check in button for today and the recent weeks as a grass grid
@@ -196,7 +197,7 @@ export function createAttendance(): Attendance {
   new ResizeObserver(() => {
     const now = isStacked();
     const h = root.offsetHeight;
-    if (now !== stacked && lastH && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (now !== stacked && lastH && !lessMotion()) {
       const ease = 'cubic-bezier(.22, 1, .36, 1)';
       root.classList.add('reflowing');
       root.animate([{ height: `${lastH}px` }, { height: `${h}px` }], { duration: 420, easing: ease })

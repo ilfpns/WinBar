@@ -257,7 +257,10 @@ export function mountWords(body: HTMLElement, sum: HTMLElement): void {
     const tag = d === 'mine' ? 'My word' : `TOEIC${w.right + w.wrong ? '' : ' · new'}`;
     card.classList.toggle('flipped', flipped);
     $<HTMLElement>('.w-tag').textContent = tag;
-    $<HTMLElement>('.w-word').textContent = w.word;
+    const wordEl = $<HTMLElement>('.w-word');
+    wordEl.textContent = w.word;
+    // its longest run of letters sets how small it must go to fit the card on one line
+    wordEl.style.setProperty('--n', String(Math.max(6, ...w.word.split(/\s+/).map((part) => part.length))));
     $<HTMLElement>('.w-word-sm').textContent = w.word;
     // the back: the Korean meaning (your own words: the meaning you wrote); the English definition on request
     const def = w.def?.trim() ?? '';

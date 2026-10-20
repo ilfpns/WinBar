@@ -4,6 +4,7 @@ import { state, subscribe } from '../timetable/state';
 import { formatDuration } from '../timetable/time';
 import { icon, type IconName } from '../ui/icons';
 import { lang } from '../ui/i18n';
+import { lessMotion } from '../ui/motion';
 
 /**
  * Your days, over the top of Journal: everything Today has held so far (every day's snapshot, today live).
@@ -102,7 +103,7 @@ const fmtDate = (key: string, withWeekday = false) => {
     ? `${d.getMonth() + 1}월 ${d.getDate()}일${withWeekday ? ` (${'일월화수목금토'[d.getDay()]})` : ''}`
     : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(withWeekday ? { weekday: 'short' } : {}) });
 };
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduced = lessMotion;
 
 /** Counts a tile's number up from zero (the text it ends on is exactly `final`). */
 function countUp(el: HTMLElement, to: number, format: (n: number) => string, final: string): void {

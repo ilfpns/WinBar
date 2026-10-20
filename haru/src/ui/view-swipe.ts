@@ -1,5 +1,6 @@
 import { type Feature, featureOn } from './features';
 import { VIEW_ORDER, type View, currentView, goTo, onView } from './router';
+import { lessMotion } from './motion';
 
 const TURN_MS = 300;           // one page turn
 const EASE = 'cubic-bezier(.22, 1, .36, 1)';
@@ -25,7 +26,7 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
     if (!prev || prev === view) return;
     // a new turn cuts the previous one short instead of queueing behind it
     running.forEach((a) => a.finish());
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (lessMotion()) return;
     const down = VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(prev);
     const out = pages[prev];
     const into = pages[view];

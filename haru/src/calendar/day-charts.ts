@@ -2,6 +2,7 @@ import { angleOf, sectorPath } from '../timetable/geometry';
 import { CATEGORIES, CATEGORY_KEYS, type Block, type Category, labelOf, progressOf } from '../timetable/model';
 import { centeredText, svgEl } from '../timetable/svg';
 import { DAY, formatDuration } from '../timetable/time';
+import { lessMotion } from '../ui/motion';
 
 /**
  * Two read-only views of a day, used small in the calendar's day panel and large on Today:
@@ -48,7 +49,7 @@ const share = (min: number) => `${Math.round((min / DAY) * 100)}%`;
 function centrePct(blocks: Block[], x: number, y: number, size: number): SVGTextElement {
   const pct = Math.round((progressOf(blocks).done / DAY) * 100);
   const text = centeredText('tt-pct', x, y, '0%', `font-size:${size}px`);
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) text.textContent = `${pct}%`;
+  if (lessMotion()) text.textContent = `${pct}%`;
   else {
     const t0 = performance.now();
     const tick = (now: number) => {

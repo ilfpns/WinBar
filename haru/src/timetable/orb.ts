@@ -1,4 +1,5 @@
 import { DAY, mod } from './time';
+import { lessMotion, onMotion } from '../ui/motion';
 
 /**
  * Dot-matrix emblem in the dial's centre hole (after alphamark's Monobotics identity).
@@ -125,17 +126,24 @@ const SWEEP_TRAIL = 150; // minutes of afterglow behind the hand
 
 export function createOrb(canvas: HTMLCanvasElement): Orb {
   const ctx = canvas.getContext('2d')!;
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
   // resolve CSS colours (custom properties, color-mix) to numbers once per change, not per frame
   const probe = document.createElement('span');
   probe.style.display = 'none';
   document.body.append(probe);
+  const known = new Map<string, RGB>();
   const rgbOf = (css: string): RGB => {
+    const hit = known.get(css);
+    if (hit) return hit;
     probe.style.color = css;
     const m = getComputedStyle(probe).color.match(/[\d.]+/g) ?? ['0', '0', '0'];
-    return [Number(m[0]), Number(m[1]), Number(m[2])];
+    const rgb: RGB = [Number(m[0]), Number(m[1]), Number(m[2])];
+    known.set(css, rgb);
+    return rgb;
   };
+  // a new theme: the same names mean new colours
+  new MutationObserver(() => known.clear()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => known.clear());
   let restRgb = rgbOf('var(--line-strong)');
 
   const dots: Dot[] = [];
@@ -163,33 +171,65 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
 
   // keep the bitmap sharp at the element's layout size and pixel ratio (transforms don't change it)
   let scale = 1;
+  let cssW = 0;
   const fit = () => {
     const css = canvas.offsetWidth;
+    cssW = css;
     const dpr = Math.min(devicePixelRatio || 1, 3);
     canvas.width = Math.max(1, Math.round(css * dpr));
     canvas.height = canvas.width;
     scale = canvas.width / ORB_SPAN;
   };
-  new ResizeObserver(fit).observe(canvas);
+  new ResizeObserver(() => {
+    fit();
+    wake();
+  }).observe(canvas);
   fit();
 
   let last = performance.now();
   let painted = false;
+  // the loop runs only while the dial is in sight; anything that changes what it shows wakes it
+  let running = false;
+  let lastDraw = 0;
+  let poked = performance.now();
+  function wake(): void {
+    poked = performance.now();
+    if (running) return;
+    running = true;
+    last = performance.now();
+    requestAnimationFrame(frame);
+  }
+  const shown = () => {
+    const body = document.body;
+    return cssW > 0 && body.dataset.view === 'today' && !body.classList.contains('switching') && !canvas.parentElement?.classList.contains('alt');
+  };
+  const watch = new MutationObserver(() => {
+    if (shown()) wake();
+  });
+  watch.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-view'] });
+  if (canvas.parentElement) watch.observe(canvas.parentElement, { attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && shown()) wake();
+  });
   function frame(now: number): void {
     const dt = Math.min(64, now - last);
     last = now;
-    // nothing to paint while the dial is off screen (another page is showing)
-    const body = document.body;
-    // off screen, or sliding with its page (the last frame is held): nothing to paint
-    // (it still paints once up front, so it never slides in blank)
-    // (also idle while Today shows a chart instead of the dial)
-    if (!canvas.offsetWidth || (painted && (body.dataset.view !== 'today' || body.classList.contains('switching') || canvas.parentElement?.classList.contains('alt')))) {
+    // off screen, sliding with its page (the last frame is held), or under one of Today's charts: the loop
+    // stops until something wakes it (it still paints once up front, so it never slides in blank)
+    if (!cssW || (painted && !shown()) || document.hidden) {
+      running = false;
+      return;
+    }
+    // nothing being touched or played, and the last change has settled: the slow breathing needs only half the
+    // frames (the dial costs half as much while it just sits there)
+    if (painted && !pointer && !effects.length && now - poked > 700 && now - lastDraw < 30) {
       requestAnimationFrame(frame);
       return;
     }
+    lastDraw = now;
     // frame-rate independent easing toward targets (≈ a quarter-second transition)
     const ease = 1 - Math.exp(-dt / 90);
-    const breathing = !reduced.matches;
+    const breathing = !lessMotion();
 
     // strongest active effect per dot for this frame
     const fx = new Map<Dot, { scale: number; push: number; tint: number; rgb: RGB; env: number }>();
@@ -241,12 +281,19 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       ctx.fill();
     }
     painted = true;
+    // nothing breathing, touched or playing, and everything settled: the picture is final until something wakes it
+    if (!breathing && !pointer && !effects.length && now - poked > 700) {
+      running = false;
+      return;
+    }
     requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+  onMotion(wake);
+  wake();
 
   return {
     setDone(ranges) {
+      wake();
       restRgb = rgbOf('var(--line-strong)');
       const colors = new Map(ranges.map((r) => [r, rgbOf(r.color)]));
       for (const dot of dots) {
@@ -256,6 +303,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     },
 
     focus(ranges) {
+      wake();
       focused = !!ranges?.length;
       const colors = new Map((ranges ?? []).map((r) => [r, rgbOf(r.color)]));
       for (const dot of dots) {
@@ -265,10 +313,12 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     },
 
     attract(p) {
+      wake();
       pointer = p;
     },
 
     setSlices(ranges, now) {
+      wake();
       slices = !!ranges;
       sliceNow = now;
       sliceAt = performance.now();
@@ -284,7 +334,8 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     },
 
     play(moment, color, range) {
-      if (reduced.matches) return;
+      if (lessMotion()) return;
+      wake();
       const kind = MOMENTS[moment];
       const order = PATTERNS[pick(kind.orders)]!;
       const targets = dots.filter((dot) => inRange(dot, range));

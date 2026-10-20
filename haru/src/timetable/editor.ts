@@ -63,7 +63,8 @@ export function mountEditor(form: HTMLFormElement): void {
       f.title.value = d.title;
       f.note.value = d.note ?? '';
       err.textContent = '';
-      queueMicrotask(() => f.title.focus());
+      // at the next frame, where the layout is worked out anyway (focusing now would force it mid-click)
+      requestAnimationFrame(() => f.title.focus({ preventScroll: true }));
     }
     form.style.setProperty('--c', `var(--cat-${d.cat})`);
     startField.set(d.start);

@@ -10,6 +10,7 @@ import { askConfirm } from './modal';
 import { type Session, avatar, onSession, session } from '../cloud/session';
 import { labelOf } from '../timetable/model';
 import { hhmm } from '../timetable/time';
+import { type Motion, savedMotion, setMotion } from './motion';
 
 /**
  * The Haru logo (on the rail, or in the open overview) opens a small menu: Settings, the overview, a quick
@@ -362,6 +363,14 @@ export function mountSettings(): void {
     menuThemeBtn.querySelector('svg')?.replaceWith(icon(light ? 'moon' : 'sun'));
   }
   themeBtns.forEach((b) => b.addEventListener('click', () => setTheme(b.dataset.themePick as Theme)));
+  // ---- motion: full, or less (the decoration goes; what tells you something changed stays)
+  const motionBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-motion-pick]')];
+  const paintMotion = () => motionBtns.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.motionPick === savedMotion())));
+  motionBtns.forEach((b) => b.addEventListener('click', () => {
+    setMotion(b.dataset.motionPick as Motion);
+    paintMotion();
+  }));
+  paintMotion();
   lightQuery.addEventListener('change', () => {
     if (savedTheme() === 'system') {
       applyTheme('system');

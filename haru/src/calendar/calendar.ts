@@ -12,6 +12,7 @@ import { addBlock, setState, state, subscribe } from '../timetable/state';
 import { dayKey, timetableOn } from '../timetable/history';
 import { CATEGORIES, labelOf } from '../timetable/model';
 import { formatDuration, hhmm } from '../timetable/time';
+import { lessMotion } from '../ui/motion';
 
 /** One entry from public/data/calendar.json (built by scripts/fetch-calendar.mjs). */
 interface CalEvent {
@@ -158,7 +159,7 @@ export function mountCalendar(refs: CalendarRefs): void {
   let ttAnim: Animation | null = null;
   const GAP = 14; // the panel's flex gap, folded away while the card is closed
   const ease = 'cubic-bezier(.22, 1, .36, 1)';
-  const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = lessMotion;
   function resizeFrom(from: number): void {
     ttAnim?.cancel();
     ttView.hidden = false;

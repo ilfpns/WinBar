@@ -152,8 +152,39 @@ export function mountDrawers(dialWrap: HTMLElement): void {
    * Slide and shrink the dial into the space between the drawers. Only `transform` changes,
    * so the browser animates it on the compositor at the display's refresh rate.
    */
-  new MutationObserver(() => placeDial()).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  // sizes kept as they change (reading offsetWidth here would force a layout of the whole page mid-click)
+  const sizes = { dial: dialWrap.offsetWidth, rail: rail.offsetWidth, card: 0 };
+  let cardSeen: Element | null = null;
+  const sized = new ResizeObserver((entries) => {
+    for (const e of entries) {
+      const w = e.borderBoxSize?.[0]?.inlineSize ?? (e.target as HTMLElement).offsetWidth;
+      if (e.target === dialWrap) sizes.dial = w;
+      else if (e.target === rail) sizes.rail = w;
+      else sizes.card = w;
+    }
+    placeSoon();
+  });
+  sized.observe(dialWrap);
+  sized.observe(rail);
+  // looking at someone else's Today (their card comes or goes): only that change of the body's classes matters
+  let viewing = document.body.classList.contains('viewing');
+  new MutationObserver(() => {
+    const now = document.body.classList.contains('viewing');
+    if (now === viewing) return;
+    viewing = now;
+    placeSoon();
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  /** Places the dial at the next frame, where the styles are worked out anyway (never twice in one click). */
+  let placing = 0;
+  function placeSoon(): void {
+    if (!placing) placing = requestAnimationFrame(() => {
+      placing = 0;
+      placeDial();
+    });
+  }
   function placeDial(): void {
+    // only Today shows the dial; coming back to it places it again
+    if (currentView() !== 'today') return;
     const css = getComputedStyle(document.documentElement);
     const px = (name: string) => parseFloat(css.getPropertyValue(name)) || 0;
     const inset = px('--panel-inset');
@@ -163,14 +194,18 @@ export function mountDrawers(dialWrap: HTMLElement): void {
       dialWrap.style.setProperty('--dial-s', '1');
       return;
     }
-    const left = state.drawers.left ? px('--panel-left-w') + 2 * inset + GUTTER : rail.offsetWidth + inset + RAIL_GAP;
+    const left = state.drawers.left ? px('--panel-left-w') + 2 * inset + GUTTER : sizes.rail + inset + RAIL_GAP;
     const drawerR = state.drawers.right && hasDrawer('right', 'today') ? px('--panel-right-w') + 2 * inset : 0;
     // looking at someone else's Today: their card stands at the right too, so the dial keeps clear of it
-    const card = document.querySelector<HTMLElement>('.who-card:not([hidden])');
-    const cardR = card ? card.offsetWidth + WHO_CARD_GAP : 0;
+    const card = document.querySelector<HTMLElement>('.who-card');
+    if (card && card !== cardSeen) {
+      cardSeen = card;
+      sized.observe(card);
+    }
+    const cardR = card && !card.hidden && sizes.card ? sizes.card + WHO_CARD_GAP : 0;
     const right = drawerR || cardR ? drawerR + cardR + GUTTER : EDGE;
     const room = innerWidth - left - right;
-    const base = dialWrap.offsetWidth; // layout size, unaffected by the transform
+    const base = sizes.dial; // layout size, unaffected by the transform
     const scale = base ? Math.min(1, room / base) : 1;
     const shift = left + room / 2 - innerWidth / 2;
     dialWrap.style.setProperty('--dial-x', `${shift.toFixed(1)}px`);
@@ -209,7 +244,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     document.body.classList.add('drawer-moving');
     clearTimeout(settle);
     settle = window.setTimeout(() => document.body.classList.remove('drawer-moving'), 650);
-    placeDial();
+    placeSoon();
   }
 
   /** An open drawer leaving with its page slides out, tab and all, instead of vanishing. */
@@ -242,7 +277,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   addEventListener('resize', () => {
     // shrinking to a narrow layout with both drawers out: keep the right one
     if (innerWidth <= WIDE && state.drawers.left && state.drawers.right) toggleDrawer('left', false);
-    placeDial();
+    placeSoon();
   });
   subscribe(render, { drawers: true });
   render();

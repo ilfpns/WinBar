@@ -122,6 +122,8 @@ const KO: Record<string, string> = {
   'The template goes; Today keeps its tasks.': '템플릿만 지워지고 오늘 할 일은 그대로예요.', 'Its progress goes with it.': '학습 기록도 함께 지워져요.',
   'You can undo this for a few seconds.': '몇 초 동안은 되돌릴 수 있어요.', 'The folder is empty.': '빈 폴더예요.',
   // settings
+  Motion: '움직임', Full: '전부', Reduced: '줄이기',
+  'Reduced keeps short fades and drops the decoration (also when the system asks for less)': '줄이기는 짧은 페이드만 남기고 꾸밈 애니메이션을 꺼요 (시스템에서 동작 줄이기를 켜도 같아요)',
   Appearance: '화면', Theme: '테마', Dark: '다크', Light: '라이트', System: '시스템', Language: '언어', Account: '계정',
   Backup: '백업', 'Auto-backup': '자동 백업', 'Auto-backup on': '자동 백업 켜짐', Export: '내보내기', Import: '가져오기',
   'Reconnect backup': '백업 다시 연결', 'Not a Haru backup': 'Haru 백업 파일이 아니에요', 'Clear all': '모두 지우기',
