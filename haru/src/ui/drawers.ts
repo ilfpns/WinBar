@@ -5,6 +5,7 @@ const WIDE = 1000;   // above this the dial makes room for open drawers; below, 
 const GUTTER = 40;   // space kept between an open drawer and the dial
 const EDGE = 56;     // stage side padding when a drawer is closed (its tab sits there)
 const RAIL_GAP = 24; // space kept between the left rail and the dial
+const WHO_CARD_GAP = 24; // the profile card's distance from the right edge (or from an open drawer)
 const MIN_W = 220;   // narrowest a drawer can be dragged
 const WIDTHS_KEY = 'haru:drawer-widths';
 
@@ -151,6 +152,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
    * Slide and shrink the dial into the space between the drawers. Only `transform` changes,
    * so the browser animates it on the compositor at the display's refresh rate.
    */
+  new MutationObserver(() => placeDial()).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   function placeDial(): void {
     const css = getComputedStyle(document.documentElement);
     const px = (name: string) => parseFloat(css.getPropertyValue(name)) || 0;
@@ -162,7 +164,11 @@ export function mountDrawers(dialWrap: HTMLElement): void {
       return;
     }
     const left = state.drawers.left ? px('--panel-left-w') + 2 * inset + GUTTER : rail.offsetWidth + inset + RAIL_GAP;
-    const right = state.drawers.right && hasDrawer('right', 'today') ? px('--panel-right-w') + 2 * inset + GUTTER : EDGE;
+    const drawerR = state.drawers.right && hasDrawer('right', 'today') ? px('--panel-right-w') + 2 * inset : 0;
+    // looking at someone else's Today: their card stands at the right too, so the dial keeps clear of it
+    const card = document.querySelector<HTMLElement>('.who-card:not([hidden])');
+    const cardR = card ? card.offsetWidth + WHO_CARD_GAP : 0;
+    const right = drawerR || cardR ? drawerR + cardR + GUTTER : EDGE;
     const room = innerWidth - left - right;
     const base = dialWrap.offsetWidth; // layout size, unaffected by the transform
     const scale = base ? Math.min(1, room / base) : 1;

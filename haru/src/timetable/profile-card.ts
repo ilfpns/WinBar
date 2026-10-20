@@ -10,10 +10,11 @@ import { lang } from '../ui/i18n';
 /**
  * Looking at someone else's Today (the switcher at the top right): beside their dial, a card with what there is to
  * know about them — today (share done, time planned, what they're on now and next), attendance (streak, best,
- * the last five weeks) and the last seven days (planned, the part done). Read only and live; it goes when you
+ * the last ten weeks) and the last seven days (planned, the part done). Read only and live; it goes when you
  * come back to your own.
  */
-const WEEKS = 5;
+/** Weeks of attendance shown: as many as fill the card in squares about 20px wide. */
+const WEEKS = 10;
 
 const keyOf = (d: Date) => dayKey(d);
 const ko = () => lang() === 'ko';
