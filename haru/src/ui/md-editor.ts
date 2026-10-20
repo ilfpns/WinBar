@@ -242,6 +242,9 @@ export class MdEditor extends HTMLElement {
   imageUrl: ((id: string) => string | null) | null = null;
   /** The people `@` can name (null: no mentions here). */
   people: (() => { uid: string; name: string; photo: string | null }[]) | null = null;
+  /** Commands of the page this editor is on (the chat's /변경요청), above the blocks in the / menu: picking one
+   *  puts its text in place of the "/query" typed for it. */
+  commands: (() => { label: string; hint: string; icon?: IconName; text: string }[]) | null = null;
   private composing = false;
   private placeholderText = '';
   private history: { text: string; caret: number }[] = [];
@@ -894,8 +897,11 @@ ${newRow}${v.slice(end)}`);
     const m = /(^|\s)\/([^\s/]{0,20})$/.exec(before);
     if (!m) return this.closeMenu();
     const q = m[2]!.toLowerCase();
-    const items: MenuItem[] = BLOCKS.filter((b) => !q || b.label.toLowerCase().includes(q) || b.keys.includes(q))
-      .map((b) => ({ label: b.label, hint: b.hint, icon: b.icon, run: () => this.applyBlock(b) }));
+    const commands: MenuItem[] = (this.commands?.() ?? [])
+      .filter((c) => !q || c.label.toLowerCase().includes(q) || c.text.toLowerCase().includes(q))
+      .map((c) => ({ label: c.label, hint: c.hint, icon: c.icon, run: () => this.applyCommand(c.text) }));
+    const items: MenuItem[] = [...commands, ...BLOCKS.filter((b) => !q || b.label.toLowerCase().includes(q) || b.keys.includes(q))
+      .map((b) => ({ label: b.label, hint: b.hint, icon: b.icon, run: () => this.applyBlock(b) }))];
     if (!items.length) return this.closeMenu();
     this.menuAt = caret - m[2]!.length - 1;
     this.menuItems = items;
@@ -974,6 +980,16 @@ ${newRow}${v.slice(end)}`);
     this.remember(v, caret);
     this.render(v.slice(0, this.menuAt) + ins + v.slice(caret));
     this.placeCaret(this.menuAt + ins.length);
+    this.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  /** Puts a command's text where its "/query" was typed. */
+  private applyCommand(text: string): void {
+    const v = this.value;
+    const caret = this.caret();
+    this.closeMenu();
+    this.remember(v, caret);
+    this.render(v.slice(0, this.menuAt) + text + v.slice(caret));
+    this.placeCaret(this.menuAt + text.length);
     this.dispatchEvent(new Event('input', { bubbles: true }));
   }
   /** Turns the line into the block (the "/query" typed for it goes). */

@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.30',
+    date: '2026-10-21',
+    items: [
+      '변경요청은 이제 명령어 "/변경요청 내용"으로 (호출은 @, 명령어는 /). 관리자에게는 / 메뉴 맨 위에 "변경요청"이 보임',
+      '아카이브에 "Chat 사용 규칙" 고정 페이지 추가: 부르기(@), 명령어(/), 메시지, 반응, 그리기, 알림, 지켜 주세요',
+    ],
+  },
+  {
     version: '1.29',
     date: '2026-10-21',
     items: [

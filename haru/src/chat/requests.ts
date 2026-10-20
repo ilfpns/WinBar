@@ -2,13 +2,13 @@ import type { Session } from '../cloud/session';
 import { isAdmin } from '../archive/updates';
 
 /**
- * Change requests: the admin writes "@변경요청 …" in the chat to ask for a change to Haru. The message goes to the
+ * Change requests: the admin writes "/변경요청 …" in the chat (a command, so "/"; "@" calls a person) to ask for a change to Haru. The message goes to the
  * chat as usual and, as a request, into a queue in Firestore (`change-requests/{chat message id}`; only the
  * admin's account may add to it). Nothing acts on it by itself: whoever develops Haru reads the queue
  * (`node scripts/change-requests.mjs list`), makes the change by hand, ships it, and records the outcome in
  * public/data/change-requests.json — which the published site shows as a line under the request.
  */
-export const TRIGGER = /^\s*@?변경\s*요청|^\s*@change\b/i;
+export const TRIGGER = /^\s*\/변경\s*요청|^\s*\/change\b/i;
 const MAX = 2000;
 
 export type Status = 'queued' | 'done' | 'declined';

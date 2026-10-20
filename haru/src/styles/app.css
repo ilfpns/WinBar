@@ -1955,6 +1955,7 @@ body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
 .a-c-n.read { background: rgb(var(--ink) / 0.08); color: var(--text-muted); transition: background .3s, color .3s; }
 /* the pinned Updates page */
 .a-pin { position: sticky; top: 0; z-index: 1; padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid rgb(var(--ink) / 0.08); }
+.a-pin { display: grid; gap: 4px; }
 .a-pin-item .j-i-top { gap: 6px; }
 .a-pin-ic { width: 13px; height: 13px; color: var(--accent); flex: none; }
 .a-new-tag { order: 0; }

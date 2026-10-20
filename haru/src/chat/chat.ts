@@ -117,6 +117,8 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   emojiBtn.append(icon('smile'));
   input.placeholder = 'Message everyone · / for blocks, @ to name someone';
   input.people = () => mentionable(session()?.uid);
+  // the chat's own command, for the admin: /변경요청 (asks for a change to Haru, see requests.ts)
+  input.commands = () => (isRequest('/변경요청', session()) ? [{ label: '변경요청', hint: 'Haru 수정 요청', icon: 'pencil' as const, text: '/변경요청 ' }] : []);
 
   let msgs: { id: string; m: Message }[] = [];
   let drawn = new Set<string>();
@@ -468,7 +470,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     const m: Message = { uid: s.uid, name: s.name, photo: s.photo, text, at: Date.now(), ...(images.length ? { images } : {}), ...(asks ? { request: true } : {}) };
     try {
       const ref = await fs.addDoc(fs.collection(db, 'chat'), m);
-      // "@변경요청 …" from the admin: also into the change-request queue (see requests.ts)
+      // "/변경요청 …" from the admin: also into the change-request queue (see requests.ts)
       if (asks) await fileRequest(s, ref.id, text).catch(() => showError('The change request couldn’t be queued: the Firestore rules need publishing again'));
     } catch (x) {
       input.value = text;
