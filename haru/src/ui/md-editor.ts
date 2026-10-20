@@ -540,7 +540,34 @@ export class MdEditor extends HTMLElement {
 
   // ---------- editing
   private pending: { text: string; caret: number } | null = null;
+  /**
+   * Backspace right after a line's block mark: a nested item steps out a level, otherwise the mark goes and the
+   * words stay (a divider or photo line goes whole). False when the caret isn't there.
+   */
+  private unmark(): boolean {
+    const v = this.value;
+    const c = this.selectionStart;
+    if (c !== this.selectionEnd) return false;
+    const { start, text } = this.lineAt(v, c);
+    const b = blockOf(text);
+    const mark = b ? b.indent.length + b.marker.length : 0;
+    if (!b || !mark || c !== start + mark) return false;
+    const out = b.indent.length >= 2 && b.kind !== 'hr' && b.kind !== 'img';
+    const next = out ? b.indent.slice(2) + b.marker + b.rest : b.kind === 'hr' || b.kind === 'img' ? '' : b.rest;
+    this.remember(v, c);
+    this.render(v.slice(0, start) + next + v.slice(start + text.length));
+    this.placeCaret(start + (out ? mark - 2 : 0));
+    this.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }
+
   private onBeforeInput(e: InputEvent): void {
+    // the same Backspace when it comes only as an input (a Korean IME sends its keydown as "processing", 229, which
+    // the key handler leaves alone): without this the hidden mark could never be deleted
+    if (e.inputType === 'deleteContentBackward' && !this.composing && !e.isComposing && this.unmark()) {
+      e.preventDefault();
+      return;
+    }
     if (e.inputType === 'historyUndo' || e.inputType === 'historyRedo') {
       e.preventDefault();
       this.step(e.inputType === 'historyUndo');
@@ -639,14 +666,7 @@ export class MdEditor extends HTMLElement {
             this.placeCaret(start > 0 ? start - 1 : start + mark);
             return;
           }
-          // nested: step out a level; otherwise the mark goes and the words stay
-          const next = b.indent.length >= 2 && b.kind !== 'hr'
-            ? b.indent.slice(2) + b.marker + b.rest
-            : b.kind === 'hr' || b.kind === 'img' ? '' : b.rest;
-          this.remember(v, c);
-          this.render(v.slice(0, start) + next + v.slice(start + text.length));
-          this.placeCaret(start + (b.indent.length >= 2 && b.kind !== 'hr' ? mark - 2 : 0));
-          this.dispatchEvent(new Event('input', { bubbles: true }));
+          this.unmark();
           return;
         }
       }

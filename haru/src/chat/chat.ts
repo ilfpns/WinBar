@@ -85,7 +85,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
           <button type="button" class="icon-btn chat-board-btn" aria-label="Board" title="Board: draw together" aria-pressed="false"></button>
         </div>
         <md-editor class="chat-input" aria-label="Message everyone"></md-editor>
-        <button type="submit" class="chat-send" aria-label="Send"></button>
+        <button type="submit" class="btn-sm chat-send" aria-label="Send"></button>
         <input type="file" class="chat-file" accept="image/*" multiple hidden>
       </form>
       <p class="chat-err" role="alert" hidden></p>
@@ -99,7 +99,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   const attach = body.querySelector<HTMLButtonElement>('.chat-attach')!;
   const file = body.querySelector<HTMLInputElement>('.chat-file')!;
   const emojiBtn = body.querySelector<HTMLButtonElement>('.chat-emoji-btn')!;
-  send.append(icon('arrow-up'));
+  send.append(icon('arrow-right'));
   attach.append(icon('image-plus'));
   emojiBtn.append(icon('smile'));
   input.placeholder = 'Message everyone · / for blocks, @ to name someone';
@@ -296,8 +296,10 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       const li = document.createElement('li');
       li.className = `chat-msg${mine ? ' mine' : ''}${cont ? ' cont' : ''}${drawn.has(id) ? '' : ' new'}`;
       drawn.add(id);
-      // who sent it: their name over a run, their face at the start of its first bubble
+      // who sent it: their face by every run, their name over its first message
       const face = avatar({ name: m.name, photo: m.photo }, 'a-avatar chat-face');
+      if (cont) face.style.visibility = 'hidden';
+      li.append(face);
       const col = document.createElement('div');
       col.className = 'chat-col';
       if (!cont) {
@@ -342,7 +344,6 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       const time = document.createElement('span');
       time.className = 'chat-time';
       time.textContent = clock(m.at);
-      if (!cont) row.append(face);
       row.append(bubble, time);
       if (mine) {
         const del = document.createElement('button');

@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.17',
+    date: '2026-10-20',
+    items: [
+      '채팅 디자인을 이전 모양으로 되돌림 (사진·서식·이모지·보드 기능은 그대로)',
+      '목록에서 들여쓴 번호가 백스페이스로 안 지워지던 문제 수정 (한글 입력 중에도)',
+    ],
+  },
+  {
     version: '1.16',
     date: '2026-10-20',
     items: [
