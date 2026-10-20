@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.25',
+    date: '2026-10-20',
+    items: [
+      '배포할 때마다 노션 출석 기록이 몇 시간씩 비던 문제 수정 (배포가 출석 파일을 지우지 않고 그대로 둠)',
+    ],
+  },
+  {
     version: '1.24',
     date: '2026-10-20',
     items: [
