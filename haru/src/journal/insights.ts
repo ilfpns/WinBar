@@ -134,6 +134,7 @@ function info(text: string): HTMLElement {
 
 /** Sets a style at once, or from nothing on the next frames so its transition plays. */
 function grow(el: HTMLElement | SVGElement, prop: 'width' | 'height' | 'strokeDashoffset', value: string, animate: boolean, from = '0'): void {
+  el.dataset.grow = `${prop}|${from}|${value}`;
   if (!animate || reduced()) {
     el.style[prop] = value;
     return;
@@ -194,6 +195,24 @@ function tile(spec: TileSpec, animate: boolean, k: number): HTMLElement {
   text.append(label, num, sub);
   t.append(ic, text);
   return t;
+}
+
+/** Grows every bar under `root` again from nothing (no rebuild: what was drawn just replays its growth). */
+function regrow(root: Element): void {
+  if (reduced()) return;
+  const els = [...root.querySelectorAll<HTMLElement | SVGElement>('[data-grow]')];
+  for (const el of els) {
+    const [prop, from] = el.dataset.grow!.split('|') as ['width' | 'height' | 'strokeDashoffset', string];
+    el.style.transition = 'none';
+    el.style[prop] = from;
+  }
+  // one forced layout for all of them, then their transitions run to where they were
+  void (root as HTMLElement).offsetHeight;
+  for (const el of els) {
+    const [prop, , value] = el.dataset.grow!.split('|') as ['width' | 'height' | 'strokeDashoffset', string, string];
+    el.style.transition = '';
+    el.style[prop] = value;
+  }
 }
 
 /** One named row: label (with an optional category dot), planned faint with its done part solid, the value. */
@@ -350,21 +369,30 @@ export function mountInsights(page: HTMLElement): void {
       // for this visit
     }
     paintOpen();
-    if (open) {
-      animateMore = true;
-      render();
-    }
+    if (!open) return;
+    if (chartsFresh) requestAnimationFrame(() => regrow(more));
+    else requestAnimationFrame(() => {
+      if (stats) drawCharts(stats, true);
+    });
   });
   paintOpen();
 
   let saved = new Map<string, Block[]>();
   let loaded = false;
+  let stats: { s: Stats; today: string } | null = null;
+  /** Whether the charts under the fold show the latest numbers (drawn while closed, in idle time). */
+  let chartsFresh = false;
+  let idle = 0;
+  const hasIdle = typeof requestIdleCallback === 'function';
+  const later = (fn: () => void): number => (hasIdle ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 200));
+  const cancelLater = (id: number) => (hasIdle ? cancelIdleCallback(id) : clearTimeout(id));
   function render(): void {
     // the day on now counts as it is right now
     const today = dayOf();
     const days = new Map(saved);
     days.set(today, state.blocks);
     const s = compute(days, today);
+    stats = { s, today };
     since.textContent = s.days ? `since ${fmtDate(s.first)}` : '';
     const a = animateTiles && loaded;
     const per = (min: number) => (s.days ? min / s.days : 0);
@@ -376,8 +404,14 @@ export function mountInsights(page: HTMLElement): void {
     );
     if (a) animateTiles = false;
 
-    if (!open) return;
-    const m = animateMore && loaded;
+    // the charts: now when opened; while closed, when the browser has a moment, so opening has nothing to build
+    chartsFresh = false;
+    cancelLater(idle);
+    if (open) drawCharts(stats, animateMore && loaded);
+    else idle = later(() => stats && drawCharts(stats, false));
+  }
+
+  function drawCharts({ s, today }: { s: Stats; today: string }, m: boolean): void {
     const cats = CATEGORY_KEYS.filter((k) => s.byCat.get(k)?.planned).sort((x, y) => s.byCat.get(y)!.planned - s.byCat.get(x)!.planned);
     const catMax = Math.max(0, ...cats.map((k) => s.byCat.get(k)!.planned));
     const catRows = cats.map((k, i) => {
@@ -405,6 +439,7 @@ export function mountInsights(page: HTMLElement): void {
     );
     more.replaceChildren(recentChart(s, today, m), groups);
     if (m) animateMore = false;
+    chartsFresh = true;
   }
 
   async function load(): Promise<void> {
@@ -428,10 +463,12 @@ export function mountInsights(page: HTMLElement): void {
   });
   // the numbers count up and the bars grow each time the card comes into view (turning to Journal)
   new IntersectionObserver((entries) => {
-    if (!entries.some((e) => e.isIntersecting)) return;
+    if (!entries.some((e) => e.isIntersecting) || !loaded) return;
     animateTiles = true;
-    animateMore = true;
-    render();
+    requestAnimationFrame(() => {
+      render();
+      if (open && chartsFresh) regrow(more);
+    });
   }).observe(card);
   void load();
 }

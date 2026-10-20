@@ -1,3 +1,4 @@
+import { icon, type IconName } from './icons';
 /**
  * A small Markdown renderer for the memo pads (no library): headings, **bold**, *italic*, ~~strike~~,
  * `code`, fenced code blocks, > quotes, - / 1. lists, - [ ] checkboxes, [links](https://…), bare URLs and ---.
@@ -7,6 +8,7 @@
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const SAFE_URL = /^(https?:\/\/|mailto:)/i;
+const CALLOUT_ICON: Record<string, IconName> = { note: 'lightbulb', tip: 'sparkles', info: 'info', warning: 'triangle-alert' };
 
 /**
  * A photo placed in the text: a line of its own, `![](img:<id>)`, naming an image in the images store.
@@ -46,6 +48,8 @@ export function renderMarkdown(src: string, imageUrl?: (id: string) => string | 
   /** The list being read: its items with their depth (two spaces or a tab per level). */
   let items: { tag: 'ul' | 'ol'; level: number; li: string }[] = [];
   let quote: string[] = [];
+  /** The callout being read: its kind and lines (a run of `> [!kind]` lines is one box). */
+  let callout: { kind: string; lines: string[] } | null = null;
 
   const flushPara = () => {
     if (para.length) out.push(`<p>${para.map(inline).join('<br>')}</p>`);
@@ -78,6 +82,11 @@ export function renderMarkdown(src: string, imageUrl?: (id: string) => string | 
   const flushQuote = () => {
     if (quote.length) out.push(`<blockquote>${quote.map(inline).join('<br>')}</blockquote>`);
     quote = [];
+    if (callout) {
+      const kind = CALLOUT_ICON[callout.kind] ? callout.kind : 'note';
+      out.push(`<div class="md-callout" data-kind="${kind}"><span class="md-callout-ic">${icon(CALLOUT_ICON[kind]!).outerHTML}</span><div>${callout.lines.map(inline).join('<br>')}</div></div>`);
+    }
+    callout = null;
   };
   const flush = () => {
     flushPara();
@@ -133,7 +142,20 @@ export function renderMarkdown(src: string, imageUrl?: (id: string) => string | 
       out.push('<hr>');
       continue;
     }
-    const q = line.match(/^\s*>\s?(.*)$/);
+    const co = line.match(/^\s*>\s?\[!(\w+)\]\s?(.*)$/);
+    if (co) {
+      flushPara();
+      flushList();
+      if (!callout || callout.kind !== co[1]!.toLowerCase()) {
+        flushQuote();
+        callout = { kind: co[1]!.toLowerCase(), lines: [] };
+      }
+      callout.lines.push(co[2]!);
+      continue;
+    }
+    if (callout) flushQuote();
+    // `| …` is a quote as well (a table row ends with a pipe too)
+    const q = line.match(/^\s*>\s?(.*)$/) ?? (/\|\s*$/.test(line) ? null : line.match(/^\s*\|\s(.*)$/));
     if (q) {
       flushPara();
       flushList();

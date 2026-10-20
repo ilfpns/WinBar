@@ -1,13 +1,22 @@
 import { avatar, onSession, session, type Session } from '../cloud/session';
+import { memberList } from '../cloud/viewing';
 import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
 import { currentView, onView } from '../ui/router';
 import { setBadge } from '../ui/badge';
+import { renderMarkdown } from '../ui/markdown';
+import '../ui/md-editor';
+import { type MdEditor } from '../ui/md-editor';
+import { mountBoard } from './board';
 
 /**
  * Chat: one room for everyone invited, under Archive. Messages arrive live (the latest 300), every one on the
  * left with who sent it (face and name; yours marked "me" and tinted); a run of messages from one person within
  * a few minutes shares one name line, and days are marked.
+ * You write as in Journal (the same editor: formatting, lists, links with their site's logo, @ to name someone,
+ * / for blocks), add photos (the clip, Ctrl+V or a drop; shrunk and carried in the message itself, so everyone
+ * sees them) and emoji (the face button, or the system's own picker). Enter sends; in a list it starts the next
+ * item, and Shift+Enter breaks the line.
  * A message from someone else you haven't seen puts a bouncing dot (and how many) on Chat's buttons until
  * you open the room. You can take back your own messages.
  */
@@ -15,12 +24,19 @@ interface Message {
   uid: string;
   name: string;
   photo: string | null;
+  /** Markdown, as the editor writes it (may be empty when there are photos). */
   text: string;
+  /** Photos as JPEG data URLs, shrunk to fit a message. */
+  images?: string[];
   at: number;
 }
 const MAX = 1000;
+const MAX_IMAGES = 4;
+/** Each photo is shrunk until it is about this many characters (a Firestore document holds 1 MB in all). */
+const IMAGE_BUDGET = 200_000;
 const RUN = 5 * 60_000;
 const SEEN_KEY = (uid: string) => `haru:chat-seen:${uid}`;
+const EMOJI = '😀 😂 🥹 😊 😍 🥰 😎 🤔 😮 😢 😭 😡 🥳 😴 🤯 🙏 👍 👎 👏 🙌 💪 👀 🔥 ✨ 🎉 💯 ❤️ 💚 💙 ✅ ❌ ⭐ ☕ 🍕 🍚 📚 💻 📝 ⏰ 📌'.split(' ');
 
 const dayLabel = (t: number) => {
   const d = new Date(t);
@@ -33,26 +49,67 @@ const dayLabel = (t: number) => {
 };
 const clock = (t: number) => new Date(t).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+/** A photo made small enough to travel inside a message: at most 1280px, JPEG, under the budget. */
+async function shrink(file: Blob): Promise<string> {
+  const bmp = await createImageBitmap(file);
+  let side = 1280;
+  let q = 0.82;
+  for (;;) {
+    const scale = Math.min(1, side / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(bmp.width * scale));
+    c.height = Math.max(1, Math.round(bmp.height * scale));
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(bmp, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/jpeg', q);
+    if (url.length <= IMAGE_BUDGET || side <= 320) {
+      bmp.close();
+      return url;
+    }
+    if (q > 0.6) q -= 0.1;
+    else side = Math.round(side * 0.75);
+  }
+}
+
 export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   body.innerHTML = `
     <section class="chat glass-card" aria-label="Chat">
       <ol class="chat-list" aria-live="polite"></ol>
+      <div class="chat-pending" hidden></div>
       <form class="chat-form">
-        <textarea class="set-input chat-input" rows="1" maxlength="${MAX}" placeholder="Message everyone" aria-label="Message everyone"></textarea>
-        <button type="submit" class="btn-sm chat-send" aria-label="Send"></button>
+        <div class="chat-tools">
+          <button type="button" class="icon-btn chat-attach" aria-label="Add photos" title="Add photos (or paste with Ctrl+V)"></button>
+          <button type="button" class="icon-btn chat-emoji-btn" aria-label="Emoji" title="Emoji" aria-haspopup="dialog"></button>
+          <button type="button" class="icon-btn chat-board-btn" aria-label="Board" title="Board: draw together" aria-pressed="false"></button>
+        </div>
+        <md-editor class="chat-input" aria-label="Message everyone"></md-editor>
+        <button type="submit" class="chat-send" aria-label="Send"></button>
+        <input type="file" class="chat-file" accept="image/*" multiple hidden>
       </form>
       <p class="chat-err" role="alert" hidden></p>
     </section>`;
   const list = body.querySelector<HTMLOListElement>('.chat-list')!;
   const form = body.querySelector<HTMLFormElement>('.chat-form')!;
-  const input = body.querySelector<HTMLTextAreaElement>('.chat-input')!;
+  const input = body.querySelector<MdEditor>('.chat-input')!;
   const send = body.querySelector<HTMLButtonElement>('.chat-send')!;
   const err = body.querySelector<HTMLElement>('.chat-err')!;
-  send.append(icon('arrow-right'));
+  const pendingEl = body.querySelector<HTMLElement>('.chat-pending')!;
+  const attach = body.querySelector<HTMLButtonElement>('.chat-attach')!;
+  const file = body.querySelector<HTMLInputElement>('.chat-file')!;
+  const emojiBtn = body.querySelector<HTMLButtonElement>('.chat-emoji-btn')!;
+  send.append(icon('arrow-up'));
+  attach.append(icon('image-plus'));
+  emojiBtn.append(icon('smile'));
+  input.placeholder = 'Message everyone · / for blocks, @ to name someone';
+  input.people = () => memberList().filter((p) => p.uid !== session()?.uid);
 
   let msgs: { id: string; m: Message }[] = [];
   let drawn = new Set<string>();
   let stop: (() => void) | null = null;
+  /** Photos waiting to go with the next message. */
+  let pending: string[] = [];
 
   // ---- unread: others' messages newer than the last time you had the room open
   const seenAt = (uid: string) => {
@@ -84,23 +141,131 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   document.addEventListener('visibilitychange', paintDot);
 
   const fit = () => {
-    input.style.height = 'auto';
-    input.style.height = `${Math.min(input.scrollHeight, 140)}px`;
-    send.disabled = !input.value.trim() || !session();
+    send.disabled = (!input.value.trim() && !pending.length) || !session();
   };
   input.addEventListener('input', fit);
+  // Enter sends; the editor has had it first (a / or @ menu takes it, a list carries on), so only an Enter it
+  // left alone is ours
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-      e.preventDefault();
-      form.requestSubmit();
-    }
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229 || e.defaultPrevented) return;
+    e.preventDefault();
+    form.requestSubmit();
   });
+
+  // ---- photos: the clip, Ctrl+V, or dropped on the room
+  function paintPending(): void {
+    pendingEl.hidden = !pending.length;
+    pendingEl.replaceChildren(...pending.map((url, k) => {
+      const item = document.createElement('div');
+      item.className = 'chat-thumb';
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'cal-img-del';
+      x.setAttribute('aria-label', 'Remove photo');
+      x.append(icon('x'));
+      x.addEventListener('click', () => {
+        pending.splice(k, 1);
+        paintPending();
+      });
+      item.append(img, x);
+      return item;
+    }));
+    fit();
+  }
+  async function addPhotos(files: Blob[]): Promise<void> {
+    const imgs = files.filter((f) => f.type.startsWith('image/')).slice(0, MAX_IMAGES - pending.length);
+    if (!imgs.length) {
+      if (files.length && pending.length >= MAX_IMAGES) showError(`Up to ${MAX_IMAGES} photos a message`);
+      return;
+    }
+    for (const f of imgs) pending.push(await shrink(f).catch(() => ''));
+    pending = pending.filter(Boolean);
+    paintPending();
+    input.focus();
+  }
+  attach.addEventListener('click', () => file.click());
+  file.addEventListener('change', () => {
+    void addPhotos([...(file.files ?? [])]);
+    file.value = '';
+  });
+  input.addEventListener('paste', (e) => {
+    const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+    if (!files.length) return;
+    e.preventDefault();
+    void addPhotos(files);
+  });
+  const room = body.querySelector<HTMLElement>('.chat')!;
+  room.addEventListener('dragover', (e) => {
+    if (![...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file')) return;
+    e.preventDefault();
+    room.classList.add('drop');
+  });
+  room.addEventListener('dragleave', (e) => {
+    if (!room.contains(e.relatedTarget as Node)) room.classList.remove('drop');
+  });
+  room.addEventListener('drop', (e) => {
+    room.classList.remove('drop');
+    const files = [...(e.dataTransfer?.files ?? [])];
+    if (!files.length) return;
+    e.preventDefault();
+    void addPhotos(files);
+  });
+
+  // ---- the shared board: drawn together over the room; "Send to chat" adds it as a photo
+  mountBoard(room, body.querySelector<HTMLButtonElement>('.chat-board-btn')!, (png) => void addPhotos([png]));
+
+  // ---- emoji: a small picker over the box; a pick goes in where the caret is
+  const picker = document.createElement('div');
+  picker.className = 'chat-emoji';
+  picker.popover = 'auto';
+  picker.setAttribute('role', 'dialog');
+  picker.setAttribute('aria-label', 'Emoji');
+  picker.append(...EMOJI.map((em) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = em;
+    b.setAttribute('aria-label', em);
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', () => {
+      const at = input.selectionStart;
+      input.setRangeText(em, at, input.selectionEnd, 'end');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+      input.setSelectionRange(at + em.length);
+    });
+    return b;
+  }));
+  document.body.append(picker);
+  emojiBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  emojiBtn.addEventListener('click', () => {
+    if (picker.matches(':popover-open')) return picker.hidePopover();
+    picker.showPopover();
+    const r = emojiBtn.getBoundingClientRect();
+    picker.style.left = `${Math.max(8, Math.min(r.left, innerWidth - picker.offsetWidth - 8))}px`;
+    picker.style.top = `${Math.max(8, r.top - picker.offsetHeight - 8)}px`;
+  });
+
+  // ---- a photo opened large
+  const viewer = document.createElement('dialog');
+  viewer.className = 'img-view';
+  const big = document.createElement('img');
+  big.alt = '';
+  viewer.append(big);
+  viewer.addEventListener('click', () => viewer.close());
+  document.body.append(viewer);
 
   function note(text: string): HTMLLIElement {
     const li = document.createElement('li');
     li.className = 'chat-note';
     li.textContent = text;
     return li;
+  }
+  function showError(text: string): void {
+    err.textContent = text;
+    err.hidden = false;
   }
 
   function render(): void {
@@ -131,10 +296,8 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       const li = document.createElement('li');
       li.className = `chat-msg${mine ? ' mine' : ''}${cont ? ' cont' : ''}${drawn.has(id) ? '' : ' new'}`;
       drawn.add(id);
-      // who sent it: their face by every run, their name over its first message
+      // who sent it: their name over a run, their face at the start of its first bubble
       const face = avatar({ name: m.name, photo: m.photo }, 'a-avatar chat-face');
-      if (cont) face.style.visibility = 'hidden';
-      li.append(face);
       const col = document.createElement('div');
       col.className = 'chat-col';
       if (!cont) {
@@ -146,12 +309,40 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       }
       const row = document.createElement('div');
       row.className = 'chat-row';
-      const bubble = document.createElement('p');
-      bubble.className = 'chat-bubble';
-      bubble.textContent = m.text;
+      const bubble = document.createElement('div');
+      bubble.className = `chat-bubble${m.text.trim() ? '' : ' photos-only'}`;
+      if (m.text.trim()) {
+        // rendered from escaped text: someone else's message can never inject markup
+        const text = document.createElement('div');
+        text.className = 'chat-md';
+        text.innerHTML = renderMarkdown(m.text);
+        bubble.append(text);
+      }
+      if (m.images?.length) {
+        const pics = document.createElement('div');
+        pics.className = `chat-pics n${Math.min(m.images.length, 4)}`;
+        pics.append(...m.images.map((url) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'chat-pic';
+          b.setAttribute('aria-label', 'Open photo');
+          const img = document.createElement('img');
+          img.src = url;
+          img.alt = '';
+          img.loading = 'lazy';
+          b.append(img);
+          b.addEventListener('click', () => {
+            big.src = url;
+            viewer.showModal();
+          });
+          return b;
+        }));
+        bubble.append(pics);
+      }
       const time = document.createElement('span');
       time.className = 'chat-time';
       time.textContent = clock(m.at);
+      if (!cont) row.append(face);
       row.append(bubble, time);
       if (mine) {
         const del = document.createElement('button');
@@ -175,28 +366,33 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     list.replaceChildren(...out);
     const last = msgs[msgs.length - 1]!.m;
     if (atBottom || last.uid === s.uid) list.scrollTop = list.scrollHeight;
+    // photos still loading change the height: keep the bottom in view while they come in
+    if (atBottom || last.uid === s.uid) list.querySelectorAll('img').forEach((img) => img.addEventListener('load', () => (list.scrollTop = list.scrollHeight), { once: true }));
   }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const s = session();
     const text = input.value.trim();
-    if (!s || !text) return;
+    const images = pending;
+    if (!s || (!text && !images.length)) return;
+    if (text.length > MAX) return showError(`Up to ${MAX} characters a message`);
     // cleared first: the message shows before the write is confirmed
     input.value = '';
-    fit();
+    pending = [];
+    paintPending();
     err.hidden = true;
     const { fs, db } = s.fb;
-    const m: Message = { uid: s.uid, name: s.name, photo: s.photo, text: text.slice(0, MAX), at: Date.now() };
+    const m: Message = { uid: s.uid, name: s.name, photo: s.photo, text, at: Date.now(), ...(images.length ? { images } : {}) };
     try {
       await fs.addDoc(fs.collection(db, 'chat'), m);
     } catch (x) {
       input.value = text;
-      fit();
-      err.textContent = String((x as { code?: string })?.code ?? '').includes('permission')
+      pending = images;
+      paintPending();
+      showError(String((x as { code?: string })?.code ?? '').includes('permission')
         ? 'Chat isn’t allowed yet: the Firestore rules need publishing again'
-        : 'Couldn’t send. Check your connection.';
-      err.hidden = false;
+        : 'Couldn’t send. Check your connection.');
     }
     input.focus();
   });

@@ -173,6 +173,8 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
 
   let dpr = 1, size = 0, R = 0, R0 = 0, cx = 0, cy = 0;
   let zoom = 1, zoomTo = 1;
+  /** The bitmap still shows the latest picture (nothing turned or changed size since it was drawn). */
+  let fresh = false;
   const fit = () => {
     dpr = Math.min(devicePixelRatio || 1, 2.5);
     size = canvas.offsetWidth;
@@ -181,6 +183,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     if (canvas.width !== w) {
       canvas.width = w;
       canvas.height = w;
+      fresh = false;
     }
     R0 = canvas.width * 0.42;
     R = R0 * zoom;
@@ -374,8 +377,10 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       }
       tidy();
     }
-    // while pages slide the canvas holds its last frame: no re-raster/upload of a moving layer
-    if (!document.body.classList.contains('switching')) draw(now);
+    // while pages slide, or a drawer moves, the canvas holds its last frame: no re-raster of a moving layer, and
+    // the slide gets the frame to itself
+    const bodyCls = document.body.classList;
+    if (!bodyCls.contains('switching') && !bodyCls.contains('drawer-moving')) draw(now);
 
     const pin = pointer && !drag ? pinAt(pointer) : null;
     if (pin !== hoverPin) {
@@ -428,10 +433,11 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       const z2 = m6 * x + m7 * y + m8 * z;
       const sx = cx + R * x1, sy = cy - R * y2;
       if (z2 <= 0) {
-        // the far side shows faintly through the globe
+        // the far side shows faintly through the globe: every other dot, as a small square (it reads the same
+        // at 7% and costs a fraction of an arc)
+        if (i & 1) continue;
         const r = base * 0.55;
-        back.moveTo(sx + r, sy);
-        back.arc(sx, sy, r, 0, TAU);
+        back.rect(sx - r, sy - r, r * 2, r * 2);
         continue;
       }
       const dx = sx - hx, dy = sy - hy;
@@ -670,10 +676,12 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       if (on) {
         fit();
         last = performance.now();
-        draw(last); // up to date the moment it starts sliding in
+        // up to date the moment it starts sliding in; when it held still while away, its last frame already is
+        if (!fresh) draw(last);
         raf = requestAnimationFrame(frame);
       } else {
         cancelAnimationFrame(raf);
+        fresh = true;
       }
     },
     onReadout(fn) {

@@ -238,6 +238,6 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     if (innerWidth <= WIDE && state.drawers.left && state.drawers.right) toggleDrawer('left', false);
     placeDial();
   });
-  subscribe(render);
+  subscribe(render, { drawers: true });
   render();
 }

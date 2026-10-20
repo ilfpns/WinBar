@@ -22,7 +22,9 @@ const NL = String.fromCharCode(10);
 const ZW = '​';
 const unZW = (s: string | null) => (s ?? '').replaceAll(ZW, '');
 /** Marks drawn as a dot, box or bar (their text hidden): the caret never types into them. */
-const isHiddenMark = (t: Text) => !!t.parentElement?.closest('.mk-ind, .mk-h, .mk-li, .mk-task, .mk-q, .mk-img');
+const isHiddenMark = (t: Text) => !!t.parentElement?.closest('.mk-ind, .mk-h, .mk-li, .mk-task, .mk-q, .mk-img, .mk-callout');
+/** A callout's kind → its icon (Obsidian's `> [!kind]`; an unknown kind reads as a note). */
+const CALLOUT_ICON: Record<string, IconName> = { note: 'lightbulb', tip: 'sparkles', info: 'info', warning: 'triangle-alert' };
 const mk = (s: string) => `<span class="mk mk-in">${esc(s)}</span>`;
 const SAFE_URL = /^(https?:\/\/|mailto:)/i;
 
@@ -117,7 +119,7 @@ function inline(src: string): string {
 interface Drawn { cls: string; html: string; mark: number; indent: number }
 
 /** The block mark a line starts with (indent included): heading, to-do, bullet, number, quote or a divider. */
-function blockOf(src: string): { kind: string; indent: string; marker: string; rest: string; done?: boolean } | null {
+function blockOf(src: string): { kind: string; indent: string; marker: string; rest: string; done?: boolean; callout?: string } | null {
   if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(src)) return { kind: 'hr', indent: '', marker: src, rest: '' };
   if (IMG_LINE.test(src)) return { kind: 'img', indent: '', marker: src, rest: '' };
   let m = /^(#{1,6} )(.*)$/.exec(src);
@@ -128,7 +130,13 @@ function blockOf(src: string): { kind: string; indent: string; marker: string; r
   if (m) return { kind: 'li', indent: m[1]!, marker: m[2]!, rest: m[3]! };
   m = /^(\s*)(\d+\. )(.*)$/.exec(src);
   if (m) return { kind: 'ol', indent: m[1]!, marker: m[2]!, rest: m[3]! };
+  // a callout (`> [!note] …`), before a plain quote
+  m = /^(\s*)(> ?\[!(\w+)\] ?)(.*)$/.exec(src);
+  if (m) return { kind: 'callout', indent: m[1]!, marker: m[2]!, rest: m[4]!, callout: m[3]!.toLowerCase() };
   m = /^(\s*)(> ?)(.*)$/.exec(src);
+  if (m) return { kind: 'quote', indent: m[1]!, marker: m[2]!, rest: m[3]! };
+  // `| ` starts a quote too (a table row, with a pipe at each end, was taken before this)
+  m = /^(\s*)(\| )(.*)$/.exec(src);
   if (m) return { kind: 'quote', indent: m[1]!, marker: m[2]!, rest: m[3]! };
   return null;
 }
@@ -172,10 +180,12 @@ function line(src: string, fence: boolean, next?: string): Drawn {
     return { cls: 'md-l img', html, mark: src.length, indent: 0 };
   }
   // a numbered item keeps its number visible; the other marks are drawn (a dot, a box, a bar) instead
-  const markCls = b.kind === 'ol' ? 'mk mk-ol' : b.kind === 'task' ? 'mk mk-task' : b.kind === 'li' ? 'mk mk-li' : b.kind === 'quote' ? 'mk mk-q' : 'mk mk-h';
+  const markCls = b.kind === 'ol' ? 'mk mk-ol' : b.kind === 'task' ? 'mk mk-task' : b.kind === 'li' ? 'mk mk-li' : b.kind === 'quote' ? 'mk mk-q' : b.kind === 'callout' ? 'mk mk-callout' : 'mk mk-h';
+  // a callout carries its icon (filled in after drawing)
+  const calloutIc = b.kind === 'callout' ? `<span class="md-callout-ic" contenteditable="false" data-kind="${CALLOUT_ICON[b.callout!] ? b.callout : 'note'}"></span>` : '';
   return {
     cls: `md-l ${b.kind}${b.done ? ' done' : ''}`,
-    html: `${ind}<span class="${markCls}">${esc(b.marker)}</span>${inline(b.rest) || ''}`,
+    html: `${ind}<span class="${markCls}">${esc(b.marker)}</span>${calloutIc}${inline(b.rest) || ''}`,
     mark: b.indent.length + b.marker.length,
     indent,
   };
@@ -189,7 +199,8 @@ const BLOCKS: { id: string; label: string; hint: string; icon: IconName; keys: s
   { id: 'ul', label: 'Bulleted list', hint: '-', icon: 'circle-dot', keys: 'bullet list ul 목록', prefix: '- ' },
   { id: 'ol', label: 'Numbered list', hint: '1.', icon: 'circle-dot', keys: 'numbered list ol 번호', prefix: '1. ' },
   { id: 'todo', label: 'To-do', hint: '[ ]', icon: 'circle-check', keys: 'todo task check 할일 체크', prefix: '- [ ] ' },
-  { id: 'quote', label: 'Quote', hint: '>', icon: 'chevron-right', keys: 'quote 인용', prefix: '> ' },
+  { id: 'quote', label: 'Quote', hint: '|', icon: 'quote', keys: 'quote 인용 |', prefix: '| ' },
+  { id: 'callout', label: 'Callout', hint: '[!]', icon: 'lightbulb', keys: 'callout note tip 콜아웃 강조 메모', prefix: '> [!note] ' },
   { id: 'code', label: 'Code block', hint: '```', icon: 'chevron-right', keys: 'code 코드', insert: () => '```\n\n```' },
   { id: 'table', label: 'Table', hint: '|  |', icon: 'chart-column', keys: 'table grid 표 테이블', insert: () => '| Column 1 | Column 2 | Column 3 |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n' },
   { id: 'hr', label: 'Divider', hint: '---', icon: 'chevron-right', keys: 'divider line hr 구분선', insert: () => '---\n' },
@@ -220,7 +231,7 @@ function faceOf(p: { name: string; photo: string | null }): HTMLElement {
   return el;
 }
 /** List markers a line can carry (stripped when a / block replaces them). */
-const MARKER = /^(\s*)(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> )?/;
+const MARKER = /^(\s*)(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> ?\[!\w+\] ?|> |\| (?!.*\|\s*$))?/;
 
 export class MdEditor extends HTMLElement {
   /**
@@ -357,6 +368,14 @@ export class MdEditor extends HTMLElement {
       if (/^\s*```/.test(l)) fence = !fence;
       return { ...d, src: l };
     });
+    // a run of callout lines of one kind is one box: mark which lines carry on from the one above or below
+    const kindOf = (src?: string) => (src === undefined ? null : /^\s*> ?\[!(\w+)\]/.exec(src)?.[1]?.toLowerCase() ?? null);
+    want.forEach((w, i) => {
+      const k = w.cls.includes('callout') ? kindOf(w.src) : null;
+      if (!k) return;
+      if (kindOf(want[i - 1]?.src) === k) w.cls += ' co-up';
+      if (kindOf(want[i + 1]?.src) === k) w.cls += ' co-down';
+    });
     const kids = [...this.childNodes];
     want.forEach((w, i) => {
       const cur = kids[i];
@@ -388,6 +407,8 @@ export class MdEditor extends HTMLElement {
       box.classList.toggle('missing', !url);
       for (const b of box.querySelectorAll<HTMLElement>('.md-img-btn:empty')) b.append(icon(b.dataset.act === 'copy' ? 'copy' : 'x'));
     }
+    // callouts: their icon
+    for (const slot of this.querySelectorAll<HTMLElement>('.md-callout-ic:empty')) slot.append(icon(CALLOUT_ICON[slot.dataset.kind!] ?? 'lightbulb'));
     // links: the site's logo, or a chain when it has none (or can't be reached)
     for (const slot of this.querySelectorAll<HTMLElement>('.md-fav:empty')) {
       const host = slot.dataset.host;
@@ -704,7 +725,7 @@ ${newRow}${v.slice(end)}`);
       const c = this.selectionStart;
       if (c !== this.selectionEnd) return;
       const { start, text } = this.lineAt(v, c);
-      const m = /^(\s*)([-*] \[[ xX]\] |[-*+] |(\d+)\. |> )/.exec(text);
+      const m = /^(\s*)([-*] \[[ xX]\] |[-*+] |(\d+)\. |> ?\[!\w+\] ?|> |\| (?!.*\|\s*$))/.exec(text);
       if (!m) return;
       e.preventDefault();
       if (text.trim() === m[0].trim()) {

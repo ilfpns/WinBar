@@ -63,12 +63,24 @@ service cloud.firestore {
       allow update: if isInvited() && request.resource.data.authorUid == request.auth.uid && resource.data.authorUid == request.auth.uid;
       allow delete: if isInvited() && resource.data.authorUid == request.auth.uid;
     }
-    // the chat room: everyone invited reads it and writes as themselves (up to 1000 characters); a message is
+    // the chat room: everyone invited reads it and writes as themselves (up to 1000 characters, 4 photos); a message is
     // taken back by whoever sent it (or an owner)
     match /chat/{id} {
       allow read: if isInvited();
+      // text (Markdown) and/or up to four photos carried in the message
       allow create: if isInvited() && request.resource.data.uid == request.auth.uid
-        && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000;
+        && request.resource.data.text is string && request.resource.data.text.size() <= 1000
+        && (request.resource.data.text.size() > 0
+          || (request.resource.data.images is list && request.resource.data.images.size() > 0))
+        && (!('images' in request.resource.data) || (request.resource.data.images is list && request.resource.data.images.size() <= 4));
+      allow delete: if isInvited() && (resource.data.uid == request.auth.uid || isOwner());
+    }
+    // the shared board: everyone invited sees it and draws as themselves (a stroke of up to 1500 points); a stroke
+    // is taken back by whoever drew it, or an owner clears the board
+    match /board/{id} {
+      allow read: if isInvited();
+      allow create: if isInvited() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.pts is list && request.resource.data.pts.size() <= 3000;
       allow delete: if isInvited() && (resource.data.uid == request.auth.uid || isOwner());
     }
     // comments under a shared page: everyone invited reads and writes their own (as themselves, up to 1000

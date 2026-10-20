@@ -39,6 +39,8 @@ export const state: AppState = {
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
+/** The few that care when only a drawer moves (the drawers themselves, the right drawer's tabs). */
+const drawerListeners = new Set<Listener>();
 const savedListeners = new Set<(b: Block) => void>();
 
 const removedListeners = new Set<(blocks: Block[]) => void>();
@@ -60,8 +62,13 @@ export function onSaved(fn: (b: Block) => void): void {
   savedListeners.add(fn);
 }
 
-export function subscribe(fn: Listener): void {
+/**
+ * Called after every change. A change that only opens or closes a drawer reaches only those subscribed with
+ * `drawers: true`: the dial, the lists and the charts don't redraw for it, so the drawer's first frames run free.
+ */
+export function subscribe(fn: Listener, opts: { drawers?: boolean } = {}): void {
   listeners.add(fn);
+  if (opts.drawers) drawerListeners.add(fn);
 }
 
 export function setState(patch: Partial<AppState>): void {
@@ -84,7 +91,10 @@ export function setState(patch: Partial<AppState>): void {
     const ids = new Set(state.blocks.map((b) => b.id));
     if (state.selected.some((id) => !ids.has(id))) state.selected = state.selected.filter((id) => ids.has(id));
   }
-  listeners.forEach((fn) => fn());
+  const drawersOnly = Object.keys(patch).every((k) => k === 'drawers');
+  listeners.forEach((fn) => {
+    if (!drawersOnly || drawerListeners.has(fn)) fn();
+  });
 }
 
 // ---------- actions

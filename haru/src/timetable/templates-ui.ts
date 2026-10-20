@@ -54,7 +54,7 @@ export function mountTemplates(refs: TemplateRefs): void {
   subscribe(() => {
     if (state.drawers.right && !rightOpen) showTab('today');
     rightOpen = state.drawers.right;
-  });
+  }, { drawers: true });
 
   let statusTimer = 0;
   function say(parts: (string | HTMLElement)[], ms = 4000): void {
