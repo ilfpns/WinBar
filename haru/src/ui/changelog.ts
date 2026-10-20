@@ -25,6 +25,14 @@ export const CHANGELOG: Release[] = [
     ],
   },
   {
+    version: '1.23',
+    date: '2026-10-20',
+    items: [
+      '채팅 그리기에서 Ctrl+Z로 내 마지막 획 취소, Ctrl+Shift+Z·Ctrl+Y로 다시 그리기 (메시지 입력 중에는 입력칸의 되돌리기)',
+      '메시지에 붙지 않은 예전 그림(스크롤해도 화면에 남던 선)을 더 그리지 않고 정리',
+    ],
+  },
+  {
     version: '1.22',
     date: '2026-10-20',
     items: [
