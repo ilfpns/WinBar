@@ -2184,12 +2184,18 @@ md-editor .md-l:not(.active) .md-mention::before { content: "@"; }
 .chat-msg.mine .chat-who { color: var(--accent); }
 .chat-me { padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, transparent); font: 600 10.5px/16px var(--font-sans); color: var(--accent); }
 .chat-row { display: flex; align-items: flex-end; gap: 6px; min-width: 0; }
+/* a bubble: the first of a run has its tail at the top left, reaching toward the sender's face */
 .chat-bubble {
-  margin: 0; padding: 8px 12px; border-radius: 16px 16px 16px 6px; background: rgb(var(--shade) / 0.32);
+  --bub: rgb(var(--shade) / 0.32);
+  position: relative; margin: 0; padding: 8px 12px; border-radius: 16px; background: var(--bub);
   white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; color: var(--text-strong);
 }
-.chat-msg.cont .chat-bubble { border-top-left-radius: 6px; }
-.chat-msg.mine .chat-bubble { background: color-mix(in srgb, var(--accent) 20%, rgb(var(--shade) / 0.32)); }
+.chat-msg:not(.cont) .chat-bubble { border-top-left-radius: 4px; }
+.chat-msg:not(.cont) .chat-bubble::before {
+  content: ""; position: absolute; top: 0; left: -10px; width: 11px; height: 13px; background: var(--bub);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+.chat-msg.mine .chat-bubble { --bub: color-mix(in srgb, var(--accent) 20%, rgb(var(--shade) / 0.32)); }
 .chat-time { flex: none; font: 400 10.5px var(--font-mono); color: var(--text-subtle); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
 .chat-msg:hover .chat-time, .chat-msg:last-child .chat-time { opacity: 1; }
 .chat-del { opacity: 0; }
