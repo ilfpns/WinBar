@@ -73,12 +73,12 @@ service cloud.firestore {
       allow update: if isInvited() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid;
     }
 
-    // change requests ("@변경요청 …" in the chat): queued by the admin only, under the chat message's id. Open to read
+    // change requests ("/변경요청 …" in the chat): queued by anyone invited, as themselves, under the chat message's id. Open to read
     // so the developer can list the queue without signing in (only the request's words are in it); nothing writes
     // back here (outcomes are published with the site)
     match /change-requests/{id} {
       allow read: if true;
-      allow create: if isAdmin() && request.resource.data.uid == request.auth.uid
+      allow create: if isInvited() && request.resource.data.uid == request.auth.uid
         && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000;
       allow delete: if isAdmin();
     }
@@ -108,8 +108,8 @@ service cloud.firestore {
         && (request.resource.data.text.size() > 0
           || (request.resource.data.images is list && request.resource.data.images.size() > 0))
         && (!('images' in request.resource.data) || (request.resource.data.images is list && request.resource.data.images.size() <= 4))
-        // marked as a change request: the admin's messages only
-        && (!('request' in request.resource.data) || isAdmin());
+        // marked as a change request: a plain flag
+        && (!('request' in request.resource.data) || request.resource.data.request == true);
       // a heart or a check: anyone invited changes only the reactions, and only their own uid in them
       allow update: if isInvited()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])

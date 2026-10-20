@@ -32,7 +32,7 @@ interface Message {
   /** Photos as JPEG data URLs, shrunk to fit a message. */
   images?: string[];
   at: number;
-  /** Filed as a change request ("@변경요청 …" from the admin). */
+  /** Filed as a change request ("/변경요청 …"). */
   request?: boolean;
   /** Who reacted, by reaction (their uids). */
   reactions?: Partial<Record<Reaction, string[]>>;
@@ -119,7 +119,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   // in the chat, / is for commands (/변경요청), not Markdown blocks (those are typed as Markdown: # - > and so on)
   input.slashBlocks = false;
   input.people = () => mentionable(session()?.uid);
-  // the chat's commands: / lists them all, each with an example (the admin also has /변경요청, see requests.ts)
+  // the chat's commands: / lists them all, each with an example (/변경요청: see requests.ts)
   // (the bell sits in the page's title row, outside the chat's own box: looked up across the page)
   const press = (sel: string) => () => (body.closest('.page') ?? document).querySelector<HTMLButtonElement>(sel)?.click();
   input.commands = (): EditorCommand[] => [
@@ -130,7 +130,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     { label: '알림', hint: '알림 켜고 끄기', example: '/알림 → 새 메시지 알림', icon: 'bell', keys: ['bell', 'notify'], run: press('.chat-bell') },
     { label: '규칙', hint: 'Chat 사용 규칙', example: '/규칙 → 아카이브의 규칙 페이지', icon: 'pin', keys: ['rules', 'help'], run: () => (location.hash = '#/archive/rules') },
     ...(isRequest('/변경요청', session())
-      ? [{ label: '변경요청', hint: 'Haru 수정 요청 (관리자)', example: '/변경요청 달력 글씨를 크게', icon: 'pencil' as const, keys: ['change', 'request'], text: '/변경요청 ' }]
+      ? [{ label: '변경요청', hint: 'Haru 수정 요청', example: '/변경요청 달력 글씨를 크게', icon: 'pencil' as const, keys: ['change', 'request'], text: '/변경요청 ' }]
       : []),
   ];
 
@@ -484,7 +484,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     const m: Message = { uid: s.uid, name: s.name, photo: s.photo, text, at: Date.now(), ...(images.length ? { images } : {}), ...(asks ? { request: true } : {}) };
     try {
       const ref = await fs.addDoc(fs.collection(db, 'chat'), m);
-      // "/변경요청 …" from the admin: also into the change-request queue (see requests.ts)
+      // "/변경요청 …": also into the change-request queue (see requests.ts)
       if (asks) await fileRequest(s, ref.id, text).catch(() => showError('The change request couldn’t be queued: the Firestore rules need publishing again'));
     } catch (x) {
       input.value = text;

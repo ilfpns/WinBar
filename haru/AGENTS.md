@@ -59,7 +59,7 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 - 배포할 때마다 `src/ui/changelog.ts` 맨 위에 새 버전(v1.x)을 추가하고, 바뀐 점을 한국어로 패치노트처럼 한 줄씩 짧게 적는다(설정 → What's new에 보인다). README의 Changes도 같은 형식으로 적는다.
 - QA를 하면 `QA.md`에 날짜, 확인한 것, 찾은 문제와 처리 결과를 남긴다.
 - 매 업데이트 이후 What's new에 기록을 남긴다.
-- 변경요청 작업공간(큐): 관리자가 채팅에 "/변경요청 …"을 쓰면(호출은 @, 명령어는 /) Firestore `change-requests`에 쌓인다. 작업을 마칠 때마다 `node scripts/change-requests.mjs list`로 확인하고, 대기 중인 요청이 있으면 몇 건인지와 내용을 사용자에게 알린다(처리할지 묻는다).
+- 변경요청 작업공간(큐): 누구든 채팅에 "/변경요청 …"을 쓰면(호출은 @, 명령어는 /) Firestore `change-requests`에 쌓인다. 작업을 마칠 때마다 `node scripts/change-requests.mjs list`로 확인하고, 대기 중인 요청이 있으면 몇 건인지와 내용을 사용자에게 알린다(처리할지 묻는다).
 - 변경요청은 사용자가 처리하라고 할 때 하나씩 반영한다(구현 → QA → 패치노트 → 커밋·배포). 반영하면 `node scripts/change-requests.mjs done <id> "<한 줄 요약>" v1.x`, 하지 않기로 하면 `declined <id> "<이유>"`로 `public/data/change-requests.json`에 남기고 같이 배포한다(채팅의 요청 아래에 상태가 보인다).
 - 변경요청을 자동으로 처리(사람 확인 없이 수정·배포)하는 장치는 만들지 않는다.
 

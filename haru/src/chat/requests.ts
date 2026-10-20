@@ -1,10 +1,9 @@
 import type { Session } from '../cloud/session';
-import { isAdmin } from '../archive/updates';
 
 /**
- * Change requests: the admin writes "/변경요청 …" in the chat (a command, so "/"; "@" calls a person) to ask for a change to Haru. The message goes to the
- * chat as usual and, as a request, into a queue in Firestore (`change-requests/{chat message id}`; only the
- * admin's account may add to it). Nothing acts on it by itself: whoever develops Haru reads the queue
+ * Change requests: anyone in the chat writes "/변경요청 …" (a command, so "/"; "@" calls a person) to ask for a change to Haru. The message goes to the
+ * chat as usual and, as a request, into a queue in Firestore (`change-requests/{chat message id}`; all
+ * invited accounts may add to it, each as themselves). Nothing acts on it by itself: whoever develops Haru reads the queue
  * (`node scripts/change-requests.mjs list`), makes the change by hand, ships it, and records the outcome in
  * public/data/change-requests.json — which the published site shows as a line under the request.
  */
@@ -21,7 +20,7 @@ export interface Outcome {
 }
 
 /** Whether a message is a request this account may file. */
-export const isRequest = (text: string, s: Session | null): boolean => isAdmin(s) && TRIGGER.test(text);
+export const isRequest = (text: string, s: Session | null): boolean => !!s && TRIGGER.test(text);
 
 /** Files the request under its chat message's id. */
 export async function fileRequest(s: Session, chatId: string, text: string): Promise<void> {

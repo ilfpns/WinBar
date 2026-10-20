@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.33',
+    date: '2026-10-21',
+    items: [
+      '/변경요청을 이제 모든 계정이 쓸 수 있음: 채팅에서 "/변경요청 내용"을 보내면 요청 목록에 모이고, 반영되면 메시지 아래에 표시',
+    ],
+  },
+  {
     version: '1.32',
     date: '2026-10-21',
     items: [
