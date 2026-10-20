@@ -3,11 +3,11 @@ import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
 
 /**
- * The board: one shared drawing surface over the chat, like drawing on a story. Everyone invited draws on the same
- * board and sees the others' strokes as they land (each stroke is a Firestore document, `board/{id}`, in
- * coordinates relative to the board so any screen size shows the same picture). Pick a colour and a width; undo
- * your last stroke, clear yours, or (owners) clear it all; "Send to chat" puts the board as it is into your next
- * message as a photo.
+ * Drawing on the chat itself, like drawing on a story: a clear layer over the messages that everyone invited
+ * shares. The brush turns drawing on; what anyone draws stays over the room for everyone and lands live (each
+ * stroke is a Firestore document, `board/{id}`, in coordinates relative to the room so any screen size shows the
+ * same picture). While drawing: a colour, a width, undo your last stroke, clear yours (owners: all). Drawing off,
+ * the strokes stay in sight and the chat underneath scrolls and selects as usual.
  */
 interface Stroke {
   uid: string;
@@ -22,10 +22,9 @@ const COLORS = ['#f4f4f5', '#7ee2a8', '#2c9a5a', '#ffd166', '#ff7aa2', '#6ab0ff'
 const SIZES = [0.004, 0.009, 0.018];
 const MAX_POINTS = 1500;
 
-export function mountBoard(room: HTMLElement, opener: HTMLButtonElement, sendToChat: (png: Blob) => void): void {
+export function mountBoard(room: HTMLElement, opener: HTMLButtonElement): void {
   const panel = document.createElement('div');
   panel.className = 'board';
-  panel.hidden = true;
   panel.innerHTML = `
     <div class="board-bar">
       <div class="board-colors" role="radiogroup" aria-label="Colour"></div>
@@ -33,8 +32,7 @@ export function mountBoard(room: HTMLElement, opener: HTMLButtonElement, sendToC
       <span class="board-fill"></span>
       <button type="button" class="icon-btn board-undo" aria-label="Undo my last stroke" title="Undo my last stroke"></button>
       <button type="button" class="icon-btn board-clear" aria-label="Clear my drawing" title="Clear my drawing"></button>
-      <button type="button" class="btn-sm board-send">Send to chat</button>
-      <button type="button" class="icon-btn board-close" aria-label="Close the board" title="Close  Esc"></button>
+      <button type="button" class="btn-sm board-close">Done</button>
     </div>
     <canvas class="board-canvas" aria-label="Shared board"></canvas>
     <p class="board-note" hidden></p>`;
@@ -44,7 +42,6 @@ export function mountBoard(room: HTMLElement, opener: HTMLButtonElement, sendToC
   const note = panel.querySelector<HTMLElement>('.board-note')!;
   panel.querySelector('.board-undo')!.append(icon('rotate-ccw'));
   panel.querySelector('.board-clear')!.append(icon('eraser'));
-  panel.querySelector('.board-close')!.append(icon('x'));
   opener.append(icon('brush'));
 
   let color = COLORS[1]!;
@@ -214,35 +211,17 @@ export function mountBoard(room: HTMLElement, opener: HTMLButtonElement, sendToC
     await Promise.all(doomed.map((t) => fs.deleteDoc(fs.doc(db, 'board', t.id)).catch(() => {})));
   });
 
-  // ---- the board into the chat, as a photo (on the board's dark ground)
-  panel.querySelector('.board-send')!.addEventListener('click', () => {
-    const c = document.createElement('canvas');
-    c.width = canvas.width;
-    c.height = canvas.height;
-    const cg = c.getContext('2d')!;
-    cg.fillStyle = getComputedStyle(canvas).backgroundColor || '#121417';
-    cg.fillRect(0, 0, c.width, c.height);
-    cg.drawImage(canvas, 0, 0);
-    c.toBlob((b) => {
-      if (!b) return;
-      sendToChat(b);
-      close();
-    }, 'image/png');
-  });
-
-  function open(): void {
-    panel.hidden = false;
-    opener.setAttribute('aria-pressed', 'true');
-    requestAnimationFrame(fit);
+  // ---- drawing on or off: the layer always shows; only while drawing does it take the pointer
+  const drawing = () => panel.classList.contains('drawing');
+  function setDrawing(on: boolean): void {
+    panel.classList.toggle('drawing', on);
+    opener.setAttribute('aria-pressed', String(on));
+    if (on) requestAnimationFrame(fit);
   }
-  function close(): void {
-    panel.hidden = true;
-    opener.setAttribute('aria-pressed', 'false');
-  }
-  opener.addEventListener('click', () => (panel.hidden ? open() : close()));
-  panel.querySelector('.board-close')!.addEventListener('click', close);
+  opener.addEventListener('click', () => setDrawing(!drawing()));
+  panel.querySelector('.board-close')!.addEventListener('click', () => setDrawing(false));
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !panel.hidden && !document.querySelector('dialog[open]')) close();
+    if (e.key === 'Escape' && drawing() && !document.querySelector('dialog[open]')) setDrawing(false);
   });
 
   function listen(s: Session | null): void {

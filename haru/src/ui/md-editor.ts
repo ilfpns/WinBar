@@ -541,8 +541,9 @@ export class MdEditor extends HTMLElement {
   // ---------- editing
   private pending: { text: string; caret: number } | null = null;
   /**
-   * Backspace right after a line's block mark: a nested item steps out a level, otherwise the mark goes and the
-   * words stay (a divider or photo line goes whole). False when the caret isn't there.
+   * Backspace right after a line's block mark: the mark goes first (the number, the bullet…), the indent stays;
+   * the next Backspace then takes the indent away a level (two spaces, or a tab) at a time. A divider or photo
+   * line goes whole. False when the caret isn't there.
    */
   private unmark(): boolean {
     const v = this.value;
@@ -551,12 +552,22 @@ export class MdEditor extends HTMLElement {
     const { start, text } = this.lineAt(v, c);
     const b = blockOf(text);
     const mark = b ? b.indent.length + b.marker.length : 0;
-    if (!b || !mark || c !== start + mark) return false;
-    const out = b.indent.length >= 2 && b.kind !== 'hr' && b.kind !== 'img';
-    const next = out ? b.indent.slice(2) + b.marker + b.rest : b.kind === 'hr' || b.kind === 'img' ? '' : b.rest;
+    let next: string;
+    let caret: number;
+    if (b && mark && c === start + mark) {
+      next = b.kind === 'hr' || b.kind === 'img' ? '' : b.indent + b.rest;
+      caret = start + (b.kind === 'hr' || b.kind === 'img' ? 0 : b.indent.length);
+    } else {
+      // the caret at the end of a line's leading indent: out a level
+      const lead = /^[ \t]*/.exec(text)![0];
+      if (!lead || c !== start + lead.length) return false;
+      const cut = lead.endsWith('\t') ? 1 : Math.min(2, lead.length);
+      next = text.slice(0, lead.length - cut) + text.slice(lead.length);
+      caret = c - cut;
+    }
     this.remember(v, c);
     this.render(v.slice(0, start) + next + v.slice(start + text.length));
-    this.placeCaret(start + (out ? mark - 2 : 0));
+    this.placeCaret(caret);
     this.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
   }
@@ -667,6 +678,10 @@ export class MdEditor extends HTMLElement {
             return;
           }
           this.unmark();
+          return;
+        }
+        if (e.key === 'Backspace' && this.unmark()) {
+          e.preventDefault();
           return;
         }
       }

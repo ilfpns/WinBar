@@ -2,7 +2,7 @@ import {
   ArrowRight, BookOpen, Briefcase, Calendar, CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight,
   CircleCheck, CircleDot, Clock, Coffee, Dumbbell, House, Moon, Newspaper, Plus, Search, Sparkles, X, ImagePlus, Image, Flame, ChartColumn, LogOut, ChartPie, Target, TrendingUp, TrendingDown,
   Languages, NotebookPen, Settings, RotateCcw, Shuffle, Volume2, FileDown, Sun, Monitor, PanelLeft,
-  Palette, HardDrive, Eraser, Keyboard, Info, User, ChevronUp, Ellipsis, Pencil, Trash2, Share2, Archive, Users, Eye, GraduationCap, Utensils, Copy, Pin, Link, Folder, FolderOpen, FolderPlus, FolderTree, MessageSquare, MessagesSquare, Smile, ArrowUp, Brush, Lightbulb, TriangleAlert, Quote, FileText, List,
+  Palette, HardDrive, Eraser, Keyboard, Info, User, ChevronUp, Ellipsis, Pencil, Trash2, Share2, Archive, Users, Eye, GraduationCap, Utensils, Copy, Pin, Link, Folder, FolderOpen, FolderPlus, FolderTree, MessageSquare, MessagesSquare, Smile, ArrowUp, Brush, Lightbulb, TriangleAlert, Quote, Bell, BellOff, FileText, List,
   type IconNode, createElement,
 } from 'lucide';
 
@@ -15,7 +15,7 @@ const ICONS: Record<string, IconNode> = {
   search: Search, sparkles: Sparkles, x: X, 'image-plus': ImagePlus, image: Image, flame: Flame, 'chart-column': ChartColumn, 'log-out': LogOut, 'chart-pie': ChartPie, target: Target, 'trending-up': TrendingUp, 'trending-down': TrendingDown,
   languages: Languages, 'notebook-pen': NotebookPen, settings: Settings, 'rotate-ccw': RotateCcw, shuffle: Shuffle, 'volume-2': Volume2, 'file-down': FileDown, sun: Sun, monitor: Monitor, 'panel-left': PanelLeft,
   palette: Palette, 'hard-drive': HardDrive, eraser: Eraser, keyboard: Keyboard, info: Info, user: User, 'chevron-up': ChevronUp, ellipsis: Ellipsis, pencil: Pencil, trash: Trash2,
-  share: Share2, archive: Archive, users: Users, eye: Eye, 'graduation-cap': GraduationCap, utensils: Utensils, copy: Copy, pin: Pin, link: Link, folder: Folder, 'folder-open': FolderOpen, 'folder-plus': FolderPlus, message: MessageSquare, messages: MessagesSquare, smile: Smile, 'arrow-up': ArrowUp, brush: Brush, lightbulb: Lightbulb, 'triangle-alert': TriangleAlert, quote: Quote, 'folder-tree': FolderTree, 'file-text': FileText, list: List,
+  share: Share2, archive: Archive, users: Users, eye: Eye, 'graduation-cap': GraduationCap, utensils: Utensils, copy: Copy, pin: Pin, link: Link, folder: Folder, 'folder-open': FolderOpen, 'folder-plus': FolderPlus, message: MessageSquare, messages: MessagesSquare, smile: Smile, 'arrow-up': ArrowUp, brush: Brush, lightbulb: Lightbulb, 'triangle-alert': TriangleAlert, quote: Quote, bell: Bell, 'bell-off': BellOff, 'folder-tree': FolderTree, 'file-text': FileText, list: List,
 };
 
 export type IconName = keyof typeof ICONS;

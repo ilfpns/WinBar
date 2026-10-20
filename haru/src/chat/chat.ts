@@ -8,6 +8,7 @@ import { renderMarkdown } from '../ui/markdown';
 import '../ui/md-editor';
 import { type MdEditor } from '../ui/md-editor';
 import { mountBoard } from './board';
+import { mountNotifyToggle, notifyMessage } from './notify';
 
 /**
  * Chat: one room for everyone invited, under Archive. Messages arrive live (the latest 300), every one on the
@@ -82,7 +83,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
         <div class="chat-tools">
           <button type="button" class="icon-btn chat-attach" aria-label="Add photos" title="Add photos (or paste with Ctrl+V)"></button>
           <button type="button" class="icon-btn chat-emoji-btn" aria-label="Emoji" title="Emoji" aria-haspopup="dialog"></button>
-          <button type="button" class="icon-btn chat-board-btn" aria-label="Board" title="Board: draw together" aria-pressed="false"></button>
+          <button type="button" class="icon-btn chat-board-btn" aria-label="Draw on the chat" title="Draw on the chat (everyone sees it)" aria-pressed="false"></button>
         </div>
         <md-editor class="chat-input" aria-label="Message everyone"></md-editor>
         <button type="submit" class="btn-sm chat-send" aria-label="Send"></button>
@@ -100,6 +101,8 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   const file = body.querySelector<HTMLInputElement>('.chat-file')!;
   const emojiBtn = body.querySelector<HTMLButtonElement>('.chat-emoji-btn')!;
   send.append(icon('arrow-right'));
+  // the bell beside the title: notices for new messages
+  mountNotifyToggle(sum.parentElement!);
   attach.append(icon('image-plus'));
   emojiBtn.append(icon('smile'));
   input.placeholder = 'Message everyone · / for blocks, @ to name someone';
@@ -107,6 +110,8 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
 
   let msgs: { id: string; m: Message }[] = [];
   let drawn = new Set<string>();
+  /** Messages already known (the first snapshot only fills this: notices are for what arrives after). */
+  let known: Set<string> | null = null;
   let stop: (() => void) | null = null;
   /** Photos waiting to go with the next message. */
   let pending: string[] = [];
@@ -214,8 +219,8 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     void addPhotos(files);
   });
 
-  // ---- the shared board: drawn together over the room; "Send to chat" adds it as a photo
-  mountBoard(room, body.querySelector<HTMLButtonElement>('.chat-board-btn')!, (png) => void addPhotos([png]));
+  // ---- drawing on the room itself, together
+  mountBoard(room, body.querySelector<HTMLButtonElement>('.chat-board-btn')!);
 
   // ---- emoji: a small picker over the box; a pick goes in where the caret is
   const picker = document.createElement('div');
@@ -403,10 +408,16 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     stop = null;
     msgs = [];
     drawn = new Set();
+    known = null;
     if (s) {
       const { fs, db } = s.fb;
       stop = fs.onSnapshot(fs.query(fs.collection(db, 'chat'), fs.orderBy('at', 'desc'), fs.limit(300)), (snap) => {
         msgs = snap.docs.map((d) => ({ id: d.id, m: d.data() as Message })).reverse();
+        // someone else's new message: a notice, Discord-style (unless you're reading the chat right now)
+        if (known) {
+          for (const { id, m } of msgs) if (!known.has(id) && m.uid !== s.uid) notifyMessage(m, looking());
+        }
+        known = new Set(msgs.map(({ id }) => id));
         render();
         paintDot();
       }, () => {
