@@ -2563,3 +2563,10 @@ html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animat
 .undo-tip.on { animation: undo-tip 1.4s var(--ease-out) both; }
 @keyframes undo-tip { 0% { opacity: 0; transform: translate(-50%, 6px); } 12%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 @media (max-width: 640px) { .undo-tip { bottom: calc(var(--nav-room) + 56px); } }
+
+/* a change request's state, under the message */
+.chat-cr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+.chat-cr-tag { padding: 1px 8px; border-radius: 999px; font: 500 11px var(--font-mono); background: rgb(var(--ink) / 0.06); }
+.chat-cr.done .chat-cr-tag { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.chat-cr.declined .chat-cr-tag { color: var(--text-subtle); }
+.chat-cr-sum { min-width: 0; overflow-wrap: anywhere; }

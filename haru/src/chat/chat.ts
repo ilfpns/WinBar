@@ -10,6 +10,7 @@ import '../ui/md-editor';
 import { type MdEditor } from '../ui/md-editor';
 import { mountBoard } from './board';
 import { mountNotifyToggle, notifyMessage } from './notify';
+import { fileRequest, isRequest, onOutcomes, outcomeLine, refreshOutcomes } from './requests';
 
 /**
  * Chat: one room for everyone invited, under Archive. Messages arrive live (the latest 300), every one on the
@@ -31,6 +32,8 @@ interface Message {
   /** Photos as JPEG data URLs, shrunk to fit a message. */
   images?: string[];
   at: number;
+  /** Filed as a change request ("@변경요청 …" from the admin). */
+  request?: boolean;
   /** Who reacted, by reaction (their uids). */
   reactions?: Partial<Record<Reaction, string[]>>;
 }
@@ -382,6 +385,8 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       time.className = 'chat-time';
       time.textContent = clock(m.at);
       row.append(bubble, time);
+      // a change request: whether it has been made yet, under it
+      const request = m.request ? outcomeLine(id) : null;
       // someone else's message takes a heart or a check: two small buttons beside it on hover
       if (!mine) {
         const pick = document.createElement('span');
@@ -414,6 +419,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
         row.append(del);
       }
       col.append(row);
+      if (request) col.append(request);
       // the reactions it has: a chip each, with how many (yours lit; a click on someone else's message turns yours)
       const given = REACTIONS.filter((r) => m.reactions?.[r]?.length);
       if (given.length) {
@@ -458,9 +464,12 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     paintPending();
     err.hidden = true;
     const { fs, db } = s.fb;
-    const m: Message = { uid: s.uid, name: s.name, photo: s.photo, text, at: Date.now(), ...(images.length ? { images } : {}) };
+    const asks = isRequest(text, s);
+    const m: Message = { uid: s.uid, name: s.name, photo: s.photo, text, at: Date.now(), ...(images.length ? { images } : {}), ...(asks ? { request: true } : {}) };
     try {
-      await fs.addDoc(fs.collection(db, 'chat'), m);
+      const ref = await fs.addDoc(fs.collection(db, 'chat'), m);
+      // "@변경요청 …" from the admin: also into the change-request queue (see requests.ts)
+      if (asks) await fileRequest(s, ref.id, text).catch(() => showError('The change request couldn’t be queued: the Firestore rules need publishing again'));
     } catch (x) {
       input.value = text;
       pending = images;
@@ -472,6 +481,14 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     input.focus();
   });
 
+  // change requests' outcomes (published with the site): read when the chat opens, then every half minute there
+  onOutcomes(() => render());
+  onView((v) => {
+    if (v === 'chat') void refreshOutcomes(true);
+  });
+  setInterval(() => {
+    if (currentView() === 'chat' && document.visibilityState === 'visible') void refreshOutcomes();
+  }, 30_000);
   function listen(s: Session | null): void {
     stop?.();
     stop = null;
