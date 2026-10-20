@@ -37,6 +37,7 @@ npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.31** (2026-10-21) — 채팅의 /는 명령어 전용
 - **v1.30** (2026-10-21) — 변경요청을 /변경요청 명령어로 / 아카이브에 Chat 사용 규칙 고정
 - **v1.29** (2026-10-21) — 채팅 @변경요청 큐와 진행 상태 표시
 - **v1.28** (2026-10-21) — Today에서 Ctrl+Z 되돌리기 / Ctrl+Shift+Z·Ctrl+Y 다시 하기

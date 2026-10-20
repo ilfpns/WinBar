@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.31',
+    date: '2026-10-21',
+    items: [
+      '채팅에서 /는 명령어만: 마크다운 블록 메뉴 대신 쓸 수 있는 명령어(관리자: /변경요청)만 나옴. 글 꾸미기는 마크다운으로 바로 쓰기(# 제목, - 목록, **굵게** 등)',
+    ],
+  },
+  {
     version: '1.30',
     date: '2026-10-21',
     items: [

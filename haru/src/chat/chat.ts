@@ -17,7 +17,7 @@ import { fileRequest, isRequest, onOutcomes, outcomeLine, refreshOutcomes } from
  * left with who sent it (face and name; yours marked "me" and tinted); a run of messages from one person within
  * a few minutes shares one name line, and days are marked.
  * You write as in Journal (the same editor: formatting, lists, links with their site's logo, @ to name someone,
- * / for blocks), add photos (the clip, Ctrl+V or a drop; shrunk and carried in the message itself, so everyone
+ * / for commands such as /변경요청), add photos (the clip, Ctrl+V or a drop; shrunk and carried in the message itself, so everyone
  * sees them) and emoji (the face button, or the system's own picker). Enter sends; in a list it starts the next
  * item, and Shift+Enter breaks the line.
  * A message from someone else you haven't seen puts a bouncing dot (and how many) on Chat's buttons until
@@ -115,7 +115,9 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   mountNotifyToggle(sum.parentElement!);
   attach.append(icon('image-plus'));
   emojiBtn.append(icon('smile'));
-  input.placeholder = 'Message everyone · / for blocks, @ to name someone';
+  input.placeholder = 'Message everyone · @ to name someone';
+  // in the chat, / is for commands (/변경요청), not Markdown blocks (those are typed as Markdown: # - > and so on)
+  input.slashBlocks = false;
   input.people = () => mentionable(session()?.uid);
   // the chat's own command, for the admin: /변경요청 (asks for a change to Haru, see requests.ts)
   input.commands = () => (isRequest('/변경요청', session()) ? [{ label: '변경요청', hint: 'Haru 수정 요청', icon: 'pencil' as const, text: '/변경요청 ' }] : []);

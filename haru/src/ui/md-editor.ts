@@ -245,6 +245,8 @@ export class MdEditor extends HTMLElement {
   /** Commands of the page this editor is on (the chat's /변경요청), above the blocks in the / menu: picking one
    *  puts its text in place of the "/query" typed for it. */
   commands: (() => { label: string; hint: string; icon?: IconName; text: string }[]) | null = null;
+  /** Whether / also offers the Markdown blocks (off in the chat, where / is for commands only). */
+  slashBlocks = true;
   private composing = false;
   private placeholderText = '';
   private history: { text: string; caret: number }[] = [];
@@ -900,7 +902,8 @@ ${newRow}${v.slice(end)}`);
     const commands: MenuItem[] = (this.commands?.() ?? [])
       .filter((c) => !q || c.label.toLowerCase().includes(q) || c.text.toLowerCase().includes(q))
       .map((c) => ({ label: c.label, hint: c.hint, icon: c.icon, run: () => this.applyCommand(c.text) }));
-    const items: MenuItem[] = [...commands, ...BLOCKS.filter((b) => !q || b.label.toLowerCase().includes(q) || b.keys.includes(q))
+    const blocks = this.slashBlocks ? BLOCKS : [];
+    const items: MenuItem[] = [...commands, ...blocks.filter((b) => !q || b.label.toLowerCase().includes(q) || b.keys.includes(q))
       .map((b) => ({ label: b.label, hint: b.hint, icon: b.icon, run: () => this.applyBlock(b) }))];
     if (!items.length) return this.closeMenu();
     this.menuAt = caret - m[2]!.length - 1;
