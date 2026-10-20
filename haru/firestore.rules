@@ -15,6 +15,10 @@ service cloud.firestore {
     function isOwner() {
       return signedIn() && email() in ['publicclaude223@gmail.com', 'yeomsh09@gmail.com'];
     }
+    // the one account that writes the Updates notice pinned in the Archive
+    function isAdmin() {
+      return signedIn() && email() == 'publicclaude223@gmail.com';
+    }
     function isInvited() {
       return signedIn() && (isOwner() || exists(/databases/$(database)/documents/allow/$(email())));
     }
@@ -59,6 +63,13 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isInvited() && request.resource.data.uid == request.auth.uid;
       allow update: if isInvited() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid;
+    }
+
+    // the Updates notice pinned on top of the Archive: everyone invited reads it, only the admin writes it
+    match /notices/{doc} {
+      allow read: if isInvited();
+      allow write: if isAdmin() && request.resource.data.body is string && request.resource.data.body.size() <= 20000;
+      allow delete: if isAdmin();
     }
 
     // the shared archive: journal pages sent with Share. Everyone invited reads it; a page is written and

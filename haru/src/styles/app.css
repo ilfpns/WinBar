@@ -716,18 +716,25 @@ body.switching .drawer { transition: none; }
 @keyframes drawer-in-right { from { opacity: 0; transform: translate3d(14px, 0, 0); } }
 body.left-open .panel-left > * { animation: drawer-in-left .45s var(--drawer-ease) both; animation-delay: calc(80ms + var(--k, 0) * 35ms); }
 body.right-open .panel-right > * { animation: drawer-in-right .45s var(--drawer-ease) both; animation-delay: calc(80ms + var(--k, 0) * 35ms); }
-/* the left drawer grows out of the rail and folds back into it: clipped to the rail's width (and faded) when
-   closed, so closing leaves only the rail, never half a panel passing by */
+/* the left drawer grows out of the rail and folds back into it. Two opposite moves, both on the compositor: the
+   frame slides left by the panel's width less the rail's while the panel inside slides right as much, so the panel
+   holds still and only the window onto it narrows to the rail (a clip-path would repaint the glass every frame).
+   Closing, its contents go at once and the rail comes back as it folds, so nothing shows twice. */
 .drawer-left {
-  left: var(--panel-inset); transform: none;
-  clip-path: inset(0 calc(100% - var(--rail-w)) 0 0 round var(--radius-panel));
+  --fold: calc(var(--panel-left-w) - var(--rail-w));
+  left: var(--panel-inset); overflow: hidden; border-radius: var(--radius-panel);
+  transform: translate3d(calc(-1 * var(--fold)), 0, 0);
   opacity: 0; visibility: hidden; pointer-events: none;
-  transition: clip-path var(--drawer-dur) var(--drawer-ease), opacity .3s var(--ease-out) .18s, visibility 0s linear var(--drawer-dur);
+  transition: transform var(--drawer-dur) var(--drawer-ease), opacity .25s var(--ease-out) .22s, visibility 0s linear var(--drawer-dur);
 }
+.drawer-left .panel-left { transform: translate3d(var(--fold), 0, 0); transition: transform var(--drawer-dur) var(--drawer-ease); }
 body.left-open .drawer-left {
-  clip-path: inset(0 0 0 0 round var(--radius-panel)); opacity: 1; visibility: visible; pointer-events: auto;
-  transition: clip-path var(--drawer-dur) var(--drawer-ease), opacity .12s var(--ease-out), visibility 0s;
+  transform: none; opacity: 1; visibility: visible; pointer-events: auto;
+  transition: transform var(--drawer-dur) var(--drawer-ease), opacity .1s var(--ease-out), visibility 0s;
 }
+body.left-open .drawer-left .panel-left { transform: none; }
+body:not(.left-open) .panel-left > * { opacity: 0; }
+body.drawer-moving .drawer-left { will-change: transform; }
 .drawer-right { right: var(--panel-inset); transform: translateX(calc(var(--panel-right-w) + var(--panel-inset) + 2px)); }
 body.right-open .drawer-right { transform: none; }
 
@@ -1938,6 +1945,23 @@ body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
 .a-c-toggle .ic { width: 15px; height: 15px; }
 .a-c-toggle[aria-expanded="true"] { color: var(--text-strong); }
 .a-c-n { min-width: 18px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); font: 600 11.5px/18px var(--font-mono); text-align: center; }
+/* read: the count goes gray; green only while someone else's comment waits unread */
+.a-c-n.read { background: rgb(var(--ink) / 0.08); color: var(--text-muted); transition: background .3s, color .3s; }
+/* the pinned Updates page */
+.a-pin { position: sticky; top: 0; z-index: 1; padding-bottom: 6px; margin-bottom: 4px; border-bottom: 1px solid rgb(var(--ink) / 0.08); }
+.a-pin-item .j-i-top { gap: 6px; }
+.a-pin-ic { width: 13px; height: 13px; color: var(--accent); flex: none; }
+.a-new-tag { order: 0; }
+.a-pin-body { overflow-y: auto; min-height: 0; grid-row: 3 / -1; padding-right: 4px; }
+.a-notice { display: block; overflow: visible; font-size: 15.5px; line-height: 1.75; }
+.a-pin-body > .j-foot { margin-top: 10px; }
+.a-notice-form { display: grid; gap: 8px; margin: 4px 0 18px; }
+.a-notice-input { min-height: 180px; resize: vertical; font: 14px/1.6 var(--font-mono); }
+.a-notice-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.a-notice-row .a-c-err { margin-right: auto; }
+.a-releases { display: grid; gap: 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid rgb(var(--ink) / 0.08); }
+.a-rel-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.a-rel ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; color: var(--text-muted); font-size: 13.5px; line-height: 1.55; }
 .a-c-n.bump { animation: a-c-bump .45s cubic-bezier(.2, 1.6, .4, 1); }
 @keyframes a-c-bump { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: none; } }
 .a-c-caret { transition: transform var(--dur-base) var(--ease-out); }

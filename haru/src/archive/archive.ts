@@ -4,6 +4,7 @@ import { mentionsIn, renderMarkdown } from '../ui/markdown';
 import { setBadge } from '../ui/badge';
 import { mentions } from '../cloud/viewing';
 import { askConfirm } from '../ui/modal';
+import { type Notice, markUpdatesSeen, updatesItem, updatesPage, updatesUnread, watchNotice } from './updates';
 
 /**
  * Archive: journal pages people chose to share (Share on a page in Journal), from everyone invited, newest
@@ -82,6 +83,36 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   let drawn = new Set<string>();
   let lastCount = -1;
   let postError = '';
+  // the Updates page pinned on top (its key never matches a shared page's)
+  const PIN = '__updates';
+  let notice: Notice | null = null;
+  let stopNotice: (() => void) | null = null;
+  let editingNotice = false;
+
+  // ---- comments you haven't read: per page, the time of the newest comment from someone else you have seen
+  const cSeenKey = (uid: string) => `haru:comments-seen:${uid}`;
+  const cSeen = (uid: string): Record<string, number> => {
+    try {
+      return JSON.parse(localStorage.getItem(cSeenKey(uid)) ?? '{}') as Record<string, number>;
+    } catch {
+      return {};
+    }
+  };
+  const newestOthers = (uid: string) => comments.reduce((m, { c }) => (c.uid !== uid ? Math.max(m, c.at) : m), 0);
+  const commentsUnread = (s: Session, key: string) => newestOthers(s.uid) > (cSeen(s.uid)[key] ?? 0);
+  function markCommentsSeen(s: Session, key: string): void {
+    const at = newestOthers(s.uid);
+    const all = cSeen(s.uid);
+    if (!at || (all[key] ?? 0) >= at) return;
+    all[key] = at;
+    // only the pages still shared are worth remembering
+    const live = new Set(pages.map((x) => keyOf(x)));
+    try {
+      localStorage.setItem(cSeenKey(s.uid), JSON.stringify(Object.fromEntries(Object.entries(all).filter(([k]) => live.has(k)))));
+    } catch {
+      // for this visit
+    }
+  }
 
   const keyOf = (p: Shared) => sharedId(p.authorUid, p.entryId);
 
@@ -114,7 +145,7 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   }
   function paintDots(): void {
     const s = session();
-    const n = pages.filter((p) => unread(p, s)).length;
+    const n = pages.filter((p) => unread(p, s)).length + (updatesUnread(s, notice) ? 1 : 0);
     setBadge('mentions', n);
     for (const el of document.querySelectorAll<HTMLElement>('[data-view="archive"]')) {
       el.classList.toggle('has-mention', n > 0);
@@ -126,6 +157,12 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   addEventListener('hashchange', () => {
     // turning to Archive reads the page it opens on
     if (!archiveShown()) return;
+    if (openKey === PIN) {
+      markUpdatesSeen(session(), notice);
+      paintDots();
+      renderList();
+      return;
+    }
     const p = pages.find((x) => keyOf(x) === openKey);
     if (p) markRead(p);
   });
@@ -137,16 +174,26 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
     return p;
   }
 
+  function openUpdates(): void {
+    openKey = PIN;
+    if (archiveShown()) markUpdatesSeen(session(), notice);
+    paintDots();
+    renderList();
+    renderReader();
+  }
+
   function renderList(): void {
     sum.textContent = pages.length ? `${pages.length} shared` : '';
+    const s0 = session();
+    const pin = s0 ? [updatesItem(openKey === PIN, updatesUnread(s0, notice), openUpdates)] : [];
     if (!pages.length) {
       const li = document.createElement('li');
       li.className = 'j-empty';
-      li.textContent = session() ? 'Nothing shared yet' : 'Sign in to see shared pages';
-      list.replaceChildren(li);
+      li.textContent = s0 ? 'Nothing shared yet' : 'Sign in to see shared pages';
+      list.replaceChildren(...pin, li);
       return;
     }
-    list.replaceChildren(...pages.map((p) => {
+    list.replaceChildren(...pin, ...pages.map((p) => {
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button';
@@ -176,15 +223,22 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
 
   function renderReader(): void {
     const s = session();
-    const p = pages.find((x) => keyOf(x) === openKey) ?? pages[0];
+    const p = openKey === PIN ? undefined : pages.find((x) => keyOf(x) === openKey) ?? pages[0];
     if (!s) {
       reader.replaceChildren(note('Pages shared from Journal show here once you sign in.'));
       return;
     }
     if (!p) {
-      reader.replaceChildren(note('Share a page from Journal and it shows here for everyone invited.'));
+      // the pinned Updates page (also what shows while nothing is shared)
+      openKey = PIN;
+      if (archiveShown()) markUpdatesSeen(s, notice);
+      reader.replaceChildren(...updatesPage(s, notice, editingNotice, (v) => {
+        editingNotice = v;
+        renderReader();
+      }));
       return;
     }
+    editingNotice = false;
     openKey = keyOf(p);
     if (archiveShown()) markRead(p);
     const head = document.createElement('div');
@@ -254,7 +308,10 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
     h.className = 'a-c-toggle';
     h.setAttribute('aria-expanded', String(commentsOpen));
     const n = document.createElement('span');
-    n.className = `a-c-n${lastCount >= 0 && comments.length !== lastCount ? ' bump' : ''}`;
+    if (commentsOpen && comments.length) markCommentsSeen(s, keyOf(p));
+    const fresh = commentsUnread(s, keyOf(p));
+    n.className = `a-c-n${fresh ? '' : ' read'}${lastCount >= 0 && comments.length !== lastCount ? ' bump' : ''}`;
+    if (fresh) n.title = 'New comments';
     n.textContent = String(comments.length);
     const label = document.createElement('span');
     label.className = 'a-c-label';
@@ -271,6 +328,11 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
       fold.classList.toggle('open', commentsOpen);
       h.setAttribute('aria-expanded', String(commentsOpen));
       label.textContent = commentsOpen ? 'Hide comments' : 'Show comments';
+      if (commentsOpen) {
+        markCommentsSeen(s, keyOf(p));
+        n.classList.add('read');
+        n.removeAttribute('title');
+      }
       if (commentsOpen) requestAnimationFrame(() => (ul.scrollTop = ul.scrollHeight));
     });
     fold.append(ul);
@@ -380,6 +442,10 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   function listen(s: Session | null): void {
     stop?.();
     stop = null;
+    stopNotice?.();
+    stopNotice = null;
+    notice = null;
+    editingNotice = false;
     stopComments?.();
     stopComments = null;
     commentsFor = null;
@@ -391,15 +457,24 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
         pages = snap.docs.map((d) => d.data() as Shared);
         // a page that names you opens first
         const s2 = session();
-        if (!openKey || !pages.some((x) => keyOf(x) === openKey)) {
-          const first = pages.find((x) => unread(x, s2)) ?? pages[0];
-          openKey = first ? keyOf(first) : null;
+        if (!openKey || (openKey !== PIN && !pages.some((x) => keyOf(x) === openKey))) {
+          const first = pages.find((x) => unread(x, s2)) ?? (updatesUnread(s2, notice) ? undefined : pages[0]);
+          openKey = first ? keyOf(first) : PIN;
         }
         paintDots();
         renderList();
-        renderReader();
+        // the notice being written isn't thrown away by someone sharing a page meanwhile
+        if (!(openKey === PIN && editingNotice)) renderReader();
       }, () => {
         reader.replaceChildren(note('The Archive couldn’t be loaded. Check your connection.'));
+      });
+      stopNotice = watchNotice(s, (n) => {
+        notice = n;
+        // open in front of you, it is read as it arrives
+        if (openKey === PIN && archiveShown()) markUpdatesSeen(session(), notice);
+        paintDots();
+        renderList();
+        if (openKey === PIN && !editingNotice) renderReader();
       });
     }
     paintDots();
