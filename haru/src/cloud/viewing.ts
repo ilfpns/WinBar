@@ -18,6 +18,13 @@ export const viewing = (): Profile | null => current;
 let members: Profile[] = [];
 /** Everyone invited, for naming people with @. */
 export const memberList = (): Profile[] => members;
+/** The uid `@ALL` carries: a mention of everyone invited. */
+export const ALL = 'all';
+/** Who `@` offers: ALL first, then everyone invited but `self`. */
+export const mentionable = (self?: string): { uid: string; name: string; photo: string | null }[] =>
+  [{ uid: ALL, name: 'ALL', photo: null }, ...members.filter((p) => p.uid !== self)];
+/** Whether a list of mentioned uids names `uid` (by name, or through ALL). */
+export const mentions = (list: string[] | undefined, uid: string): boolean => !!list && (list.includes(uid) || list.includes(ALL));
 
 export function onViewing(fn: (p: Profile | null) => void): void {
   listeners.add(fn);

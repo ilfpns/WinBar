@@ -2,6 +2,7 @@ import { avatar, onSession, session, type Session } from '../cloud/session';
 import { icon } from '../ui/icons';
 import { mentionsIn, renderMarkdown } from '../ui/markdown';
 import { setBadge } from '../ui/badge';
+import { mentions } from '../cloud/viewing';
 import { askConfirm } from '../ui/modal';
 
 /**
@@ -96,7 +97,7 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   };
   const stamp = (p: Shared) => `${keyOf(p)}@${p.sharedAt}`;
   const unread = (p: Shared, s: Session | null): boolean =>
-    !!s && p.authorUid !== s.uid && !!p.mentions?.includes(s.uid) && !seenSet(s.uid).has(stamp(p));
+    !!s && p.authorUid !== s.uid && mentions(p.mentions, s.uid) && !seenSet(s.uid).has(stamp(p));
   function markRead(p: Shared): void {
     const s = session();
     if (!unread(p, s)) return;

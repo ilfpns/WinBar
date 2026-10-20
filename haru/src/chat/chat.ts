@@ -1,5 +1,6 @@
 import { avatar, onSession, session, type Session } from '../cloud/session';
-import { memberList } from '../cloud/viewing';
+import { mentionable } from '../cloud/viewing';
+import { mentionsIn } from '../ui/markdown';
 import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
 import { currentView, onView } from '../ui/router';
@@ -106,10 +107,11 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   attach.append(icon('image-plus'));
   emojiBtn.append(icon('smile'));
   input.placeholder = 'Message everyone · / for blocks, @ to name someone';
-  input.people = () => memberList().filter((p) => p.uid !== session()?.uid);
+  input.people = () => mentionable(session()?.uid);
 
   let msgs: { id: string; m: Message }[] = [];
   let drawn = new Set<string>();
+  const mentionsOf = (text: string, uid: string) => { const l = mentionsIn(text); return l.includes(uid) || l.includes('all'); };
   /** Messages already known (the first snapshot only fills this: notices are for what arrives after). */
   let known: Set<string> | null = null;
   let stop: (() => void) | null = null;
@@ -417,7 +419,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
         msgs = snap.docs.map((d) => ({ id: d.id, m: d.data() as Message })).reverse();
         // someone else's new message: a notice, Discord-style (unless you're reading the chat right now)
         if (known) {
-          for (const { id, m } of msgs) if (!known.has(id) && m.uid !== s.uid) notifyMessage(m, looking());
+          for (const { id, m } of msgs) if (!known.has(id) && m.uid !== s.uid) notifyMessage(m, looking(), mentionsOf(m.text, s.uid));
         }
         known = new Set(msgs.map(({ id }) => id));
         render();

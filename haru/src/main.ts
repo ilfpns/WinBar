@@ -32,6 +32,7 @@ import { mountChat } from './chat/chat';
 import { mountInsights } from './journal/insights';
 import { addSplit } from './ui/splitter';
 import { mountPeek } from './timetable/peek';
+import { mountProfileCard } from './timetable/profile-card';
 import { mountViewing, viewing } from './cloud/viewing';
 import { mountNotionAttendance } from './calendar/notion-attendance';
 
@@ -79,6 +80,7 @@ mountChat(byId('chat-body'), byId('chat-sum'));
 // someone else's Today, read only
 mountViewing();
 mountPeek(byId('stage'));
+mountProfileCard(byId('stage'));
 mountWinBarLink();
 mountBackup({
   status: byId('backup-status'),

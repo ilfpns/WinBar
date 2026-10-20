@@ -30,7 +30,7 @@ function inline(text: string): string {
   const keep = (html: string) => `\u0000${kept.push(html) - 1}\u0000`;
   const link = (url: string, label: string) => keep(`<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
   const s = esc(text)
-    .replace(/@\[([^\]]+)\]\(user:([\w-]+)\)/g, (_, name: string, uid: string) => keep(`<span class="md-mention" data-uid="${uid}">@${name}</span>`))
+    .replace(/@\[([^\]]+)\]\(user:([\w-]+)\)/g, (_, name: string, uid: string) => keep(`<span class="md-mention${uid === 'all' ? ' all' : ''}" data-uid="${uid}">@${name}</span>`))
     .replace(/`([^`]+)`/g, (_, c: string) => keep(`<code>${c}</code>`))
     .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label: string, url: string) => (SAFE_URL.test(url) ? link(url, label) : m))
     .replace(/(^|[\s(])(https?:\/\/[^\s<)\u0000]+)/g, (_, pre: string, url: string) => pre + link(url, url))

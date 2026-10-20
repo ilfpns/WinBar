@@ -7,7 +7,7 @@ import { printPdf } from '../ui/print';
 import { IMG_LINE, imageLine } from '../ui/markdown';
 import { askConfirm, askText, showMenu } from '../ui/modal';
 import { onSession, session } from '../cloud/session';
-import { memberList } from '../cloud/viewing';
+import { mentionable } from '../cloud/viewing';
 import { sharePage, unsharePage } from '../archive/archive';
 import { imagesStore, onImagesChanged } from '../calendar/images';
 
@@ -466,7 +466,7 @@ export function mountJournal(body: HTMLElement): void {
   }
   text.imageUrl = photoUrl;
   // @ names someone invited (yourself aside); shared to Archive, they see a dot until they read it
-  text.people = () => memberList().filter((p) => p.uid !== session()?.uid);
+  text.people = () => mentionable(session()?.uid);
   text.addEventListener('md-image', (e) => {
     const { id, action } = (e as CustomEvent<{ id: string; action: string }>).detail;
     const store = imagesStore();

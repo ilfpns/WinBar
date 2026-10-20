@@ -1996,6 +1996,47 @@ body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
 /* their dial takes your dial's box; yours (and your other views) wait hidden underneath */
 .peek-dial { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; animation: tt-open .3s var(--ease-out) both; }
 .dial-wrap.peeking > :is(#dial, #orb-canvas, #orb-layer, .today-chart) { visibility: hidden; }
+/* looking at someone: their card beside the dial (today, attendance, the last seven days) */
+.who-card {
+  position: absolute; z-index: 6; top: 74px; right: 24px; width: min(300px, calc(100vw - 48px)); display: grid; gap: 14px; padding: 16px;
+  max-height: calc(100% - 100px); overflow-y: auto;
+}
+.who-card[hidden] { display: none; }
+.who-card.in { animation: who-in .38s var(--ease-out); }
+@keyframes who-in { from { opacity: 0; transform: translateY(-8px) scale(.98); } }
+.who-head { display: flex; align-items: center; gap: 12px; }
+.who-face { width: 42px; height: 42px; font-size: 15px; }
+.who-name { display: grid; gap: 2px; min-width: 0; }
+.who-name strong { font-size: 16px; color: var(--text-strong); }
+.who-name .meta { text-transform: none; font-size: 11.5px; }
+.who-sec { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.who-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.who-today { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px; }
+.who-ring { position: relative; width: 64px; height: 64px; display: grid; place-items: center; }
+.who-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.who-ring circle { fill: none; stroke-width: 3.2; }
+.who-ring .t { stroke: rgb(var(--ink) / 0.08); }
+.who-ring .a { stroke: var(--chart-bar); stroke-linecap: round; stroke-dasharray: 100; transition: stroke-dashoffset 1s var(--ease-out); }
+.who-ring strong { font-size: 15px; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.who-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; margin: 0; font-size: 12.5px; }
+.who-facts dt { color: var(--text-subtle); }
+.who-facts dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.who-streak { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--accent); }
+.who-streak .ic { width: 13px; height: 13px; }
+.who-grass { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 3px; justify-content: start; }
+.who-grass i { width: 12px; height: 12px; border-radius: 3px; background: rgb(var(--ink) / 0.06); }
+.who-grass i.on { background: var(--chart-bar); }
+.who-grass i.today { box-shadow: 0 0 0 1.5px var(--text-muted); }
+.who-cols { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 84px; }
+.who-col { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; }
+.who-bar { position: relative; border-radius: 5px 5px 3px 3px; background: rgb(var(--ink) / 0.04); overflow: hidden; }
+.who-bar i { position: absolute; left: 0; right: 0; bottom: 0; animation: who-grow .6s var(--ease-out) both; animation-delay: calc(var(--i) * 40ms); transform-origin: bottom; }
+.who-bar i.plan { background: color-mix(in srgb, var(--chart-bar) 30%, transparent); }
+.who-bar i.done { background: var(--chart-bar); }
+@keyframes who-grow { from { transform: scaleY(0); } }
+.who-col-label { text-align: center; font: 400 10.5px var(--font-mono); color: var(--text-subtle); }
+@media (max-width: 760px) { .who-card { top: auto; bottom: 70px; right: 12px; max-height: 45svh; } }
+@media (prefers-reduced-motion: reduce) { .who-card.in, .who-bar i { animation: none; } }
 /* while looking, your own task drawer and Today's view switcher step aside */
 body.viewing :is(.drawer-right, .today-views) { visibility: hidden; }
 /* only Today can be looked at: the people button and the bar belong to it */
@@ -2170,6 +2211,8 @@ md-editor code { padding: 1px 4px; border-radius: 5px; background: rgb(var(--ink
 md-editor strong { font-weight: 650; color: var(--text-strong); }
 /* a mention: @name as a chip */
 .md-mention { padding: 0 5px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 600; white-space: nowrap; }
+/* @ALL: everyone, in the warm tone that says "this is for you too" */
+.md-mention.all { background: color-mix(in srgb, #f2b13a 18%, transparent); color: #f2b13a; }
 md-editor .md-mention .mk { font-weight: 400; }
 /* in the editor the @ is drawn (the text keeps only @[name](user:uid), shown while its line is edited) */
 md-editor .md-l:not(.active) .md-mention::before { content: "@"; }

@@ -95,7 +95,7 @@ function inline(src: string): string {
     if (m[1]) {
       // a mention: @name as a chip (its uid stays in the text)
       const [, name, uid] = /^@\[([^\]]+)\]\(user:([\w-]+)\)$/.exec(t)!;
-      out += `<span class="md-mention" data-uid="${attr(uid!)}">${mk('@[')}${esc(name!)}${mk(`](user:${uid})`)}</span>`;
+      out += `<span class="md-mention${uid === 'all' ? ' all' : ''}" data-uid="${attr(uid!)}">${mk('@[')}${esc(name!)}${mk(`](user:${uid})`)}</span>`;
     } else if (m[2]) out += `<code>${mk('`')}${esc(t.slice(1, -1))}${mk('`')}</code>`;
     else if (m[3]) out += `<strong>${mk('**')}${esc(t.slice(2, -2))}${mk('**')}</strong>`;
     else if (m[4]) out += `<del>${mk('~~')}${esc(t.slice(2, -2))}${mk('~~')}</del>`;

@@ -35,8 +35,14 @@ service cloud.firestore {
     match /users/{uid}/{document=**} {
       allow read, write: if isInvited() && request.auth.uid == uid;
     }
-    // …but everyone invited may look at (never change) anyone's Today
+    // …but everyone invited may look at (never change) anyone's Today, attendance and past days
     match /users/{uid}/state/timetable {
+      allow read: if isInvited();
+    }
+    match /users/{uid}/lists/checkins {
+      allow read: if isInvited();
+    }
+    match /users/{uid}/days/{date} {
       allow read: if isInvited();
     }
 

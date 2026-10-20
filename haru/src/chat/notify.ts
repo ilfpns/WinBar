@@ -98,9 +98,11 @@ function card(name: string, photo: string | null, body: string): void {
 }
 
 /** Tells you about a message someone else just sent (if notifications are on and you aren't reading the chat). */
-export function notifyMessage(m: { name: string; photo: string | null; text: string; images?: string[] }, inChat: boolean): void {
+export function notifyMessage(m: { name: string; photo: string | null; text: string; images?: string[] }, inChat: boolean, mentioned = false): void {
   if (!notifyOn()) return;
-  const body = plain(m.text, m.images?.length ?? 0);
+  // named (by name or @ALL): said first
+  const called = mentioned ? (lang() === 'ko' ? '나를 불렀어요 · ' : 'mentioned you · ') : '';
+  const body = called + plain(m.text, m.images?.length ?? 0);
   const away = document.visibilityState === 'hidden' || !document.hasFocus();
   if (away && 'Notification' in window && Notification.permission === 'granted') {
     const n = new Notification(`${m.name} · Haru`, { body, icon: m.photo ?? `${import.meta.env.BASE_URL}favicon.png`, tag: 'haru-chat' });

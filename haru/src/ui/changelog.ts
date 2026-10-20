@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.20',
+    date: '2026-10-20',
+    items: [
+      '멘션에 @ALL 추가: 모두를 부르면 모두의 아카이브에 점, 채팅 알림에 "나를 불렀어요"',
+      'Today에서 다른 사람을 고르면 정보 카드: 오늘 완료율·계획·지금 하는 일·다음 일, 출석 연속·최고·5주 잔디, 최근 7일',
+    ],
+  },
+  {
     version: '1.19',
     date: '2026-10-20',
     items: [
