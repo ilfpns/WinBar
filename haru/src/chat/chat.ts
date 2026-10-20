@@ -2,10 +2,12 @@ import { avatar, onSession, session, type Session } from '../cloud/session';
 import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
 import { currentView, onView } from '../ui/router';
+import { setBadge } from '../ui/badge';
 
 /**
- * Chat: one room for everyone invited, under Archive. Messages arrive live (the latest 300), yours on the
- * right; a run of messages from one person within a few minutes shares one name line, and days are marked.
+ * Chat: one room for everyone invited, under Archive. Messages arrive live (the latest 300), every one on the
+ * left with who sent it (face and name; yours marked "me" and tinted); a run of messages from one person within
+ * a few minutes shares one name line, and days are marked.
  * A message from someone else you haven't seen puts a bouncing dot (and how many) on Chat's buttons until
  * you open the room. You can take back your own messages.
  */
@@ -71,6 +73,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       }
     }
     const n = s ? msgs.filter(({ m }) => m.uid !== s.uid && m.at > seenAt(s.uid)).length : 0;
+    setBadge('chat', n);
     for (const el of document.querySelectorAll<HTMLElement>('[data-view="chat"]')) {
       el.classList.toggle('has-unread', n > 0);
       if (n) el.dataset.unread = String(Math.min(n, 99));
@@ -128,17 +131,17 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       const li = document.createElement('li');
       li.className = `chat-msg${mine ? ' mine' : ''}${cont ? ' cont' : ''}${drawn.has(id) ? '' : ' new'}`;
       drawn.add(id);
-      if (!mine) {
-        const face = avatar({ name: m.name, photo: m.photo }, 'a-avatar chat-face');
-        if (cont) face.style.visibility = 'hidden';
-        li.append(face);
-      }
+      // who sent it: their face by every run, their name over its first message
+      const face = avatar({ name: m.name, photo: m.photo }, 'a-avatar chat-face');
+      if (cont) face.style.visibility = 'hidden';
+      li.append(face);
       const col = document.createElement('div');
       col.className = 'chat-col';
-      if (!cont && !mine) {
+      if (!cont) {
         const who = document.createElement('span');
         who.className = 'chat-who';
         who.textContent = m.name;
+        if (mine) who.append(Object.assign(document.createElement('span'), { className: 'chat-me', textContent: 'me' }));
         col.append(who);
       }
       const row = document.createElement('div');

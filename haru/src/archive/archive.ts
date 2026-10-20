@@ -1,6 +1,7 @@
 import { avatar, onSession, session, type Session } from '../cloud/session';
 import { icon } from '../ui/icons';
 import { mentionsIn, renderMarkdown } from '../ui/markdown';
+import { setBadge } from '../ui/badge';
 import { askConfirm } from '../ui/modal';
 
 /**
@@ -113,6 +114,7 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   function paintDots(): void {
     const s = session();
     const n = pages.filter((p) => unread(p, s)).length;
+    setBadge('mentions', n);
     for (const el of document.querySelectorAll<HTMLElement>('[data-view="archive"]')) {
       el.classList.toggle('has-mention', n > 0);
       if (n) el.dataset.mentions = String(n);
