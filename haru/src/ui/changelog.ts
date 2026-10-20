@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.22',
+    date: '2026-10-20',
+    items: [
+      '채팅 반응: 다른 사람 메시지에 마우스를 올리면 하트·체크 버튼, 누른 반응은 메시지 아래에 개수와 함께 표시 (다시 누르면 취소)',
+      '모든 입력칸에서 한 글자만 쳐도 회색 안내 문구가 남아 보이던 문제 수정 (키를 누르는 순간 사라짐)',
+    ],
+  },
+  {
     version: '1.21',
     date: '2026-10-20',
     items: [

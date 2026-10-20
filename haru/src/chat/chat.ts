@@ -31,7 +31,13 @@ interface Message {
   /** Photos as JPEG data URLs, shrunk to fit a message. */
   images?: string[];
   at: number;
+  /** Who reacted, by reaction (their uids). */
+  reactions?: Partial<Record<Reaction, string[]>>;
 }
+/** The reactions a message can take: a heart, a check. */
+const REACTIONS = ['heart', 'check'] as const;
+type Reaction = (typeof REACTIONS)[number];
+const REACTION_LABEL: Record<Reaction, string> = { heart: 'Heart', check: 'Check' };
 const MAX = 1000;
 const MAX_IMAGES = 4;
 /** Each photo is shrunk until it is about this many characters (a Firestore document holds 1 MB in all). */
@@ -275,6 +281,28 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
     err.hidden = false;
   }
 
+  /** A name for a uid, from who has written in the chat (or "someone"). */
+  const nameOf = (uid: string): string => (uid === session()?.uid ? 'you' : msgs.find(({ m }) => m.uid === uid)?.m.name ?? 'someone');
+
+  /** Puts your heart or check on a message, or takes it back. */
+  async function react(s: Session, id: string, m: Message, r: Reaction): Promise<void> {
+    const on = !!m.reactions?.[r]?.includes(s.uid);
+    const { fs, db } = s.fb;
+    // drawn at once; the snapshot confirms it (or puts it back)
+    const who = new Set(m.reactions?.[r] ?? []);
+    if (on) who.delete(s.uid);
+    else who.add(s.uid);
+    m.reactions = { ...m.reactions, [r]: [...who] };
+    render();
+    try {
+      await fs.updateDoc(fs.doc(db, 'chat', id), { [`reactions.${r}`]: on ? fs.arrayRemove(s.uid) : fs.arrayUnion(s.uid) });
+    } catch (x) {
+      showError(String((x as { code?: string })?.code ?? '').includes('permission')
+        ? 'Reactions aren’t allowed yet: the Firestore rules need publishing again'
+        : 'Couldn’t react. Check your connection.');
+    }
+  }
+
   function render(): void {
     const s = session();
     const people = new Set(msgs.map(({ m }) => m.uid)).size;
@@ -354,6 +382,23 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       time.className = 'chat-time';
       time.textContent = clock(m.at);
       row.append(bubble, time);
+      // someone else's message takes a heart or a check: two small buttons beside it on hover
+      if (!mine) {
+        const pick = document.createElement('span');
+        pick.className = 'chat-react-pick';
+        for (const r of REACTIONS) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = `chat-react-btn r-${r}${m.reactions?.[r]?.includes(s.uid) ? ' on' : ''}`;
+          b.setAttribute('aria-label', REACTION_LABEL[r]);
+          b.setAttribute('aria-pressed', String(!!m.reactions?.[r]?.includes(s.uid)));
+          b.title = REACTION_LABEL[r];
+          b.append(icon(r));
+          b.addEventListener('click', () => void react(s, id, m, r));
+          pick.append(b);
+        }
+        row.append(pick);
+      }
       if (mine) {
         const del = document.createElement('button');
         del.type = 'button';
@@ -369,6 +414,26 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
         row.append(del);
       }
       col.append(row);
+      // the reactions it has: a chip each, with how many (yours lit; a click on someone else's message turns yours)
+      const given = REACTIONS.filter((r) => m.reactions?.[r]?.length);
+      if (given.length) {
+        const chips = document.createElement('div');
+        chips.className = 'chat-reacts';
+        for (const r of given) {
+          const who = m.reactions![r]!;
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = `chat-react r-${r}${who.includes(s.uid) ? ' on' : ''}`;
+          b.disabled = mine;
+          const names = who.map((u) => nameOf(u)).join(', ');
+          b.title = `${REACTION_LABEL[r]} · ${names}`;
+          b.setAttribute('aria-label', `${REACTION_LABEL[r]} ${who.length}: ${names}`);
+          b.append(icon(r), Object.assign(document.createElement('span'), { textContent: String(who.length) }));
+          if (!mine) b.addEventListener('click', () => void react(s, id, m, r));
+          chips.append(b);
+        }
+        col.append(chips);
+      }
       li.append(col);
       out.push(li);
       prev = m;

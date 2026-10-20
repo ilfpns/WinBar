@@ -261,6 +261,16 @@ export class MdEditor extends HTMLElement {
       // a syllable on its way is already text: the placeholder goes now, not when it commits
       this.classList.remove('empty');
     });
+    // a key that types (or an IME's "processing" key) clears the placeholder before any letter is drawn; the next
+    // frame sets it back from what is really there
+    this.addEventListener('keydown', (e) => {
+      if (!this.classList.contains('empty') || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key.length !== 1 && e.keyCode !== 229) return;
+      this.classList.remove('empty');
+      requestAnimationFrame(() => {
+        if (!this.composing) this.classList.toggle('empty', !unZW(this.textContent).length);
+      });
+    });
     this.addEventListener('compositionend', () => {
       this.composing = false;
       this.onInput();

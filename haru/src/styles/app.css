@@ -2134,7 +2134,9 @@ body:not([data-view="today"]) > :is(.peek-btn, .peek-bar) { display: none !impor
 md-editor { display: block; position: relative; min-height: 0; overflow-y: auto; overscroll-behavior: contain; outline: none; cursor: text;
   white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; caret-color: var(--accent); }
 md-editor:focus-visible { outline: none; }
-md-editor.empty::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--text-subtle); }
+/* the placeholder sits out of the text's flow (where the first line starts, as nothing): taking it away moves no
+   line, so the browser can't leave it painted behind the first letter (it did, under a Korean IME, as a float) */
+md-editor.empty::before { content: attr(data-placeholder); position: absolute; max-width: calc(100% - 8px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; pointer-events: none; color: var(--text-subtle); }
 md-editor { --md-fs: 15px; }
 .cal-note { --md-fs: 14px; }
 .j-editor .j-text { --md-fs: 15.5px; }
@@ -2302,8 +2304,23 @@ md-editor .md-l:not(.active) .md-mention::before { content: "@"; }
 .chat-time { flex: none; font: 400 10.5px var(--font-mono); color: var(--text-subtle); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
 .chat-msg:hover .chat-time, .chat-msg:last-child .chat-time { opacity: 1; }
 .chat-del { opacity: 0; }
+/* reactions: a heart and a check beside someone else's message on hover; under it, a chip per reaction */
+.chat-react-pick { display: inline-flex; gap: 2px; flex: none; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.chat-msg:hover .chat-react-pick, .chat-react-pick:focus-within { opacity: 1; }
+.chat-react-btn { display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 8px; background: none; color: var(--text-subtle); cursor: pointer; }
+.chat-react-btn .ic { width: 14px; height: 14px; }
+.chat-react-btn:hover { background: rgb(var(--ink) / 0.07); color: var(--text); }
+.chat-react-btn.r-heart.on, .chat-react.r-heart.on { color: #f2667c; }
+.chat-react-btn.r-check.on, .chat-react.r-check.on { color: var(--accent); }
+.chat-react-btn.r-heart.on .ic { fill: currentColor; }
+.chat-reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.chat-react { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 1px solid rgb(var(--ink) / 0.1); border-radius: 999px; background: rgb(var(--ink) / 0.04); color: var(--text-muted); font: 500 11.5px var(--font-mono); cursor: pointer; }
+.chat-react .ic { width: 12px; height: 12px; }
+.chat-react.on { border-color: currentColor; background: color-mix(in srgb, currentColor 12%, transparent); }
+.chat-react.r-heart.on .ic { fill: currentColor; }
+.chat-react:disabled { cursor: default; }
 .chat-msg:hover .chat-del, .chat-del:focus-visible { opacity: 1; }
-@media (hover: none) { .chat-time, .chat-del { opacity: 1; } }
+@media (hover: none) { .chat-time, .chat-del, .chat-react-pick { opacity: 1; } }
 .chat-form { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 8px; }
 .chat-tools { display: flex; gap: 2px; padding-bottom: 3px; }
 .chat-tools .icon-btn { width: 36px; height: 36px; border-radius: 12px; }

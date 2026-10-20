@@ -15,6 +15,14 @@ service cloud.firestore {
     function isOwner() {
       return signedIn() && email() in ['publicclaude223@gmail.com', 'yeomsh09@gmail.com'];
     }
+    // a chat message's reactions of one kind before and after a change differ by the writer's own uid alone
+    function reactsOnlyAs(kind) {
+      let before = resource.data.get('reactions', {}).get(kind, []).toSet();
+      let after = request.resource.data.reactions.get(kind, []).toSet();
+      return after.size() <= 100
+        && after.difference(before).hasOnly([request.auth.uid])
+        && before.difference(after).hasOnly([request.auth.uid]);
+    }
     // the one account that writes the Updates notice pinned in the Archive
     function isAdmin() {
       return signedIn() && email() == 'publicclaude223@gmail.com';
@@ -90,6 +98,12 @@ service cloud.firestore {
         && (request.resource.data.text.size() > 0
           || (request.resource.data.images is list && request.resource.data.images.size() > 0))
         && (!('images' in request.resource.data) || (request.resource.data.images is list && request.resource.data.images.size() <= 4));
+      // a heart or a check: anyone invited changes only the reactions, and only their own uid in them
+      allow update: if isInvited()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+        && request.resource.data.reactions is map
+        && request.resource.data.reactions.keys().hasOnly(['heart', 'check'])
+        && reactsOnlyAs('heart') && reactsOnlyAs('check');
       allow delete: if isInvited() && (resource.data.uid == request.auth.uid || isOwner());
     }
     // the shared board: everyone invited sees it and draws as themselves (a stroke of up to 1500 points); a stroke
