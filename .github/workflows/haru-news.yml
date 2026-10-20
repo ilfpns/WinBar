@@ -42,6 +42,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # start from the newest gh-pages (a deploy or a change-request outcome may have landed meanwhile), then
+          # lay only this run's files on it, so nothing published since the checkout is overwritten
+          mkdir -p /tmp/run && cp data/news.json /tmp/run/ && (cp data/school-timetable.json /tmp/run/ 2>/dev/null || true)
+          git fetch -q --depth 1 origin gh-pages && git reset -q --hard FETCH_HEAD
+          cp /tmp/run/news.json data/ && (cp /tmp/run/school-timetable.json data/ 2>/dev/null || true)
           git add data/news.json
           git add data/school-timetable.json 2>/dev/null || true
           if git diff --cached --quiet; then echo "no change"; exit 0; fi

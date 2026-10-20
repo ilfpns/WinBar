@@ -1,6 +1,8 @@
-// The change-request queue ("@변경요청 …" in Haru's chat, Firestore `change-requests`), for whoever develops Haru.
+// The change-request queue ("/변경요청 …" in Haru's chat, Firestore `change-requests`), for whoever develops Haru.
 // Nothing here changes the app: it lists what is waiting, and records what became of a request in
-// public/data/change-requests.json (published with the site, shown in the chat under the request).
+// public/data/change-requests.json, which `done` and `declined` also put straight onto the published site (the
+// gh-pages branch, like the news and attendance runs do), so the chat stops showing "대기 중" within a minute or two
+// instead of at the next full deploy. Add --no-publish to only write the file.
 //
 //   node scripts/change-requests.mjs list                          what is waiting (oldest first)
 //   node scripts/change-requests.mjs all                           every request and its state
@@ -8,7 +10,11 @@
 //   node scripts/change-requests.mjs declined <id> "<reason>"      won't make it
 //
 // Reading needs no sign-in (the collection is open to read, see firestore.rules); Node 18+, no dependencies.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID ?? 'haru-5e81a';
 const OUT = new URL('../public/data/change-requests.json', import.meta.url);
@@ -38,9 +44,31 @@ async function queue() {
   }).sort((a, b) => a.at - b.at);
 }
 
+/** Puts the outcomes file on the published site: one file into the single gh-pages snapshot commit. */
+function publish() {
+  const git = (args, cwd) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
+  const remote = git(['remote', 'get-url', 'origin'], fileURLToPath(new URL('..', import.meta.url)));
+  const dir = mkdtempSync(join(tmpdir(), 'haru-pages-'));
+  try {
+    git(['clone', '-q', '--depth', '1', '--branch', 'gh-pages', remote, dir]);
+    mkdirSync(join(dir, 'data'), { recursive: true });
+    copyFileSync(fileURLToPath(OUT), join(dir, 'data', 'change-requests.json'));
+    git(['add', 'data/change-requests.json'], dir);
+    if (!git(['status', '--porcelain'], dir)) return console.log('사이트에 이미 같은 내용이 있다');
+    // gh-pages stays one snapshot commit, as the deploy and the Actions runs keep it
+    git(['commit', '-q', '--amend', '-m', 'Deploy to GitHub Pages'], dir);
+    git(['push', '-q', '-f', 'origin', 'gh-pages'], dir);
+    console.log('사이트에 올림: 1~2분 안에 채팅 표시가 바뀐다');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 const when = (t) => new Date(t).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-const [cmd = 'list', id, note, version] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const noPublish = args.includes('--no-publish');
+const [cmd = 'list', id, note, version] = args.filter((a) => a !== '--no-publish');
 try {
 if (cmd === 'list' || cmd === 'all') {
   const done = outcomes();
@@ -58,7 +86,8 @@ if (cmd === 'list' || cmd === 'all') {
   const all = outcomes();
   all[id] = { status: cmd, summary: note, ...(version ? { version } : {}), at: Date.now() };
   writeFileSync(OUT, JSON.stringify({ updated: new Date().toISOString(), requests: all }, null, 2) + '\n');
-  console.log(`${id}: ${cmd} — 배포하면 채팅에 보인다`);
+  console.log(`${id}: ${cmd}`);
+  if (!noPublish) publish();
   }
 } else {
   console.error('commands: list | all | done <id> "<summary>" [v1.x] | declined <id> "<reason>"');

@@ -42,6 +42,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # start from the newest gh-pages (a deploy or a change-request outcome may have landed meanwhile), then
+          # lay only this run's file on it, so nothing published since the checkout is overwritten
+          mkdir -p /tmp/run && cp data/attendance.json /tmp/run/
+          git fetch -q --depth 1 origin gh-pages && git reset -q --hard FETCH_HEAD
+          cp /tmp/run/attendance.json data/
           git add data/attendance.json
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
           # keep gh-pages a single snapshot commit
