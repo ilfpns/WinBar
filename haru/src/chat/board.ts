@@ -35,7 +35,7 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
       <div class="board-colors" role="radiogroup" aria-label="Colour"></div>
       <div class="board-sizes" role="radiogroup" aria-label="Width"></div>
       <span class="board-fill"></span>
-      <button type="button" class="icon-btn board-undo" aria-label="Undo my last stroke" title="Undo my last stroke"></button>
+      <button type="button" class="icon-btn board-undo" aria-label="Undo my last stroke" title="Undo my last stroke (Ctrl+Z · redo Ctrl+Shift+Z)"></button>
       <button type="button" class="icon-btn board-clear" aria-label="Clear my drawing" title="Clear my drawing"></button>
       <button type="button" class="btn-sm board-close">Done</button>
     </div>
@@ -126,7 +126,7 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
   function place(s: Stroke): number[] | null {
     const dpr = devicePixelRatio || 1;
     const W = canvas.width;
-    if (!s.anchor) return s.pts.map((v, i) => v * (i % 2 ? canvas.height : W));
+    if (!s.anchor) return null;
     const top = anchorTop(s.anchor);
     if (top === null) return null;
     return s.pts.map((v, i) => (i % 2 ? (top + v) * dpr : v * W));
@@ -224,6 +224,10 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
     const done = live;
     live = null;
     if (!s || !done) return;
+    undone = [];
+    await save(s, done);
+  };
+  async function save(s: Session, done: Stroke): Promise<void> {
     // shown at once; the snapshot replaces it when the write lands
     const tmp = { id: `local-${done.at}`, s: done };
     strokes.push(tmp);
@@ -238,7 +242,7 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
         ? 'The board isn’t allowed yet: the Firestore rules need publishing again'
         : 'Couldn’t save that stroke. Check your connection.');
     }
-  };
+  }
   canvas.addEventListener('pointerup', () => void end());
   canvas.addEventListener('pointercancel', () => void end());
 
@@ -255,13 +259,26 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
     const s = session();
     return s ? strokes.filter((t) => t.s.uid === s.uid && !t.id.startsWith('local-')) : [];
   };
-  panel.querySelector('.board-undo')!.addEventListener('click', () => {
+  // what you undid, newest last, to bring back with redo (a new stroke forgets it)
+  let undone: Stroke[] = [];
+  function undo(): void {
     const s = session();
     const last = mine().at(-1);
-    if (!s || !last) return;
+    if (!s || !last) return say('Nothing of yours to undo');
+    undone.push(last.s);
+    // gone at once; the snapshot agrees when the delete lands
+    strokes = strokes.filter((t) => t !== last);
+    redraw();
     const { fs, db } = s.fb;
     void fs.deleteDoc(fs.doc(db, 'board', last.id)).catch(() => {});
-  });
+  }
+  async function redo(): Promise<void> {
+    const s = session();
+    const back = undone.pop();
+    if (!s || !back) return say('Nothing to redo');
+    await save(s, { ...back, at: Date.now() });
+  }
+  panel.querySelector('.board-undo')!.addEventListener('click', undo);
   panel.querySelector('.board-clear')!.addEventListener('click', async () => {
     const s = session();
     if (!s) return;
@@ -283,7 +300,20 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
   opener.addEventListener('click', () => setDrawing(!drawing()));
   panel.querySelector('.board-close')!.addEventListener('click', () => setDrawing(false));
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && drawing() && !document.querySelector('dialog[open]')) setDrawing(false);
+    if (!drawing() || document.querySelector('dialog[open]')) return;
+    if (e.key === 'Escape') return setDrawing(false);
+    // Ctrl+Z takes back your last stroke, Ctrl+Shift+Z (or Ctrl+Y) brings it back — but not while typing a message
+    const t = e.target as HTMLElement | null;
+    if (t?.closest('input, textarea, [contenteditable="true"], md-editor')) return;
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      undo();
+    } else if ((k === 'z' && e.shiftKey) || k === 'y') {
+      e.preventDefault();
+      void redo();
+    }
   });
 
   function listen(s: Session | null): void {
@@ -294,7 +324,9 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
     if (s) {
       const { fs, db } = s.fb;
       stop = fs.onSnapshot(fs.query(fs.collection(db, 'board'), fs.orderBy('at', 'asc'), fs.limit(1500)), (snap) => {
-        strokes = snap.docs.map((d) => ({ id: d.id, s: d.data() as Stroke }));
+        const all = snap.docs.map((d) => ({ id: d.id, s: d.data() as Stroke }));
+        strokes = all.filter((t) => !!t.s.anchor);
+        for (const t of all) if (!t.s.anchor && (t.s.uid === s.uid || s.owner)) void fs.deleteDoc(fs.doc(db, 'board', t.id)).catch(() => {});
         redraw();
       }, () => say('The board couldn’t be loaded. Check your connection.'));
     }
