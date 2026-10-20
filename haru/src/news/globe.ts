@@ -128,6 +128,8 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
 
   const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   let colors = { dot: css('--text-muted'), hi: css('--text-strong'), rim: css('--line-strong'), accent: css('--accent') };
+  // the label fonts, read once (reading a style while drawing would make the browser work out the page's styles)
+  const fonts = { sans: css('--font-sans') || 'sans-serif', mono: css('--font-mono') || 'monospace' };
 
   // orientation is a 3×3 rotation (row-major), so drags roll the ball freely — over the poles too.
   // Screen-space turns pre-multiply (roll the ball as seen); the idle spin post-multiplies (around Earth's own axis).
@@ -386,7 +388,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     // at half the cost; anything touched, zoomed, picked or sweeping draws every frame
     const calm = !drag && !pointer && !aim && Math.abs(zoomTo - zoom) <= 1e-3 && !fading && now - lastTouch > 1500 && now - heatAt > 3000;
     const due = !calm || now - lastDraw >= 30;
-    if (due && !bodyCls.contains('switching') && !bodyCls.contains('drawer-moving')) {
+    if (due && !document.hidden && !bodyCls.contains('switching') && !bodyCls.contains('drawer-moving')) {
       lastDraw = now;
       draw(now);
     }
@@ -568,7 +570,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
   function drawAnnouncements(now: number, base: number): void {
     for (let k = announcements.length - 1; k >= 0; k--) if (now - announcements[k]!.start > ANNOUNCE_MS) announcements.splice(k, 1);
     if (!announcements.length) return;
-    ctx.font = `500 ${11.5 * dpr}px ${css('--font-sans') || 'sans-serif'}`;
+    ctx.font = `500 ${11.5 * dpr}px ${fonts.sans}`;
     ctx.textBaseline = 'middle';
     for (const a of announcements) {
       const p = project(a.m);
@@ -604,7 +606,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
 
   /** News pins: a ring sized by how much is new there; the hovered or picked one is filled and named. */
   function drawMarkers(now: number, base: number): void {
-    ctx.font = `500 ${11 * dpr}px ${css('--font-mono') || 'monospace'}`;
+    ctx.font = `500 ${11 * dpr}px ${fonts.mono}`;
     ctx.textBaseline = 'middle';
     for (const m of markers) {
       const p = project(m);
@@ -699,6 +701,8 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     warm() {
       fit();
       for (let i = 0; i < 4; i++) draw(performance.now());
+      // that picture holds until the page opens (nothing turns while it is away): no second draw on the way in
+      if (!active) fresh = true;
     },
   };
 }

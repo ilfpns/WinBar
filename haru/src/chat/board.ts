@@ -1,6 +1,7 @@
 import { onSession, session, type Session } from '../cloud/session';
 import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
+import { currentView, onView } from '../ui/router';
 
 /**
  * Drawing on the chat itself, like drawing on a story: a clear layer over the messages that everyone invited
@@ -90,7 +91,19 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
   let stop: (() => void) | null = null;
 
   // ---- the layer lies exactly over the list of messages, crisp on any screen
+  // measured and drawn only while the chat is in view (on another page each measure would force a layout of the
+  // whole hidden chat); whatever changed meanwhile is caught up when it comes back
+  const shown = () => currentView() === 'chat';
+  let stale = true;
+  onView((v) => {
+    if (v === 'chat' && stale) requestAnimationFrame(fit);
+  });
   const fit = () => {
+    if (!shown()) {
+      stale = true;
+      return;
+    }
+    stale = false;
     const lr = list.getBoundingClientRect();
     const rr = room.getBoundingClientRect();
     Object.assign(panel.style, { left: `${lr.left - rr.left}px`, top: `${lr.top - rr.top}px`, width: `${lr.width}px`, height: `${lr.height}px` });
@@ -162,6 +175,10 @@ export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLBut
     g.stroke();
   }
   function redraw(): void {
+    if (!shown()) {
+      stale = true;
+      return;
+    }
     g.clearRect(0, 0, canvas.width, canvas.height);
     for (const { s } of strokes) line(s);
     if (live) line(live);

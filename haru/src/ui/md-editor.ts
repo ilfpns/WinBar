@@ -323,7 +323,8 @@ export class MdEditor extends HTMLElement {
   }
 
   connectedCallback(): void {
-    if (this.isContentEditable) return;
+    // the attribute, not isContentEditable (which works out the element's style, mid-startup for every editor)
+    if (this.getAttribute('contenteditable') === 'true') return;
     this.contentEditable = 'true';
     this.setAttribute('role', 'textbox');
     this.setAttribute('aria-multiline', 'true');

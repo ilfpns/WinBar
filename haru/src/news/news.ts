@@ -304,18 +304,35 @@ export function mountNews(refs: NewsRefs): void {
       refs.live.classList.remove('on');
     }
   }
-  void poll();
+  // the headlines and the globe's land (a few hundred KB) wait until News is opened or Haru has nothing else to
+  // do, so the first screen never waits on them
+  let started = false;
+  function start(): void {
+    if (started) return;
+    started = true;
+    void poll();
+    void loadGlobe();
+  }
+  // (after this setup has run: the globe's loader is defined further down)
+  if (currentView() === 'news') queueMicrotask(start);
+  // opened before the idle moment came: the loading waits for the page turn to finish, so the slide stays smooth
+  onView((v) => {
+    if (v === 'news' && !started) setTimeout(start, 340);
+  });
+  const idle = (window as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (idle) idle(start, { timeout: 6000 });
+  else setTimeout(start, 3000);
   setInterval(() => {
-    if (document.visibilityState === 'visible') void poll();
+    if (started && document.visibilityState === 'visible') void poll();
   }, POLL_MS);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void poll();
+    if (started && document.visibilityState === 'visible') void poll();
   });
   setInterval(renderUpdated, 30_000);
   renderScope();
 
   // ---------- the globe
-  fetch(`${import.meta.env.BASE_URL}data/globe.json?v=${__BUILD_ID__}`)
+  const loadGlobe = () => fetch(`${import.meta.env.BASE_URL}data/globe.json?v=${__BUILD_ID__}`)
     .then((r) => r.json() as Promise<{ points: LandDot[]; extra?: LandDot[] }>)
     .then(({ points, extra }) => {
       globe = createGlobe(refs.canvas, points, extra ?? [], { lat: 37.57, lon: 126.98 });

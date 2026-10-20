@@ -3,6 +3,7 @@ import { listStore } from '../storage/list-store';
 import { icon } from '../ui/icons';
 import { type NotionView, checkinMarks, markCheckin, notionName, notionView, onNotionAttendance } from './notion-attendance';
 import { lessMotion } from '../ui/motion';
+import { currentView, onView } from '../ui/router';
 
 /**
  * Attendance, on the News (globe) page: a Check in button for today and the recent weeks as a grass grid
@@ -72,12 +73,14 @@ export function createAttendance(): Attendance {
 
   /** Days with a saved timetable from before check-ins existed. */
   let opened = new Set<string>();
+  // the frame a repaint is waiting for (see paintSoon)
+  let painting = 0;
 
   /** What Notion says for your column (see notion-attendance). */
   let notion: NotionView | null = null;
   const refreshNotion = async () => {
     notion = notionName() ? await notionView(notionName()) : null;
-    paint();
+    paintSoon();
   };
   onNotionAttendance(() => void refreshNotion());
   void refreshNotion();
@@ -96,6 +99,13 @@ export function createAttendance(): Attendance {
     return days;
   }
 
+  /** Repaints at the next frame: the several reasons arriving together at startup make one paint, not three. */
+  function paintSoon(): void {
+    if (!painting) painting = requestAnimationFrame(() => {
+      painting = 0;
+      paint();
+    });
+  }
   function paint(): void {
     const today = dayKey();
     const days = attendedDays();
@@ -152,13 +162,22 @@ export function createAttendance(): Attendance {
     bestEl.replaceChildren(icon('flame'), `Best streak · ${best} ${best === 1 ? 'day' : 'days'}`);
     grid.setAttribute('aria-label', `Attendance: ${count} days in the last ${WEEKS} weeks, current streak ${streak} days, best ${best} days`);
     // narrow screens scroll the year sideways: start at this week
+    toThisWeek();
+  }
+  /** Scrolls the year to this week, only while the bar can be seen (anywhere else it would lay out a hidden page). */
+  function toThisWeek(): void {
+    if (currentView() !== 'news') return;
     cal.scrollLeft = cal.scrollWidth;
   }
+  onView((v) => {
+    // after the page turn (a scroll position needs a layout, which would stall the slide's first frame)
+    if (v === 'news') setTimeout(toThisWeek, 340);
+  });
 
   async function load(): Promise<void> {
     const saved = await allDays().catch(() => []);
     opened = new Set(saved.map((s) => s.date));
-    paint();
+    paintSoon();
   }
 
   // check in, or undo today's — wherever it was ticked (here or in Notion), it goes both ways
@@ -175,16 +194,16 @@ export function createAttendance(): Attendance {
     }
   });
 
-  checkinStore.onChange(paint);
+  checkinStore.onChange(paintSoon);
   // past midnight: a new day to check in on
   let shown = dayKey();
   setInterval(() => {
     if (dayKey() === shown) return;
     shown = dayKey();
-    paint();
+    paintSoon();
   }, 60_000);
   // whenever the bar changes width (window, drawers) the year scrolls back to this week
-  new ResizeObserver(() => (cal.scrollLeft = cal.scrollWidth)).observe(cal);
+  new ResizeObserver(toThisWeek).observe(cal);
   // narrowed past 700px (drawers open on both sides) the bar stacks: its height glides to the new one and the
   // contents fade back in, instead of the whole bar jumping to its other shape
   const STACK = 700;

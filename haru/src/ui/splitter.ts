@@ -79,7 +79,7 @@ export function addSplit(host: HTMLElement, o: SplitOptions): void {
   };
   new ResizeObserver(place).observe(host);
   new ResizeObserver(place).observe(o.pane);
-  addEventListener('resize', place);
+  // (a window resize reaches the seam through the observers above, after layout, where measuring is free)
   requestAnimationFrame(place);
 
   const size = () => (o.axis === 'x' ? o.pane.getBoundingClientRect().width : o.pane.getBoundingClientRect().height);
