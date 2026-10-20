@@ -4,25 +4,30 @@ import { askConfirm } from '../ui/modal';
 
 /**
  * Drawing on the chat itself, like drawing on a story: a clear layer over the messages that everyone invited
- * shares. The brush turns drawing on; what anyone draws stays over the room for everyone and lands live (each
- * stroke is a Firestore document, `board/{id}`, in coordinates relative to the room so any screen size shows the
- * same picture). While drawing: a colour, a width, undo your last stroke, clear yours (owners: all). Drawing off,
- * the strokes stay in sight and the chat underneath scrolls and selects as usual.
+ * shares. A stroke belongs to the message it was drawn over — it is kept as offsets from that message (across
+ * as a share of the room's width, down in pixels from the message's top) — so it scrolls with the chat and sits
+ * where it was drawn on every screen. Each stroke is a Firestore document, `board/{id}`, live for everyone.
+ * The brush turns drawing on (a colour, a width, undo your last stroke, clear yours; owners: all); off, the
+ * strokes stay in sight and the chat underneath scrolls and selects as usual.
  */
 interface Stroke {
   uid: string;
   color: string;
-  /** Width as a share of the board's shorter side. */
+  /** Width as a share of the room's width. */
   size: number;
-  /** x, y, x, y… each 0..1 of the board. */
+  /** x, y, x, y…: x a share of the room's width, y pixels below the anchor message's top (or, on old strokes
+   *  without an anchor, both shares of the layer). */
   pts: number[];
+  /** The message the stroke was drawn over. */
+  anchor?: string;
   at: number;
 }
 const COLORS = ['#f4f4f5', '#7ee2a8', '#2c9a5a', '#ffd166', '#ff7aa2', '#6ab0ff'];
 const SIZES = [0.004, 0.009, 0.018];
 const MAX_POINTS = 1500;
 
-export function mountBoard(room: HTMLElement, opener: HTMLButtonElement): void {
+/** `list` is the chat's scrolling list of messages (each `li` carries its message's id in `data-id`). */
+export function mountBoard(room: HTMLElement, list: HTMLElement, opener: HTMLButtonElement): void {
   const panel = document.createElement('div');
   panel.className = 'board';
   panel.innerHTML = `
@@ -84,44 +89,76 @@ export function mountBoard(room: HTMLElement, opener: HTMLButtonElement): void {
   let live: Stroke | null = null;
   let stop: (() => void) | null = null;
 
-  // ---- drawing: the board's own size, crisp on any screen; every stroke redrawn on a resize
+  // ---- the layer lies exactly over the list of messages, crisp on any screen
   const fit = () => {
-    const r = canvas.getBoundingClientRect();
+    const lr = list.getBoundingClientRect();
+    const rr = room.getBoundingClientRect();
+    Object.assign(panel.style, { left: `${lr.left - rr.left}px`, top: `${lr.top - rr.top}px`, width: `${lr.width}px`, height: `${lr.height}px` });
     const dpr = devicePixelRatio || 1;
-    const w = Math.max(1, Math.round(r.width * dpr));
-    const h = Math.max(1, Math.round(r.height * dpr));
+    const w = Math.max(1, Math.round(lr.width * dpr));
+    const h = Math.max(1, Math.round(lr.height * dpr));
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
     }
     redraw();
   };
-  new ResizeObserver(fit).observe(canvas);
-  function line(s: Stroke): void {
+  new ResizeObserver(fit).observe(list);
+  // the messages move under it: scrolling, new messages, photos arriving
+  let queued = 0;
+  const soon = () => {
+    if (queued) return;
+    queued = requestAnimationFrame(() => {
+      queued = 0;
+      redraw();
+    });
+  };
+  list.addEventListener('scroll', soon, { passive: true });
+  new MutationObserver(soon).observe(list, { childList: true });
+  list.addEventListener('load', soon, true);
+
+  /** Where an anchor message's top is on the layer now (CSS px), or null when it isn't on the page. */
+  const anchorTop = (id: string): number | null => {
+    const li = list.querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`);
+    return li ? li.offsetTop - list.scrollTop : null;
+  };
+  /** A stroke's points in device pixels on the layer (null: its message isn't here). */
+  function place(s: Stroke): number[] | null {
+    const dpr = devicePixelRatio || 1;
     const W = canvas.width;
-    const H = canvas.height;
-    const p = s.pts;
-    if (p.length < 2) return;
+    if (!s.anchor) return s.pts.map((v, i) => v * (i % 2 ? canvas.height : W));
+    const top = anchorTop(s.anchor);
+    if (top === null) return null;
+    return s.pts.map((v, i) => (i % 2 ? (top + v) * dpr : v * W));
+  }
+  function line(s: Stroke): void {
+    const p = place(s);
+    if (!p || p.length < 2) return;
+    // nothing to draw when the whole stroke is above or below the layer
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let i = 1; i < p.length; i += 2) {
+      lo = Math.min(lo, p[i]!);
+      hi = Math.max(hi, p[i]!);
+    }
+    const pad = s.size * canvas.width;
+    if (hi < -pad || lo > canvas.height + pad) return;
     g.strokeStyle = s.color;
     g.fillStyle = s.color;
-    g.lineWidth = Math.max(1, s.size * Math.min(W, H));
+    g.lineWidth = Math.max(1, s.anchor ? s.size * canvas.width : s.size * Math.min(canvas.width, canvas.height));
     g.lineCap = 'round';
     g.lineJoin = 'round';
     if (p.length === 2) {
       g.beginPath();
-      g.arc(p[0]! * W, p[1]! * H, g.lineWidth / 2, 0, Math.PI * 2);
+      g.arc(p[0]!, p[1]!, g.lineWidth / 2, 0, Math.PI * 2);
       g.fill();
       return;
     }
     // smooth: a curve through the midpoints
     g.beginPath();
-    g.moveTo(p[0]! * W, p[1]! * H);
-    for (let i = 2; i < p.length - 2; i += 2) {
-      const mx = ((p[i]! + p[i + 2]!) / 2) * W;
-      const my = ((p[i + 1]! + p[i + 3]!) / 2) * H;
-      g.quadraticCurveTo(p[i]! * W, p[i + 1]! * H, mx, my);
-    }
-    g.lineTo(p[p.length - 2]! * W, p[p.length - 1]! * H);
+    g.moveTo(p[0]!, p[1]!);
+    for (let i = 2; i < p.length - 2; i += 2) g.quadraticCurveTo(p[i]!, p[i + 1]!, (p[i]! + p[i + 2]!) / 2, (p[i + 1]! + p[i + 3]!) / 2);
+    g.lineTo(p[p.length - 2]!, p[p.length - 1]!);
     g.stroke();
   }
   function redraw(): void {
@@ -130,33 +167,58 @@ export function mountBoard(room: HTMLElement, opener: HTMLButtonElement): void {
     if (live) line(live);
   }
 
-  const at = (e: PointerEvent): [number, number] => {
+  // ---- drawing: a stroke takes the message under its first point as its anchor
+  const layerXY = (e: PointerEvent): [number, number] => {
     const r = canvas.getBoundingClientRect();
-    const x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-    const y = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
-    return [Math.round(x * 10000) / 10000, Math.round(y * 10000) / 10000];
+    return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), e.clientY - r.top];
   };
+  function anchorAt(y: number): string | null {
+    // the last message whose top is above the point (or the first one, above them all)
+    const msgs = [...list.querySelectorAll<HTMLElement>('[data-id]')];
+    if (!msgs.length) return null;
+    const contentY = y + list.scrollTop;
+    let pick = msgs[0]!;
+    for (const li of msgs) {
+      if (li.offsetTop <= contentY) pick = li;
+      else break;
+    }
+    return pick.dataset.id!;
+  }
+  const round = (v: number, k: number) => Math.round(v * k) / k;
   canvas.addEventListener('pointerdown', (e) => {
     const s = session();
     if (!s || e.button !== 0) return;
+    const [x, y] = layerXY(e);
+    const anchor = anchorAt(y);
+    if (!anchor) return say('Write a message first: drawings stay with the messages');
     e.preventDefault();
     try {
       canvas.setPointerCapture(e.pointerId);
     } catch {
-      // drawing still follows while over the board
+      // drawing still follows while over the layer
     }
-    live = { uid: s.uid, color, size, pts: [...at(e)], at: Date.now() };
+    const top = anchorTop(anchor)!;
+    live = { uid: s.uid, color, size, anchor, pts: [round(x, 10000), round(y - top, 10)], at: Date.now() };
     redraw();
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (!live || live.pts.length >= MAX_POINTS * 2) return;
-    const [x, y] = at(e);
+    if (!live?.anchor || live.pts.length >= MAX_POINTS * 2) return;
+    const [x, y] = layerXY(e);
+    const top = anchorTop(live.anchor);
+    if (top === null) return;
+    const px = round(x, 10000);
+    const py = round(y - top, 10);
     const n = live.pts.length;
     // skip points too close to the last one (keeps strokes light)
-    if (Math.hypot(x - live.pts[n - 2]!, y - live.pts[n - 1]!) < 0.002) return;
-    live.pts.push(x, y);
+    if (Math.hypot((px - live.pts[n - 2]!) * canvas.clientWidth, py - live.pts[n - 1]!) < 2) return;
+    live.pts.push(px, py);
     redraw();
   });
+  // the wheel still scrolls the chat while drawing (the stroke follows its message)
+  canvas.addEventListener('wheel', (e) => {
+    list.scrollTop += e.deltaY;
+    e.preventDefault();
+  }, { passive: false });
   const end = async () => {
     const s = session();
     const done = live;
@@ -216,7 +278,7 @@ export function mountBoard(room: HTMLElement, opener: HTMLButtonElement): void {
   function setDrawing(on: boolean): void {
     panel.classList.toggle('drawing', on);
     opener.setAttribute('aria-pressed', String(on));
-    if (on) requestAnimationFrame(fit);
+    requestAnimationFrame(fit);
   }
   opener.addEventListener('click', () => setDrawing(!drawing()));
   panel.querySelector('.board-close')!.addEventListener('click', () => setDrawing(false));
@@ -240,4 +302,5 @@ export function mountBoard(room: HTMLElement, opener: HTMLButtonElement): void {
   }
   onSession(listen);
   listen(session());
+  requestAnimationFrame(fit);
 }

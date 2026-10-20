@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.19',
+    date: '2026-10-20',
+    items: [
+      '채팅 그림이 메시지에 붙어서 스크롤하면 함께 움직임 (그리는 중에도 휠로 스크롤)',
+      '글을 한 글자만 입력해도 안내 문구가 바로 사라짐 (한글 조합 중에도)',
+    ],
+  },
+  {
     version: '1.18',
     date: '2026-10-20',
     items: [

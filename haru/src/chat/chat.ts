@@ -220,7 +220,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   });
 
   // ---- drawing on the room itself, together
-  mountBoard(room, body.querySelector<HTMLButtonElement>('.chat-board-btn')!);
+  mountBoard(room, list, body.querySelector<HTMLButtonElement>('.chat-board-btn')!);
 
   // ---- emoji: a small picker over the box; a pick goes in where the caret is
   const picker = document.createElement('div');
@@ -300,6 +300,8 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
       const cont = !!prev && prev.uid === m.uid && m.at - prev.at < RUN && dayLabel(prev.at) === dayLabel(m.at);
       const li = document.createElement('li');
       li.className = `chat-msg${mine ? ' mine' : ''}${cont ? ' cont' : ''}${drawn.has(id) ? '' : ' new'}`;
+      // drawings on the chat keep to their message by this
+      li.dataset.id = id;
       drawn.add(id);
       // who sent it: their face by every run, their name over its first message
       const face = avatar({ name: m.name, photo: m.photo }, 'a-avatar chat-face');

@@ -256,7 +256,11 @@ export class MdEditor extends HTMLElement {
   constructor() {
     super();
     this.addEventListener('input', () => this.onInput());
-    this.addEventListener('compositionstart', () => (this.composing = true));
+    this.addEventListener('compositionstart', () => {
+      this.composing = true;
+      // a syllable on its way is already text: the placeholder goes now, not when it commits
+      this.classList.remove('empty');
+    });
     this.addEventListener('compositionend', () => {
       this.composing = false;
       this.onInput();
@@ -604,6 +608,8 @@ export class MdEditor extends HTMLElement {
     }
   }
   private onInput(): void {
+    // the placeholder follows what is there at once (mid-syllable too, while the redraw waits)
+    this.classList.toggle('empty', !unZW(this.textContent).length);
     if (this.pending) {
       this.remember(this.pending.text, this.pending.caret);
       this.pending = null;

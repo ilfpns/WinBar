@@ -2286,7 +2286,9 @@ md-editor.chat-input .md-l { min-height: 1.5em; }
    the pointer and its toolbar slides down */
 .chat { position: relative; }
 .chat-tools .icon-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
-.board { position: absolute; inset: 14px 16px 72px; z-index: 5; pointer-events: none; }
+/* placed over the list of messages by board.ts (it follows the list's box) */
+.board { position: absolute; z-index: 5; pointer-events: none; }
+.chat-list { position: relative; }
 .board-canvas { position: absolute; inset: 0; width: 100%; height: 100%; background: none; touch-action: none; }
 .board.drawing .board-canvas { pointer-events: auto; cursor: crosshair; }
 .board.drawing { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 14px; }
