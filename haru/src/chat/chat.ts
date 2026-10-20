@@ -7,7 +7,7 @@ import { currentView, onView } from '../ui/router';
 import { setBadge } from '../ui/badge';
 import { renderMarkdown } from '../ui/markdown';
 import '../ui/md-editor';
-import { type MdEditor } from '../ui/md-editor';
+import { type EditorCommand, type MdEditor } from '../ui/md-editor';
 import { mountBoard } from './board';
 import { mountNotifyToggle, notifyMessage } from './notify';
 import { fileRequest, isRequest, onOutcomes, outcomeLine, refreshOutcomes } from './requests';
@@ -119,8 +119,20 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   // in the chat, / is for commands (/변경요청), not Markdown blocks (those are typed as Markdown: # - > and so on)
   input.slashBlocks = false;
   input.people = () => mentionable(session()?.uid);
-  // the chat's own command, for the admin: /변경요청 (asks for a change to Haru, see requests.ts)
-  input.commands = () => (isRequest('/변경요청', session()) ? [{ label: '변경요청', hint: 'Haru 수정 요청', icon: 'pencil' as const, text: '/변경요청 ' }] : []);
+  // the chat's commands: / lists them all, each with an example (the admin also has /변경요청, see requests.ts)
+  // (the bell sits in the page's title row, outside the chat's own box: looked up across the page)
+  const press = (sel: string) => () => (body.closest('.page') ?? document).querySelector<HTMLButtonElement>(sel)?.click();
+  input.commands = (): EditorCommand[] => [
+    { label: '전체', hint: '모두 부르기', example: '/전체 내일 3시에 모여요', icon: 'users', keys: ['all', 'everyone'], text: '@[ALL](user:all) ' },
+    { label: '사진', hint: '사진 올리기', example: '/사진 → 사진 고르기 (4장까지)', icon: 'image-plus', keys: ['photo', 'image'], run: press('.chat-attach') },
+    { label: '이모지', hint: '이모지 넣기', example: '/이모지 → 이모지 고르기', icon: 'smile', keys: ['emoji'], run: press('.chat-emoji-btn') },
+    { label: '그리기', hint: '채팅 위에 그리기', example: '/그리기 → 붓으로 그리기 켜고 끄기', icon: 'brush', keys: ['draw', 'board'], run: press('.chat-board-btn') },
+    { label: '알림', hint: '알림 켜고 끄기', example: '/알림 → 새 메시지 알림', icon: 'bell', keys: ['bell', 'notify'], run: press('.chat-bell') },
+    { label: '규칙', hint: 'Chat 사용 규칙', example: '/규칙 → 아카이브의 규칙 페이지', icon: 'pin', keys: ['rules', 'help'], run: () => (location.hash = '#/archive/rules') },
+    ...(isRequest('/변경요청', session())
+      ? [{ label: '변경요청', hint: 'Haru 수정 요청 (관리자)', example: '/변경요청 달력 글씨를 크게', icon: 'pencil' as const, keys: ['change', 'request'], text: '/변경요청 ' }]
+      : []),
+  ];
 
   let msgs: { id: string; m: Message }[] = [];
   let drawn = new Set<string>();

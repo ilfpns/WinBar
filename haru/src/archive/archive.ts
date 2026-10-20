@@ -161,6 +161,13 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   addEventListener('hashchange', () => {
     // turning to Archive reads the page it opens on
     if (!archiveShown()) return;
+    // #/archive/rules (the chat's /규칙): straight to the rules page
+    if (location.hash.startsWith('#/archive/rules')) {
+      openKey = RULES;
+      renderList();
+      renderReader();
+      return;
+    }
     if (openKey === PIN) {
       markUpdatesSeen(session(), notice);
       paintDots();

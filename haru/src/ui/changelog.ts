@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.32',
+    date: '2026-10-21',
+    items: [
+      '채팅에서 /를 치면 쓸 수 있는 명령어가 모두 사용 예시와 함께 뜸: /전체(모두 부르기), /사진, /이모지, /그리기, /알림, /규칙(Chat 사용 규칙 열기), 관리자는 /변경요청',
+    ],
+  },
+  {
     version: '1.31',
     date: '2026-10-21',
     items: [

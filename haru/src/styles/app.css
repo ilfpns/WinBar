@@ -2571,3 +2571,9 @@ html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animat
 .chat-cr.done .chat-cr-tag { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .chat-cr.declined .chat-cr-tag { color: var(--text-subtle); }
 .chat-cr-sum { min-width: 0; overflow-wrap: anywhere; }
+
+/* a command in the / menu with its example on a second line (the chat's commands) */
+.slash-menu:has(.has-example) { width: 300px; max-height: 360px; }
+.slash-menu button.has-example { height: auto; min-height: 46px; padding: 6px 8px; grid-template-rows: auto auto; row-gap: 1px; }
+.slash-menu button.has-example .slash-ic { grid-row: 1 / 3; }
+.slash-example { grid-column: 2 / 4; font: 400 11px var(--font-mono); color: var(--text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

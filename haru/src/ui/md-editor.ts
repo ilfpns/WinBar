@@ -210,9 +210,24 @@ const BLOCKS: { id: string; label: string; hint: string; icon: IconName; keys: s
   } },
 ];
 /** A row of the / or @ menu: a block to turn the line into, or a person to name. */
+/** A command for the / menu: it puts `text` where "/query" was typed, or (with `run`) clears it and does something. */
+export interface EditorCommand {
+  label: string;
+  /** Short, at the right: what it does. */
+  hint: string;
+  /** A second line: an example of its use. */
+  example?: string;
+  icon?: IconName;
+  /** Other words that find it (English names, for one). */
+  keys?: string[];
+  text?: string;
+  run?: () => void;
+}
 interface MenuItem {
   label: string;
   hint: string;
+  /** A second line: how it is used. */
+  example?: string;
   icon?: IconName;
   face?: { name: string; photo: string | null };
   run: () => void;
@@ -244,7 +259,7 @@ export class MdEditor extends HTMLElement {
   people: (() => { uid: string; name: string; photo: string | null }[]) | null = null;
   /** Commands of the page this editor is on (the chat's /변경요청), above the blocks in the / menu: picking one
    *  puts its text in place of the "/query" typed for it. */
-  commands: (() => { label: string; hint: string; icon?: IconName; text: string }[]) | null = null;
+  commands: (() => EditorCommand[]) | null = null;
   /** Whether / also offers the Markdown blocks (off in the chat, where / is for commands only). */
   slashBlocks = true;
   private composing = false;
@@ -900,8 +915,8 @@ ${newRow}${v.slice(end)}`);
     if (!m) return this.closeMenu();
     const q = m[2]!.toLowerCase();
     const commands: MenuItem[] = (this.commands?.() ?? [])
-      .filter((c) => !q || c.label.toLowerCase().includes(q) || c.text.toLowerCase().includes(q))
-      .map((c) => ({ label: c.label, hint: c.hint, icon: c.icon, run: () => this.applyCommand(c.text) }));
+      .filter((c) => !q || c.label.toLowerCase().includes(q) || (c.text ?? '').toLowerCase().includes(q) || (c.keys ?? []).some((k) => k.includes(q)))
+      .map((c) => ({ label: c.label, hint: c.hint, example: c.example, icon: c.icon, run: () => this.applyCommand(c) }));
     const blocks = this.slashBlocks ? BLOCKS : [];
     const items: MenuItem[] = [...commands, ...blocks.filter((b) => !q || b.label.toLowerCase().includes(q) || b.keys.includes(q))
       .map((b) => ({ label: b.label, hint: b.hint, icon: b.icon, run: () => this.applyBlock(b) }))];
@@ -929,6 +944,10 @@ ${newRow}${v.slice(end)}`);
       const face = b.face ? faceOf(b.face) : icon(b.icon ?? 'chevron-right');
       it.querySelector('.slash-ic')!.append(face);
       it.querySelector('.slash-label')!.textContent = b.label;
+      if (b.example) {
+        it.classList.add('has-example');
+        it.append(Object.assign(document.createElement('span'), { className: 'slash-example', textContent: b.example }));
+      }
       it.querySelector('.slash-hint')!.textContent = b.hint;
       it.addEventListener('click', () => b.run());
       it.addEventListener('mousemove', () => {
@@ -985,15 +1004,18 @@ ${newRow}${v.slice(end)}`);
     this.placeCaret(this.menuAt + ins.length);
     this.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  /** Puts a command's text where its "/query" was typed. */
-  private applyCommand(text: string): void {
+  /** Puts a command's text where its "/query" was typed, or clears that and runs it. */
+  private applyCommand(c: EditorCommand): void {
     const v = this.value;
     const caret = this.caret();
+    const at = this.menuAt;
     this.closeMenu();
+    const text = c.text ?? '';
     this.remember(v, caret);
-    this.render(v.slice(0, this.menuAt) + text + v.slice(caret));
-    this.placeCaret(this.menuAt + text.length);
+    this.render(v.slice(0, at) + text + v.slice(caret));
+    this.placeCaret(at + text.length);
     this.dispatchEvent(new Event('input', { bubbles: true }));
+    c.run?.();
   }
   /** Turns the line into the block (the "/query" typed for it goes). */
   private applyBlock(b: (typeof BLOCKS)[number]): void {
