@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.28',
+    date: '2026-10-21',
+    items: [
+      'Today에서 Ctrl+Z로 할 일 변경 되돌리기 (추가·수정·이동·완료 체크·삭제·모두 지우기), Ctrl+Shift+Z·Ctrl+Y로 다시 하기, 되돌릴 것이 없으면 짧게 알림',
+    ],
+  },
+  {
     version: '1.27',
     date: '2026-10-20',
     items: [

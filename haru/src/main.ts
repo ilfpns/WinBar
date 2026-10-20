@@ -8,7 +8,7 @@ import { mountDial } from './timetable/dial';
 import { mountEditor } from './timetable/editor';
 import { mountOverview } from './timetable/overview';
 import { mountSchedule } from './timetable/schedule';
-import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, setState, state } from './timetable/state';
+import { clearSelection, closeDraft, deleteDraftBlock, deleteSelected, select, setState, state, undo, redo } from './timetable/state';
 import { mountDrawers } from './ui/drawers';
 import { hydrateIcons } from './ui/icons';
 import { currentView, mountRouter } from './ui/router';
@@ -134,6 +134,21 @@ mountCalendar({
   addSplit(jv, { key: 'journal-top', axis: 'y', pane: card, target: card, prop: '--top-h', min: 120, max: () => card.scrollHeight, enabled: () => card.classList.contains('open') });
 }
 
+/** Says so, briefly, when Ctrl+Z (or its redo) has nothing to take back. */
+function flashNothing(again: boolean): void {
+  let t = document.querySelector<HTMLElement>('.undo-tip');
+  if (!t) {
+    t = document.createElement('div');
+    t.className = 'undo-tip';
+    t.setAttribute('role', 'status');
+    document.body.append(t);
+  }
+  t.textContent = again ? 'Nothing to redo' : 'Nothing to undo';
+  t.classList.remove('on');
+  void t.offsetWidth;
+  t.classList.add('on');
+}
+
 document.addEventListener('keydown', (e) => {
   const typing = (e.target as Element).closest('input, select, textarea, md-editor');
   // Esc inside an open time picker or dialog (stats, image) only closes that
@@ -150,6 +165,13 @@ document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
     e.preventDefault();
     select(state.blocks.map((b) => b.id));
+    return;
+  }
+  // Ctrl+Z takes back the last change to the tasks; Ctrl+Shift+Z (or Ctrl+Y) brings it back
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+    e.preventDefault();
+    const again = e.key.toLowerCase() === 'y' || e.shiftKey;
+    if (!(again ? redo() : undo())) flashNothing(again);
     return;
   }
   if (e.metaKey || e.ctrlKey || e.altKey) return;

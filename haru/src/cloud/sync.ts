@@ -1,5 +1,5 @@
 import type { Fb } from './firebase';
-import { setState, state, subscribe } from '../timetable/state';
+import { setState, state, subscribe, fromOutside } from '../timetable/state';
 import { type Block, blocksUpdated, newId, stampBlocks } from '../timetable/model';
 import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templatesUpdated } from '../timetable/templates';
 import { allDays, onDaySaved, putFromRemote, type DaySnapshot } from '../timetable/history';
@@ -101,7 +101,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       saveTemplate(`This device ${new Date().toLocaleDateString('en-CA')}`);
     }
     applying = true;
-    setState({ blocks: data.blocks.map((b) => ({ ...b, id: b.id || newId(), done: b.done === true })), draft: null });
+    fromOutside(() => setState({ blocks: data.blocks.map((b) => ({ ...b, id: b.id || newId(), done: b.done === true })), draft: null }));
     lastBlocks = state.blocks;
     applying = false;
     stampBlocks(data.updated);

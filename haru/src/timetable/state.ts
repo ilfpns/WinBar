@@ -47,6 +47,51 @@ const removedListeners = new Set<(blocks: Block[]) => void>();
 const cancelledListeners = new Set<(draft: Draft) => void>();
 let committing = false;
 
+// ---------- undo: every change you make to Today's tasks (add, edit, move, check, delete, clear) can be taken back
+// with Ctrl+Z and brought back with Ctrl+Shift+Z. What arrives from elsewhere (another device, a restored backup,
+// a new day) isn't yours to undo: it starts the history afresh.
+const UNDO_LIMIT = 100;
+const past: Block[][] = [];
+const future: Block[][] = [];
+let outside = 0;
+let restoring = false;
+
+/** Runs a change that came from elsewhere: not recorded, and the history before it is dropped. */
+export function fromOutside(fn: () => void): void {
+  outside++;
+  try {
+    fn();
+  } finally {
+    outside--;
+    past.length = 0;
+    future.length = 0;
+  }
+}
+
+function restore(blocks: Block[]): void {
+  restoring = true;
+  setState({ blocks, draft: null, selected: [] });
+  restoring = false;
+}
+
+/** Takes back the last change to Today's tasks. False when there is nothing to undo. */
+export function undo(): boolean {
+  const prev = past.pop();
+  if (!prev) return false;
+  future.push(state.blocks);
+  restore(prev);
+  return true;
+}
+
+/** Brings back what the last undo took away. */
+export function redo(): boolean {
+  const next = future.pop();
+  if (!next) return false;
+  past.push(state.blocks);
+  restore(next);
+  return true;
+}
+
 /** Fires when a task that was being created is abandoned (Cancel, Esc, another selection…). */
 export function onCancelled(fn: (draft: Draft) => void): void {
   cancelledListeners.add(fn);
@@ -84,6 +129,11 @@ export function setState(patch: Partial<AppState>): void {
     const ids = new Set(state.blocks.map((b) => b.id));
     const gone = before.filter((b) => !ids.has(b.id));
     if (gone.length) removedListeners.forEach((fn) => fn(gone));
+  }
+  if (before && !outside && !restoring && before !== state.blocks) {
+    past.push(before);
+    if (past.length > UNDO_LIMIT) past.shift();
+    future.length = 0;
   }
   if (patch.blocks) {
     saveBlocks(state.blocks);

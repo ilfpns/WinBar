@@ -2553,3 +2553,13 @@ html.calm *, html.calm *::before, html.calm *::after {
   animation-duration: 1ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
 }
 html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animation: none !important; }
+
+/* Ctrl+Z with nothing left to take back: a small note at the bottom, gone in a moment */
+.undo-tip {
+  position: fixed; left: 50%; bottom: 72px; z-index: 70; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px;
+  background: var(--popover); color: var(--text-muted); font-size: 12.5px; box-shadow: 0 6px 18px rgb(0 0 0 / .3);
+  opacity: 0; pointer-events: none;
+}
+.undo-tip.on { animation: undo-tip 1.4s var(--ease-out) both; }
+@keyframes undo-tip { 0% { opacity: 0; transform: translate(-50%, 6px); } 12%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+@media (max-width: 640px) { .undo-tip { bottom: calc(var(--nav-room) + 56px); } }

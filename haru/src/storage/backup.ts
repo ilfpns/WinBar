@@ -1,6 +1,6 @@
 import { kvGet, kvSet, requestPersistence } from './db';
 import { type Block, blocksStored, blocksUpdated, isBlock, stampBlocks } from '../timetable/model';
-import { setState, state, subscribe } from '../timetable/state';
+import { setState, state, subscribe, fromOutside } from '../timetable/state';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { type ImageRecord, fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
 import { type Template, allTemplates, onTemplates, replaceTemplates, templatesFromRemote, templatesUpdated } from '../timetable/templates';
@@ -80,7 +80,7 @@ export async function switchAccountData(from: string | null, to: string): Promis
   const back = await kvGet<Stash | null>(`stash:${to}`).catch(() => undefined);
   const d = back?.data;
   const stamps = back?.stamps;
-  setState({ blocks: (d?.timetable ?? []).filter(isBlock).map((b) => ({ ...b, done: b.done === true })), draft: null, selected: [] });
+  fromOutside(() => setState({ blocks: (d?.timetable ?? []).filter(isBlock).map((b) => ({ ...b, done: b.done === true })), draft: null, selected: [] }));
   stampBlocks(stamps?.blocks ?? 0);
   notesStore()?.replace(d?.notes ?? []);
   templatesFromRemote(d?.templates ?? [], stamps?.templates ?? 0);
@@ -119,7 +119,7 @@ export function mountBackup(refs: BackupRefs): void {
     .then((saved) => {
       // localStorage lost but the mirror survived: bring the day back (an emptied day — a new day,
       // Clear all — is still stored, so it stays empty)
-      if (!blocksStored() && saved?.length) setState({ blocks: saved });
+      if (!blocksStored() && saved?.length) fromOutside(() => setState({ blocks: saved }));
       // otherwise the mirror follows, empty included, so it never holds a day that was already filed away
       else if (blocksStored()) void kvSet('timetable', state.blocks);
     })
@@ -153,7 +153,7 @@ export function mountBackup(refs: BackupRefs): void {
       // only well-formed entries come in (a hand-edited or older file must not break the app)
       const blocks = data.timetable.filter(isBlock).map((b) => ({ ...b, done: b.done === true }));
       const notes = (Array.isArray(data.notes) ? data.notes : []).filter((n): n is NoteRecord => typeof n?.date === 'string' && typeof n.text === 'string');
-      setState({ blocks, draft: null, selected: [] });
+      fromOutside(() => setState({ blocks, draft: null, selected: [] }));
       notesStore()?.replace(notes);
       if (Array.isArray(data.templates)) replaceTemplates(data.templates);
       if (Array.isArray(data.days)) await restoreDays(data.days);

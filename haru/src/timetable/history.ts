@@ -1,7 +1,7 @@
 import { db } from '../storage/db';
 import { resetAt } from './day-reset';
 import { type Block } from './model';
-import { setState, state, subscribe } from './state';
+import { setState, state, subscribe, fromOutside } from './state';
 
 /**
  * Day history: Today's timetable is snapshotted under the date it was on (kv store, key `day:YYYY-MM-DD`),
@@ -124,7 +124,7 @@ export function trackHistory(): void {
     // the day that ended keeps the timetable as it was
     snap();
     own(now);
-    if (resetAt() !== null && state.blocks.length) setState({ blocks: [], draft: null, selected: [] });
+    if (resetAt() !== null && state.blocks.length) fromOutside(() => setState({ blocks: [], draft: null, selected: [] }));
     else snap();
   }
   subscribe(() => {
