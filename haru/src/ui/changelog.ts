@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.36',
+    date: '2026-10-21',
+    items: [
+      'Slices 보기에서 편집 중이거나 선택한 할 일, 지금 하는 일은 짧아도 이름이 다이얼 바깥에 항상 나옴 (할 일이 많으면 빠지던 문제)',
+      '설정 → 계정 → Members: 초대한 사람을 이름·메일로 보고, Kick으로 내보내기(확인 후). 내보낸 계정은 열어 둔 Haru도 바로 잠김',
+    ],
+  },
+  {
     version: '1.35',
     date: '2026-10-21',
     items: [

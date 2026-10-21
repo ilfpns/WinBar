@@ -2581,3 +2581,11 @@ html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animat
 .slash-menu button.has-example { height: auto; min-height: 46px; padding: 6px 8px; grid-template-rows: auto auto; row-gap: 1px; }
 .slash-menu button.has-example .slash-ic { grid-row: 1 / 3; }
 .slash-example { grid-column: 2 / 4; font: 400 11px var(--font-mono); color: var(--text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Settings → Account → Members: name and mail, and Kick */
+.acct-list li.acct-member { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 10px; white-space: normal; }
+.acct-member-who { display: grid; min-width: 0; flex: 1; }
+.acct-member-who strong { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-member-who .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; }
+.acct-kick { flex: none; height: 26px; padding: 0 10px; color: var(--danger); }
+.acct-kick:hover { background: color-mix(in srgb, var(--danger) 14%, transparent); }

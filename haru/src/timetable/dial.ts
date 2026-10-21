@@ -325,7 +325,13 @@ export function mountDial(svg: SVGSVGElement): Dial {
       return;
     }
     const NAME = 22, DETAIL = 15, GAP = NAME + DETAIL + 10, LIMIT = 500;
-    const items = [...blocks].sort((a, b) => b.dur - a.dur).slice(0, 14).map((b) => {
+    // at most 14 (the longest), but the task being edited or picked, and the one on now, always get theirs however
+    // short they are (a 15-minute task being edited lost its name to longer ones)
+    const MAX = 14;
+    const must = (b: Block | Draft) => b === state.draft || (b.id !== null && picked.has(b.id)) || contains(b, now);
+    const first = blocks.filter(must);
+    const others = blocks.filter((b) => !must(b)).sort((a, b) => b.dur - a.dur);
+    const items = [...first, ...others].slice(0, Math.max(MAX, first.length)).map((b) => {
       const a = angleOf(b.start + b.dur / 2);
       return { b, dx: Math.cos(a), dy: Math.sin(a), side: Math.cos(a) >= 0 ? 1 : -1, y: (R_OUT + 70) * Math.sin(a) };
     });

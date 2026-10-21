@@ -124,6 +124,7 @@ const KO: Record<string, string> = {
   // settings
   'Nothing to undo': '되돌릴 것이 없어요', 'Nothing to redo': '다시 할 것이 없어요',
   'Message everyone · @ to name someone': '모두에게 메시지 · @로 사람 부르기',
+  Members: '멤버', Kick: '내보내기', 'Not signed in yet': '아직 로그인 안 함',
   Motion: '움직임', Full: '전부', Reduced: '줄이기',
   'Reduced keeps short fades and drops the decoration (also when the system asks for less)': '줄이기는 짧은 페이드만 남기고 꾸밈 애니메이션을 꺼요 (시스템에서 동작 줄이기를 켜도 같아요)',
   Appearance: '화면', Theme: '테마', Dark: '다크', Light: '라이트', System: '시스템', Language: '언어', Account: '계정',

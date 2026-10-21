@@ -2,6 +2,7 @@ import { cloudConfigured, loadFirebase, type Fb } from './firebase';
 import { startSync, type SyncStatus } from './sync';
 import { setSession } from './session';
 import { icon } from '../ui/icons';
+import { askConfirm } from '../ui/modal';
 import { switchAccountData } from '../storage/backup';
 
 /**
@@ -183,6 +184,27 @@ export function mountAccount(refs: AccountRefs): void {
         // ignore
       }
       hideGate();
+      // taken off the invitations while signed in: locked out right away (the rules already refuse its data)
+      if (!owner) {
+        const stopWatch = fs.onSnapshot(fs.doc(db, 'allow', email), (snap) => {
+          if (snap.exists()) return;
+          stopWatch();
+          stopSync?.();
+          stopSync = null;
+          setSession(null);
+          try {
+            localStorage.removeItem(INVITED_KEY);
+          } catch {
+            // ignore
+          }
+          showGate(`${user.email} was removed from Haru.`, false, true);
+        }, () => {});
+        const offWatch = authMod.onAuthStateChanged(auth, (u) => {
+          if (u?.uid === user.uid) return;
+          stopWatch();
+          offWatch();
+        });
+      }
       const name = user.displayName ?? email;
       renderWho(name, email, user.photoURL);
       stopSync = startSync(fb, user.uid, (s) => (status.textContent = labels[s]));
@@ -217,26 +239,37 @@ export function mountAccount(refs: AccountRefs): void {
     signOut.hidden = false;
   }
 
-  /** Owner only: invite Google accounts by email, and remove them. */
+  /** Owner only: the members (invited accounts) with their names; invite by email, and Kick one (asked first). */
   function mountInvites(fb: Fb, ownerEmail: string): void {
     const { fs, db } = fb;
     invites.hidden = false;
     const form = document.createElement('form');
     form.className = 'tpl-save';
-    form.innerHTML = '<input type="email" placeholder="Invite by Google email" aria-label="Email to invite" required><button type="submit" class="icon-btn" aria-label="Invite"></button>';
+    form.innerHTML = '<input type="email" placeholder="Invite by Google email" aria-label="Email to invite" required><button type="submit" class="icon-btn" aria-label="Invite" title="Invite"></button>';
     form.querySelector('button')!.append(icon('plus'));
     const input = form.querySelector('input')!;
     const list = document.createElement('ul');
     list.className = 'acct-list';
-    // tucked behind a one-line toggle so the drawer stays short
+    // open from the start: who is in Haru, at a glance
     const more = document.createElement('details');
     more.className = 'acct-more';
+    more.open = true;
     const summary = document.createElement('summary');
     const count = document.createElement('span');
     count.className = 'meta';
-    summary.append(icon('chevron-right'), 'Invites', count);
+    summary.append(icon('chevron-right'), 'Members', count);
     more.append(summary, form, list);
     invites.replaceChildren(more);
+    // names, from the profiles of those who have signed in
+    let names = new Map<string, string>();
+    let rows: string[] = [];
+    const unsubNames = fs.onSnapshot(fs.collection(db, 'profiles'), (snap) => {
+      names = new Map(snap.docs.map((d) => {
+        const p = d.data() as { email?: string; name?: string };
+        return [String(p.email ?? '').toLowerCase(), String(p.name ?? '')] as [string, string];
+      }));
+      paintRows();
+    }, () => {});
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = input.value.trim().toLowerCase();
@@ -245,7 +278,10 @@ export function mountAccount(refs: AccountRefs): void {
       void fs.setDoc(fs.doc(db, 'allow', email), { email, invited: Date.now(), by: ownerEmail });
     });
     const unsub = fs.onSnapshot(fs.collection(db, 'allow'), (snap) => {
-      const rows = snap.docs.map((d) => d.id).sort();
+      rows = snap.docs.map((d) => d.id).sort();
+      paintRows();
+    });
+    function paintRows(): void {
       count.textContent = String(rows.length);
       if (!rows.length) {
         const li = document.createElement('li');
@@ -256,23 +292,30 @@ export function mountAccount(refs: AccountRefs): void {
       }
       list.replaceChildren(...rows.map((email) => {
         const li = document.createElement('li');
-        const span = document.createElement('span');
-        span.textContent = email;
-        const del = document.createElement('button');
-        del.type = 'button';
-        del.className = 'tpl-del';
-        del.setAttribute('aria-label', `Remove ${email}`);
-        del.append(icon('x'));
-        del.addEventListener('click', () => void fs.deleteDoc(fs.doc(db, 'allow', email)));
-        li.append(span, del);
+        li.className = 'acct-member';
+        const who = document.createElement('span');
+        who.className = 'acct-member-who';
+        const name = names.get(email);
+        who.append(Object.assign(document.createElement('strong'), { textContent: name || 'Not signed in yet' }), Object.assign(document.createElement('span'), { className: 'meta', textContent: email }));
+        const kick = document.createElement('button');
+        kick.type = 'button';
+        kick.className = 'btn-sm acct-kick';
+        kick.textContent = 'Kick';
+        kick.setAttribute('aria-label', `Kick ${email}`);
+        kick.addEventListener('click', async () => {
+          if (!(await askConfirm({ title: `Kick ${name || email}?`, body: `${email} loses access to Haru right away (an open Haru locks). Invite again to bring them back.`, ok: 'Kick', danger: true }))) return;
+          await fs.deleteDoc(fs.doc(db, 'allow', email)).catch(() => {});
+        });
+        li.append(who, kick);
         return li;
       }));
-    });
+    }
     // stop listening when this account signs out
     const { authMod, auth } = fbRef!;
     const off = authMod.onAuthStateChanged(auth, (u) => {
       if (u?.email?.toLowerCase() === ownerEmail) return;
       unsub();
+      unsubNames();
       off();
     });
   }

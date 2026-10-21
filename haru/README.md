@@ -37,6 +37,7 @@ npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.36** (2026-10-21) — 편집 중인 할 일 이름이 Slices에서 빠지던 문제 / 설정의 Members와 Kick
 - **v1.35** (2026-10-21) — 저널 폴더 줄의 버튼 겹침 수정
 - **v1.34** (2026-10-21) — 입력할 때 완료 체크 애니메이션이 반복되던 문제 수정
 - **v1.33** (2026-10-21) — /변경요청을 모든 계정에 열기
