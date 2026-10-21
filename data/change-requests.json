@@ -1,4 +1,10 @@
 {
-  "updated": null,
-  "requests": {}
+  "updated": "2026-10-20T23:46:34.200Z",
+  "requests": {
+    "Q4N7LCcLCeRuVsRVuUcy": {
+      "status": "declined",
+      "summary": "테스트 요청이라 처리하지 않음",
+      "at": 1792539994200
+    }
+  }
 }
