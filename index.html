@@ -20,8 +20,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap"></noscript>
   <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"></noscript>
-  <script type="module" crossorigin src="/WinBar/assets/index-BrgLwNiS.js"></script>
-  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-B463XT_Y.css">
+  <script type="module" crossorigin src="/WinBar/assets/index-qmV-ik_o.js"></script>
+  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-ChkB92vo.css">
 </head>
 <body>
   <main class="stage page" id="stage">
@@ -392,12 +392,24 @@
           <div class="set-row">
             <div class="set-label">
               <strong>School timetable</strong>
-              <span>Puts your class's lessons for today on Today, at their periods (컴시간알리미)</span>
+              <span>Puts your class's lessons for today on Today, at their periods (컴시간알리미). Every day: each day by itself, around your own tasks</span>
               <span class="set-status" id="school-status" aria-live="polite"></span>
             </div>
             <div class="set-reset">
               <select class="set-input set-select" id="school-class" aria-label="Class"><option value="">Class</option></select>
               <button type="button" class="btn-sm" id="school-apply">Apply</button>
+              <label class="set-auto" title="Put the lessons on Today every day"><span>Every day</span><button type="button" class="switch" id="school-auto" role="switch" aria-checked="false" aria-label="School timetable every day"><i></i></button></label>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label">
+              <strong>School meals</strong>
+              <span>Puts today's breakfast, lunch and dinner on Today as Meal tasks, the menu in the note (NEIS). Every day: each day by itself, around your own tasks</span>
+              <span class="set-status" id="meals-status" aria-live="polite"></span>
+            </div>
+            <div class="set-reset">
+              <button type="button" class="btn-sm" id="meals-apply">Apply</button>
+              <label class="set-auto" title="Put the meals on Today every day"><span>Every day</span><button type="button" class="switch" id="meals-auto" role="switch" aria-checked="false" aria-label="School meals every day"><i></i></button></label>
             </div>
           </div>
           <div class="set-row">
