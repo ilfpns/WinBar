@@ -2589,3 +2589,6 @@ html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animat
 .acct-member-who .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; }
 .acct-kick { flex: none; height: 26px; padding: 0 10px; color: var(--danger); }
 .acct-kick:hover { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+
+/* Settings → Today: the "Every day" switch beside a row's Apply */
+.set-auto { display: inline-flex; align-items: center; gap: 6px; font: 400 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; cursor: pointer; }

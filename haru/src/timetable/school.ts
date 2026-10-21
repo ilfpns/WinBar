@@ -191,3 +191,76 @@ export function applyLessons(lessons: Block[]): Block[] {
   setState({ blocks: [...kept, ...lessons], draft: null, selected: [] });
   return replaced;
 }
+
+// ---------- school meals (NEIS 급식식단정보): breakfast, lunch and dinner as Meal tasks, the menu in the note
+
+export interface Meal {
+  kind: 'breakfast' | 'lunch' | 'dinner';
+  /** 조식 / 중식 / 석식 */
+  name: string;
+  /** Dishes, without their allergy numbers. */
+  menu: string[];
+  kcal: string;
+}
+const MEAL_KIND: Record<string, Meal['kind']> = { 1: 'breakfast', 2: 'lunch', 3: 'dinner' };
+
+/** The day's meals at the school, or why there are none. */
+export async function mealsToday(s: School, now = new Date()): Promise<Meal[] | string> {
+  const ymd = dayKey(now).replaceAll('-', '');
+  let rows: Record<string, string>[];
+  try {
+    rows = await neis('mealServiceDietInfo', { ATPT_OFCDC_SC_CODE: s.office, SD_SCHUL_CODE: s.code, MLSV_YMD: ymd }, 10);
+  } catch {
+    return 'School meals aren’t available right now';
+  }
+  const meals = rows.map((r) => ({
+    kind: MEAL_KIND[String(r.MMEAL_SC_CODE)] ?? 'lunch',
+    name: r.MMEAL_SC_NM ?? '급식',
+    menu: (r.DDISH_NM ?? '').split(/<br\s*\/?>/i).map((d) => d.replace(/\s*\([\d.\s]*\)\s*$/, '').replace(/\s+/g, ' ').trim()).filter(Boolean),
+    kcal: (r.CAL_INFO ?? '').trim(),
+  }));
+  return meals.length ? meals.sort((a, b) => ['breakfast', 'lunch', 'dinner'].indexOf(a.kind) - ['breakfast', 'lunch', 'dinner'].indexOf(b.kind)) : 'No school meals today';
+}
+
+/** When each meal is eaten: lunch in the school's own lunch break when its bell times are known, else a usual day. */
+async function mealTimes(s: School, now: Date): Promise<Record<Meal['kind'], { start: number; dur: number }>> {
+  const times = { breakfast: { start: 7 * 60 + 30, dur: 40 }, lunch: { start: 12 * 60 + 30, dur: 50 }, dinner: { start: 17 * 60 + 50, dur: 50 } };
+  await comciTimetable();
+  if (isComci(s)) {
+    const today = dayKey(now);
+    const week = comci!.weeks.find((w) => {
+      const end = new Date(`${w.start}T00:00`);
+      end.setDate(end.getDate() + 7);
+      return w.start <= today && today < dayKey(end);
+    }) ?? comci!.weeks[0];
+    // the longest gap between lessons around noon is the lunch break
+    const starts = (week?.periods ?? []).map(toMin);
+    let best: { start: number; dur: number } | null = null;
+    for (let i = 0; i + 1 < starts.length; i++) {
+      const end = starts[i]! + 50;
+      const gap = starts[i + 1]! - end;
+      if (end >= 11 * 60 && end <= 14 * 60 && gap >= 30 && (!best || gap > best.dur)) best = { start: end, dur: gap };
+    }
+    if (best) times.lunch = best;
+  }
+  return times;
+}
+
+/** The meals as Meal tasks at their times; the dishes go in the note. */
+export async function mealBlocks(s: School, meals: Meal[], now = new Date()): Promise<Block[]> {
+  const times = await mealTimes(s, now);
+  return meals.map((m) => ({
+    id: newId(), title: m.name, cat: 'meal' as const, done: false, ...times[m.kind],
+    note: [...m.menu, m.kcal].filter(Boolean).join('\n'),
+  }));
+}
+
+/**
+ * Puts tasks on Today without touching what is there: anything that would overlap an existing task is left
+ * out (used by the daily automatic fill, which asks nobody). Returns what was added.
+ */
+export function addAround(blocks: Block[]): Block[] {
+  const added = blocks.filter((b) => !overlaps(state.blocks, { ...b, id: null }));
+  if (added.length) setState({ blocks: [...state.blocks, ...added] });
+  return added;
+}

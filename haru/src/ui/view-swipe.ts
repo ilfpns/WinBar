@@ -23,6 +23,10 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
 
   onView((view, prev) => {
     for (const [name, el] of Object.entries(pages)) el.classList.toggle('current', name === view);
+    // a field on the page left behind lets go of the keyboard: typing on the new page must not land in a hidden
+    // editor (opened with a command or a shortcut, the focus would otherwise stay where it was)
+    const held = document.activeElement;
+    if (held instanceof HTMLElement && held.closest('.page:not(.current)')) held.blur();
     if (!prev || prev === view) return;
     // a new turn cuts the previous one short instead of queueing behind it
     running.forEach((a) => a.finish());

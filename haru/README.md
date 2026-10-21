@@ -37,6 +37,7 @@ npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.38** (2026-10-22) — 학교 급식 넣기 / 시간표·급식 매일 자동 / 숨은 페이지 편집기로 입력이 가던 문제 / 뉴스 첫 넘김 끊김
 - **v1.37** (2026-10-21) — Slices에서 모든 할 일 이름 표시
 - **v1.36** (2026-10-21) — 편집 중인 할 일 이름이 Slices에서 빠지던 문제 / 설정의 Members와 Kick
 - **v1.35** (2026-10-21) — 저널 폴더 줄의 버튼 겹침 수정

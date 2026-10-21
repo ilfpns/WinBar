@@ -5,7 +5,8 @@ import { FEATURES, featureOn, onFeatures, setFeature } from './features';
 import { timeField } from './time-field';
 import { DEFAULT_RESET, onResetAt, resetAt, setResetAt } from '../timetable/day-reset';
 import { notionName, notionTaken, notionView, onNotionAttendance, setNotionName } from '../calendar/notion-attendance';
-import { NEIS_KEYLESS_ROWS, type School, applyLessons, classesOf, hasNeisKey, isComci, lessonsToday, myClass, mySchool, searchSchools, setMyClass, setMySchool } from '../timetable/school';
+import { NEIS_KEYLESS_ROWS, type School, applyLessons, classesOf, hasNeisKey, isComci, lessonsToday, mealBlocks, mealsToday, myClass, mySchool, searchSchools, setMyClass, setMySchool } from '../timetable/school';
+import { autoOn, dayDate, setAuto } from '../timetable/school-auto';
 import { askConfirm } from './modal';
 import { type Session, avatar, onSession, session } from '../cloud/session';
 import { labelOf } from '../timetable/model';
@@ -308,7 +309,8 @@ export function mountSettings(): void {
       schoolSay('Pick your class first', false);
       return;
     }
-    const lessons = await lessonsToday(mySchool(), classSel.value);
+    // the day Today is on (after midnight but before the New day time, that is still yesterday)
+    const lessons = await lessonsToday(mySchool(), classSel.value, dayDate());
     if (typeof lessons === 'string') {
       schoolSay(lessons, false);
       return;
@@ -324,6 +326,45 @@ export function mountSettings(): void {
       schoolSay(`Added ${lessons.length} lessons · NEIS gives only the first ${NEIS_KEYLESS_ROWS} periods without a key`, true);
     }
   });
+
+  // ---- school meals: Apply puts today's on Today now; the switches fill each day by themselves
+  const mealsApply = dialog.querySelector<HTMLButtonElement>('#meals-apply')!;
+  const mealsStatus = dialog.querySelector<HTMLElement>('#meals-status')!;
+  const mealsSay = (text: string, ok?: boolean) => {
+    mealsStatus.textContent = text;
+    mealsStatus.className = `set-status${ok === undefined ? '' : ok ? ' ok' : ' bad'}`;
+  };
+  mealsApply.addEventListener('click', async () => {
+    mealsSay('…');
+    const meals = await mealsToday(mySchool(), dayDate());
+    if (typeof meals === 'string') {
+      mealsSay(meals, false);
+      return;
+    }
+    const blocks = await mealBlocks(mySchool(), meals, dayDate());
+    const list = blocks.map((b) => `${b.title} ${hhmm(b.start)}`).join(', ');
+    if (!(await askConfirm({ title: 'Put today’s meals on Today?', body: `${list}. Tasks in those hours are replaced; the menu goes in each task's note.`, ok: 'Apply', icon: 'utensils' }))) {
+      mealsSay('');
+      return;
+    }
+    const replaced = applyLessons(blocks);
+    mealsSay(`Added ${list}${replaced.length ? ` · replaced ${replaced.map(labelOf).join(', ')}` : ''}`, true);
+  });
+  for (const [kind, id] of [['lessons', '#school-auto'], ['meals', '#meals-auto']] as const) {
+    const sw = dialog.querySelector<HTMLButtonElement>(id)!;
+    const paint = () => sw.setAttribute('aria-checked', String(autoOn(kind)));
+    sw.addEventListener('click', () => {
+      if (kind === 'lessons' && !autoOn(kind) && !classSel.value) {
+        schoolSay('Pick your class first', false);
+        return;
+      }
+      setAuto(kind, !autoOn(kind));
+      paint();
+      const say = kind === 'lessons' ? schoolSay : mealsSay;
+      say(autoOn(kind) ? 'On: every day, around your own tasks' : 'Off', autoOn(kind) || undefined);
+    });
+    paint();
+  }
 
   // ---- name in Notion: which column of the Notion attendance table is yours, and whether it was found
   const notionIn = dialog.querySelector<HTMLInputElement>('#notion-name')!;

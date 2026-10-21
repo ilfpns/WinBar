@@ -309,6 +309,11 @@ export function mountNews(refs: NewsRefs): void {
   let started = false;
   function start(): void {
     if (started) return;
+    // never in the middle of a page turn (the idle moment can fall right on one): just after it
+    if (document.body.classList.contains('switching')) {
+      setTimeout(start, 350);
+      return;
+    }
     started = true;
     void poll();
     void loadGlobe();

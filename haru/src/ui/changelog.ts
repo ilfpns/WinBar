@@ -17,6 +17,17 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.38',
+    date: '2026-10-22',
+    items: [
+      '학교 급식: 설정 → Today → School meals의 Apply로 오늘 조식·중식·석식을 Meal 할 일로 넣기 (메뉴는 메모에, 우리 학교는 점심시간에 맞춤)',
+      '학교 시간표·급식 "Every day" 스위치: 켜 두면 매일 알아서 들어감 (새 하루가 시작될 때도, 내 할 일과 겹치는 건 건드리지 않음)',
+      '새 하루 시각 전 새벽에 Apply하면 Today의 날(어제) 기준으로 가져옴',
+      '저널에서 쓰다가 명령·단축키로 다른 페이지로 가면 친 글자가 안 보이는 편집기로 들어가던 문제 수정',
+      '뉴스 데이터 미리 받기가 페이지 넘김과 겹쳐 처음 뉴스로 갈 때 끊기던 문제 수정',
+    ],
+  },
+  {
     version: '1.37',
     date: '2026-10-21',
     items: [
