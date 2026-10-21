@@ -325,16 +325,16 @@ export function mountDial(svg: SVGSVGElement): Dial {
       return;
     }
     const NAME = 22, DETAIL = 15, GAP = NAME + DETAIL + 10, LIMIT = 500;
-    // at most 14 (the longest), but the task being edited or picked, and the one on now, always get theirs however
-    // short they are (a 15-minute task being edited lost its name to longer ones)
-    const MAX = 14;
+    // every task gets its name, as many as a side's column holds (2 × LIMIT tall, a label every GAP); if a side
+    // ever has more, the task being edited or picked and the one on now go first, then the longest
+    const PER_SIDE = Math.floor((2 * LIMIT) / GAP) + 1;
     const must = (b: Block | Draft) => b === state.draft || (b.id !== null && picked.has(b.id)) || contains(b, now);
-    const first = blocks.filter(must);
-    const others = blocks.filter((b) => !must(b)).sort((a, b) => b.dur - a.dur);
-    const items = [...first, ...others].slice(0, Math.max(MAX, first.length)).map((b) => {
+    const ordered = [...blocks.filter(must), ...blocks.filter((b) => !must(b)).sort((a, b) => b.dur - a.dur)];
+    const taken = { 1: 0, [-1]: 0 } as Record<number, number>;
+    const items = ordered.map((b) => {
       const a = angleOf(b.start + b.dur / 2);
       return { b, dx: Math.cos(a), dy: Math.sin(a), side: Math.cos(a) >= 0 ? 1 : -1, y: (R_OUT + 70) * Math.sin(a) };
-    });
+    }).filter((it) => taken[it.side]!++ < PER_SIDE);
     for (const side of [1, -1]) {
       const col = items.filter((it) => it.side === side).sort((a, b) => a.y - b.y);
       for (let k = 1; k < col.length; k++) col[k]!.y = Math.max(col[k]!.y, col[k - 1]!.y + GAP);

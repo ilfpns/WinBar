@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.37',
+    date: '2026-10-21',
+    items: [
+      'Slices 보기에서 모든 할 일 이름이 다이얼 바깥에 나옴 (14개까지만 보이던 제한을 없애고 자리가 되는 만큼, 한쪽에 22개까지)',
+    ],
+  },
+  {
     version: '1.36',
     date: '2026-10-21',
     items: [
