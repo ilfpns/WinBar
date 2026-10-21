@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.34',
+    date: '2026-10-21',
+    items: [
+      '할 일 편집기에서 글자를 칠 때마다 목록의 완료 체크가 다시 튀어나오던 문제 수정 (방금 체크한 것만 애니메이션)',
+    ],
+  },
+  {
     version: '1.33',
     date: '2026-10-21',
     items: [

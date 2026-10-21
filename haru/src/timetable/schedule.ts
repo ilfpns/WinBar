@@ -83,10 +83,19 @@ export function mountSchedule(refs: ScheduleRefs): void {
     if (task) openDraft({ ...task });
   });
 
+  // what the list showed last time: typing in the editor (a draft's title, its note) changes nothing here, and
+  // redrawing anyway would replay every done task's check animation at each keystroke
+  let lastKey = '';
+  let doneBefore = new Map<string, boolean>();
   function render(): void {
     const now = nowMinutes();
     const shown = visibleTasks();
     const picked = new Set(state.selected);
+    const key = JSON.stringify([shown, state.blocks.length, state.selected, state.draft?.id ?? null, Math.floor(now)]);
+    if (key === lastKey) return;
+    lastKey = key;
+    const wasDone = doneBefore;
+    doneBefore = new Map(shown.map((b) => [b.id, b.done]));
     refs.count.textContent = String(state.blocks.length);
     refs.add.disabled = !firstFreeSlot(state.blocks, 0);
 
@@ -100,7 +109,8 @@ export function mountSchedule(refs: ScheduleRefs): void {
       li.classList.toggle('done', b.done);
       const check = document.createElement('button');
       check.type = 'button';
-      check.className = 'check';
+      // the check pops only when the task has just been checked (not on every redraw of a done task)
+      check.className = `check${b.done && wasDone.get(b.id) === false ? ' just' : ''}`;
       check.setAttribute('role', 'checkbox');
       check.setAttribute('aria-checked', String(b.done));
       check.setAttribute('aria-label', `Mark ${labelOf(b)} ${b.done ? 'not done' : 'done'}`);

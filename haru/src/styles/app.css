@@ -1073,8 +1073,8 @@ body.gated > :not(.gate, .connect) { visibility: hidden; }
 .done-toggle { position: relative; transition: background-color .25s var(--ease-out), color .25s var(--ease-out), border-color .25s var(--ease-out), transform .15s var(--ease-out); }
 .done-toggle:active, #list .check:active { transform: scale(.92); }
 .done-toggle[aria-pressed="true"] { color: var(--bg); background: var(--accent); border-color: var(--accent); animation: done-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
-.done-toggle[aria-pressed="true"] .ic > *, #list .check[aria-checked="true"] .ic > * { animation: ic-draw .4s var(--ease-out) .08s both; }
-.done-toggle[aria-pressed="true"]::after, #list .check[aria-checked="true"]::after {
+.done-toggle[aria-pressed="true"] .ic > *, #list .check.just[aria-checked="true"] .ic > * { animation: ic-draw .4s var(--ease-out) .08s both; }
+.done-toggle[aria-pressed="true"]::after, #list .check.just[aria-checked="true"]::after {
   content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
   box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); animation: done-ring .6s var(--ease-out) both;
 }
@@ -1195,7 +1195,9 @@ body.gated > :not(.gate, .connect) { visibility: hidden; }
   transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 #list .check:hover { border-color: var(--text-muted); color: var(--text-subtle); }
-#list .check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); animation: done-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+#list .check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+/* only a check just made pops (see schedule.ts) */
+#list .check.just[aria-checked="true"] { animation: done-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
 #list .check .ic { width: 14px; height: 14px; stroke-width: 2.5; }
 #list .done .n { color: var(--text-subtle); text-decoration: line-through; }
 #list .row {
