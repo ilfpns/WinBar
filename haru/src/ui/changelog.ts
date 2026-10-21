@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.35',
+    date: '2026-10-21',
+    items: [
+      '저널 폴더 줄에 마우스를 올리면 페이지 수와 ⋯ 버튼이 겹치던 문제 수정',
+    ],
+  },
+  {
     version: '1.34',
     date: '2026-10-21',
     items: [

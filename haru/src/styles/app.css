@@ -1654,7 +1654,9 @@ body.splitting-y { cursor: row-resize; }
 .jt-more .ic { width: 14px; height: 14px; }
 .jt-folder:hover > .jt-more, .jt-more:focus-visible { opacity: 1; }
 .jt-more:hover { color: var(--text-strong); }
-@media (hover: none) { .jt-more { opacity: 1; } .jt-dir .jt-count { margin-right: 26px; } }
+/* the count keeps clear of the ⋯ button that appears over the row's right end (on hover, or always on touch) */
+.jt-dir .jt-count { margin-right: 26px; }
+@media (hover: none) { .jt-more { opacity: 1; } }
 /* a folder's pages fold in and out (grid rows 0fr <-> 1fr), hung on a guide line like a file tree */
 .jt-kids { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-base) var(--ease-out); }
 .jt-folder.open > .jt-kids { grid-template-rows: 1fr; }
