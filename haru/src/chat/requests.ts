@@ -7,7 +7,8 @@ import type { Session } from '../cloud/session';
  * (`node scripts/change-requests.mjs list`), makes the change by hand, ships it, and records the outcome in
  * public/data/change-requests.json — which the published site shows as a line under the request.
  */
-export const TRIGGER = /^\s*\/변경\s*요청|^\s*\/change\b/i;
+// (/변경사항 and /요청 too: people write it either way)
+export const TRIGGER = /^\s*\/(변경\s*(요청|사항)|요청)|^\s*\/change\b/i;
 const MAX = 2000;
 
 export type Status = 'queued' | 'done' | 'declined';

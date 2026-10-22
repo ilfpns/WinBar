@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.39',
+    date: '2026-10-22',
+    items: [
+      'Today 다이얼에서 실수로 드래그해 새 할 일 창이 열리면 Ctrl+Z로 바로 닫힘, 실수로 여러 개를 선택했으면 Ctrl+Z로 선택이 풀림 (지운 할 일은 전처럼 Ctrl+Z로 복구)',
+      '채팅 변경요청을 "/변경사항", "/요청"으로 써도 요청 목록에 들어감',
+    ],
+  },
+  {
     version: '1.38',
     date: '2026-10-22',
     items: [

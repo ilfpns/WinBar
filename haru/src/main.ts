@@ -162,6 +162,24 @@ document.addEventListener('keydown', (e) => {
     else if (state.selected.length) clearSelection();
     else if (state.drawers.left || state.drawers.right) setState({ drawers: { left: false, right: false } });
   }
+  // Ctrl+Z right after a slip on the dial: a drag that opened a new task (its fields still empty — the title
+  // field has the focus by then) closes it; a drag that picked tasks lets them go. Only then does Ctrl+Z take back
+  // changes to the tasks (below).
+  const undoKey = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'z';
+  if (undoKey && !viewing() && currentView() === 'today') {
+    const d = state.draft;
+    const untouched = d && d.id === null && !d.title.trim() && !(d.note ?? '').trim();
+    if (untouched && (!typing || (e.target as Element).closest('.drawer-right'))) {
+      e.preventDefault();
+      closeDraft();
+      return;
+    }
+    if (!typing && state.selected.length) {
+      e.preventDefault();
+      clearSelection();
+      return;
+    }
+  }
   // while someone else's Haru is on screen, keys never reach your own tasks; and Today's keys (select all,
   // delete) belong to Today only: elsewhere Ctrl+A, Delete and the rest keep their usual meaning
   if (typing || viewing() || currentView() !== 'today') return;
