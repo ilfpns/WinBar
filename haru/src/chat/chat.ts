@@ -11,6 +11,7 @@ import { type EditorCommand, type MdEditor } from '../ui/md-editor';
 import { mountBoard } from './board';
 import { mountNotifyToggle, notifyMessage } from './notify';
 import { fileRequest, isRequest, onOutcomes, outcomeLine, refreshOutcomes } from './requests';
+import { asPopover, hidePop, isPopOpen, showPop } from '../ui/popover';
 
 /**
  * Chat: one room for everyone invited, under Archive. Messages arrive live (the latest 300), every one on the
@@ -252,7 +253,7 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   // ---- emoji: a small picker over the box; a pick goes in where the caret is
   const picker = document.createElement('div');
   picker.className = 'chat-emoji';
-  picker.popover = 'auto';
+  asPopover(picker);
   picker.setAttribute('role', 'dialog');
   picker.setAttribute('aria-label', 'Emoji');
   picker.append(...EMOJI.map((em) => {
@@ -273,8 +274,8 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   document.body.append(picker);
   emojiBtn.addEventListener('mousedown', (e) => e.preventDefault());
   emojiBtn.addEventListener('click', () => {
-    if (picker.matches(':popover-open')) return picker.hidePopover();
-    picker.showPopover();
+    if (isPopOpen(picker)) return hidePop(picker);
+    showPop(picker, emojiBtn);
     const r = emojiBtn.getBoundingClientRect();
     picker.style.left = `${Math.max(8, Math.min(r.left, innerWidth - picker.offsetWidth - 8))}px`;
     picker.style.top = `${Math.max(8, r.top - picker.offsetHeight - 8)}px`;

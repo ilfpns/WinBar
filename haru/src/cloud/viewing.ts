@@ -2,6 +2,7 @@ import { avatar, onSession, session, type Profile } from './session';
 import { icon } from '../ui/icons';
 import { showMenu } from '../ui/modal';
 import { onView } from '../ui/router';
+import { anyPopOpen } from '../ui/popover';
 
 /**
  * Looking at someone else's Today: the people button (top right of Today, signed in only) lists everyone;
@@ -101,7 +102,7 @@ export function mountViewing(): void {
 
   // Esc comes back to your own (after any menu or dialog has had it)
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && current && !document.querySelector('.pop-menu, dialog[open], :popover-open')) view(null);
+    if (e.key === 'Escape' && current && !anyPopOpen() && !document.querySelector('.pop-menu, dialog[open]')) view(null);
   });
 
   onSession((s) => {

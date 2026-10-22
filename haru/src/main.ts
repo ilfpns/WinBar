@@ -37,6 +37,7 @@ import { mountPeek } from './timetable/peek';
 import { mountProfileCard } from './timetable/profile-card';
 import { mountViewing, viewing } from './cloud/viewing';
 import { mountNotionAttendance } from './calendar/notion-attendance';
+import { anyPopOpen } from './ui/popover';
 
 hydrateIcons();
 // Korean labels (if picked) go on before the pages render, and follow everything they render later
@@ -155,7 +156,7 @@ function flashNothing(again: boolean): void {
 document.addEventListener('keydown', (e) => {
   const typing = (e.target as Element).closest('input, select, textarea, md-editor');
   // Esc inside an open time picker or dialog (stats, image) only closes that
-  if (e.key === 'Escape' && document.querySelector(':popover-open, dialog[open]')) return;
+  if (e.key === 'Escape' && (anyPopOpen() || document.querySelector('dialog[open]'))) return;
   if (e.key === 'Escape') {
     // Esc peels one layer at a time: editor / selection first, then the drawers
     if (state.draft) closeDraft();

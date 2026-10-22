@@ -12,6 +12,7 @@ import { type Session, avatar, onSession, session } from '../cloud/session';
 import { labelOf } from '../timetable/model';
 import { hhmm } from '../timetable/time';
 import { type Motion, savedMotion, setMotion } from './motion';
+import { asPopover, hidePop, isPopOpen, onPopToggle, showPop } from './popover';
 
 /**
  * The Haru logo (on the rail, or in the open overview) opens a small menu: Settings, the overview, a quick
@@ -195,7 +196,7 @@ export function mountSettings(): void {
   classSel.before(classBtn);
   const classPop = document.createElement('div');
   classPop.className = 'class-pop';
-  classPop.popover = 'auto';
+  asPopover(classPop);
   document.body.append(classPop);
   const paintClassBtn = () => {
     classText.textContent = classSel.selectedOptions[0]?.value ? classSel.selectedOptions[0]!.text : 'Class';
@@ -224,14 +225,15 @@ export function mountSettings(): void {
         b.addEventListener('click', () => {
           classSel.value = o.value;
           classSel.dispatchEvent(new Event('change'));
-          classPop.hidePopover();
+          hidePop(classPop);
         });
         return b;
       }));
       row.append(label, chips);
       return row;
     }));
-    classPop.showPopover();
+    // inside the settings dialog (a modal dialog leaves everything outside it unclickable)
+    showPop(classPop, classBtn);
     const r = classBtn.getBoundingClientRect();
     const w = classPop.offsetWidth;
     const h = classPop.offsetHeight;
@@ -239,8 +241,8 @@ export function mountSettings(): void {
     classPop.style.top = `${r.bottom + 6 + h > innerHeight - 8 ? r.top - h - 6 : r.bottom + 6}px`;
     classPop.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
   }
-  classBtn.addEventListener('click', () => (classPop.matches(':popover-open') ? classPop.hidePopover() : openClassPop()));
-  classPop.addEventListener('toggle', (e) => classBtn.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open')));
+  classBtn.addEventListener('click', () => (isPopOpen(classPop) ? hidePop(classPop) : openClassPop()));
+  onPopToggle(classPop, (open) => classBtn.setAttribute('aria-expanded', String(open)));
   const schoolSay = (text: string, ok?: boolean) => {
     schoolStatus.textContent = text;
     schoolStatus.className = `set-status${ok === undefined ? '' : ok ? ' ok' : ' bad'}`;

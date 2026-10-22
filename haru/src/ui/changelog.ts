@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.40',
+    date: '2026-10-22',
+    items: [
+      '설정의 학교 반 고르기가 일부 브라우저(Safari, 옛 Chrome·iOS)에서 눌리지 않던 문제 수정',
+      '시간 고르기(할 일 시작·끝, 새 하루 시각)와 채팅 이모지 창도 옛 브라우저에서 동작, Esc도 정상',
+      '이 창들의 버튼을 다시 누르면 닫힘',
+    ],
+  },
+  {
     version: '1.39',
     date: '2026-10-22',
     items: [

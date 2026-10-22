@@ -1,5 +1,6 @@
 import { SNAP, hhmm, mod, nowMinutes } from '../timetable/time';
 import { icon } from './icons';
+import { asPopover, hidePop, onPopToggle, showPop } from './popover';
 
 const MINUTES = [0, 15, 30, 45];
 
@@ -20,7 +21,7 @@ class TimePopover {
 
   constructor() {
     this.el.className = 'time-pop';
-    this.el.popover = 'auto';
+    asPopover(this.el);
     this.el.setAttribute('role', 'dialog');
     this.hours.className = 'time-hours';
     this.mins.className = 'time-mins';
@@ -40,14 +41,13 @@ class TimePopover {
         this.commit(n * 60 + (v % 60));
       } else {
         this.commit(Math.floor(v / 60) * 60 + n);
-        this.el.hidePopover();
+        hidePop(this.el);
       }
     });
     this.el.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.el.hidePopover();
+      if (e.key === 'Enter') hidePop(this.el);
     });
-    this.el.addEventListener('toggle', (e) => {
-      const open = (e as ToggleEvent).newState === 'open';
+    onPopToggle(this.el, (open) => {
       this.owner?.trigger.setAttribute('aria-expanded', String(open));
       if (!open) {
         this.owner?.trigger.focus();
@@ -87,9 +87,11 @@ class TimePopover {
     this.owner = { trigger, value, pick };
     this.mark();
     // a modal dialog makes everything outside it inert, so a picker opened from one has to live inside it
-    const host = trigger.closest('dialog') ?? document.body;
-    if (this.el.parentElement !== host) host.append(this.el);
-    this.el.showPopover();
+    if (!showPop(this.el, trigger)) {
+      // that press closed it
+      this.owner = null;
+      return;
+    }
     // place under the trigger, flipping above / nudging inward near the viewport edges
     const r = trigger.getBoundingClientRect();
     const w = this.el.offsetWidth;
@@ -129,7 +131,7 @@ export function timeField(trigger: HTMLButtonElement, onChange: (m: number) => v
   };
 
   trigger.addEventListener('click', () => {
-    if (pop.isOpenFor(trigger)) pop.el.hidePopover();
+    if (pop.isOpenFor(trigger)) hidePop(pop.el);
     else pop.open(trigger, value, change);
   });
   // arrow keys nudge by a quarter hour without opening the popover

@@ -2592,3 +2592,7 @@ html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animat
 
 /* Settings → Today: the "Every day" switch beside a row's Apply */
 .set-auto { display: inline-flex; align-items: center; gap: 6px; font: 400 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; cursor: pointer; }
+
+/* a picker where the browser has no popover: fixed on top, the same look (see ui/popover.ts) */
+.pop-fb { position: fixed; z-index: 1000; margin: 0; }
+.pop-fb[hidden] { display: none !important; }
