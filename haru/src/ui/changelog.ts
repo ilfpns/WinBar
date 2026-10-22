@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.44',
+    date: '2026-10-22',
+    items: [
+      '다크 테마 배경을 조금 더 어둡게 (바탕색 한 단계, 위·아래 빛도 약하게)',
+      'Today 조각 보기: 지난 할 일 색을 더 밝게, 둘레에 카테고리 색으로 은은하게 빛',
+    ],
+  },
+  {
     version: '1.43',
     date: '2026-10-22',
     items: [

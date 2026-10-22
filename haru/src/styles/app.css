@@ -95,8 +95,14 @@ img, svg, a { -webkit-user-drag: none; }
 #dial.thin .ring-bg { fill: rgb(var(--ink) / 0.018); }
 :is(#dial, .peek-dial) .slice { fill: var(--slice); stroke: var(--slice-gap); stroke-width: 2; transition: fill var(--dur-fast) var(--ease-out); }
 :is(#dial, .peek-dial) .slice.sel { fill: var(--slice-sel); }
-:is(#dial, .peek-dial) .slice-past { fill: color-mix(in srgb, var(--c) 48%, var(--slice-base)); stroke: var(--slice-gap); stroke-width: 2; pointer-events: none; }
-:is(#dial, .peek-dial) .slice-glow { fill: var(--c); opacity: .17; pointer-events: none; }
+:is(#dial, .peek-dial) .slice-past { fill: color-mix(in srgb, var(--c) 66%, var(--slice-base)); stroke: var(--slice-gap); stroke-width: 2; pointer-events: none; }
+:is(#dial, .peek-dial) .slice-glow { fill: var(--c); opacity: .22; pointer-events: none; }
+/* the lit slices' glow (dial.ts gHalo) */
+#dial .layer-halo { display: none; pointer-events: none; }
+#dial.thin .layer-halo { display: inline; filter: blur(16px); opacity: .6; }
+#dial.thin .halo-clip { clip-path: url(#ring-clip); }
+#dial .halo { fill: var(--c); }
+:root[data-theme="light"] #dial.thin .layer-halo { opacity: .3; }
 /* tasks named outside the ring on leader lines */
 :is(#dial, .peek-dial) .callout { pointer-events: none; }
 /* phones: no room beside the ring for names (they would run off the screen); the middle names the current task */

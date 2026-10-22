@@ -14,13 +14,13 @@
   --disk: #030304;
 
   /* base — black page; panels are cregg's light translucent gray, inner wells a darker gray (neoconda) */
-  --bg: #08080a;
+  --bg: #050506;
   /* the page behind the glass: soft light from the top-left, a faint accent glow bottom-right.
      Each light fades over many stops (an eased falloff, no visible rim) and grain on top dithers the banding. */
   --backdrop:
     var(--noise),
-    radial-gradient(120vmax 90vmax at 0% 0%, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.06) 14%, rgba(255, 255, 255, 0.038) 30%, rgba(255, 255, 255, 0.02) 46%, rgba(255, 255, 255, 0.008) 62%, transparent 80%),
-    radial-gradient(90vmax 70vmax at 100% 100%, color-mix(in srgb, var(--accent) 11%, transparent) 0%, color-mix(in srgb, var(--accent) 7%, transparent) 20%, color-mix(in srgb, var(--accent) 3.5%, transparent) 42%, color-mix(in srgb, var(--accent) 1.2%, transparent) 62%, transparent 82%),
+    radial-gradient(120vmax 90vmax at 0% 0%, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.036) 14%, rgba(255, 255, 255, 0.023) 30%, rgba(255, 255, 255, 0.012) 46%, rgba(255, 255, 255, 0.005) 62%, transparent 80%),
+    radial-gradient(90vmax 70vmax at 100% 100%, color-mix(in srgb, var(--accent) 7%, transparent) 0%, color-mix(in srgb, var(--accent) 4.5%, transparent) 20%, color-mix(in srgb, var(--accent) 2.2%, transparent) 42%, color-mix(in srgb, var(--accent) .8%, transparent) 62%, transparent 82%),
     var(--bg);
   --surface: rgba(10, 10, 10, 0.6);
   --surface-solid: #111111;

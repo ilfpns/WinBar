@@ -65,6 +65,9 @@ const RINGS: Record<DialStyle, [number, number]> = { full: [170, 400], thin: [33
 export function mountDial(svg: SVGSVGElement): Dial {
   const layer = (name: string) => svg.appendChild(svgEl('g', { class: `layer-${name}` }));
   const gBase = layer('base');
+  // slices: the lit (past) part of each task again, blurred into a glow; the blur is on the outer group and the
+  // ring's clip on the inner one, so the glow spills past the ring instead of being cut at it
+  const gHalo = layer('halo').appendChild(svgEl('g', { class: 'halo-clip' }));
   const gBlocks = layer('blocks');
   const gCallouts = layer('callouts');
   // (named so a block's own `style` string in render() can't shadow it)
@@ -119,6 +122,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
     const picked = new Set(state.selected);
 
     gBlocks.replaceChildren();
+    gHalo.replaceChildren();
     if (dialStyle === 'thin') renderSlices(picked, now);
     else for (const b of visibleBlocks()) {
       const isSel = b === draft || (b.id !== null && picked.has(b.id));
@@ -303,7 +307,10 @@ export function mountDial(svg: SVGSVGElement): Dial {
       const passed = live ? mod(now - b.start) : b.start + b.dur <= now ? b.dur : 0;
       const style = `--c:var(--cat-${b.cat})`;
       gBlocks.append(svgEl('path', { class: `slice${sel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }));
-      if (passed > 0) gBlocks.append(svgEl('path', { class: 'slice-past', d: sectorPath(b.start, passed), style }));
+      if (passed > 0) {
+        gBlocks.append(svgEl('path', { class: 'slice-past', d: sectorPath(b.start, passed), style }));
+        gHalo.append(svgEl('path', { class: 'halo', d: sectorPath(b.start, passed), style }));
+      }
       // the running task glows toward the now edge (stacked washes: a gradient along the arc)
       if (live) {
         for (const span of [120, 60, 25]) {
