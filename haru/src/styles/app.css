@@ -2613,3 +2613,58 @@ html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animat
 .toast-go:hover .toast-text strong { text-decoration: underline; text-underline-offset: 3px; }
 .toast-x { width: 32px; height: 32px; }
 @media (prefers-reduced-motion: reduce) { .toast-update.out { animation: none; } }
+
+/* ---------- the window's title bar: installed on a computer with the title bar given to the page (Window Controls
+   Overlay, ui/titlebar.ts). It takes the rail's place; everything else moves down by its height. */
+:root { --tb: 0px; --tb-bg: #0d0e10; }
+:root[data-theme="light"] { --tb-bg: #e9eaee; }
+.titlebar { display: none; }
+body.wco { --tb: env(titlebar-area-height, 33px); --rail-room: calc(var(--panel-inset) + 24px); }
+body.wco .titlebar {
+  position: fixed; z-index: 30; top: env(titlebar-area-y, 0px); left: env(titlebar-area-x, 0px);
+  width: env(titlebar-area-width, calc(100% - 140px)); height: var(--tb); box-sizing: border-box;
+  display: flex; align-items: center; gap: 2px; padding: 0 10px 0 6px;
+  background: var(--tb-bg); color: var(--text-muted); font: 500 12.5px/1 var(--font-sans);
+  /* the empty part moves the window, as a title bar does */
+  app-region: drag; -webkit-app-region: drag;
+}
+body.wco .rail { display: none; }
+body.wco :is(.stage, .calendar-view, .news-view, .text-page) { top: var(--tb); }
+body.wco .drawer { top: calc(var(--panel-inset) + var(--tb)); }
+body.wco .dial-wrap { width: min(100%, calc(100svh - 60px - var(--tb)), 860px); }
+body.wco :is(.peek-btn, .peek-bar) { top: calc(18px + var(--tb)); }
+body.wco .toast-update { top: calc(var(--tb) + 10px); }
+/* signed out: the bar stays (to move the window by) but shows nothing */
+body.gated.wco > .titlebar { visibility: visible; }
+body.gated .titlebar > * { visibility: hidden; }
+.tb-btn, .tb-tab, .tb-now {
+  app-region: no-drag; -webkit-app-region: no-drag;
+  display: inline-flex; align-items: center; gap: 6px; flex: none; height: 26px; padding: 0 8px; border: 0; border-radius: 8px;
+  background: none; color: var(--text-muted); font: inherit; text-decoration: none; cursor: pointer; white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.tb-btn { width: 30px; padding: 0; justify-content: center; }
+.tb-btn .ic, .tb-tab .ic { width: 15px; height: 15px; }
+.tb-brand { color: var(--text-strong); }
+:is(.tb-btn, .tb-tab, .tb-now):hover { background: rgb(var(--ink) / 0.08); color: var(--text-strong); }
+:is(.tb-btn, .tb-tab, .tb-now):focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tb-tabs { display: flex; align-items: center; gap: 2px; min-width: 0; }
+/* the page you're on shows its name; the others are icons (their names on hover) */
+.tb-tab span { display: none; }
+.tb-tab[aria-current="page"] { color: var(--text-strong); background: rgb(var(--ink) / 0.09); }
+.tb-tab[aria-current="page"] span { display: inline; }
+.tb-tab[aria-current="page"] .ic { color: var(--accent); }
+.tb-rule { flex: none; width: 1px; height: 14px; margin: 0 4px; background: var(--line); }
+.tb-fill { flex: 1; min-width: 12px; }
+.tb-progress { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tb-now { min-width: 0; max-width: 300px; gap: 8px; }
+.tb-now::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.tb-name { overflow: hidden; text-overflow: ellipsis; color: var(--text-strong); }
+.tb-left, .tb-pct, .tb-clock { flex: none; font: 400 11.5px/1 var(--font-mono); color: var(--text-muted); }
+.tb-bar { flex: none; width: 52px; height: 4px; border-radius: 2px; background: rgb(var(--ink) / 0.1); overflow: hidden; }
+.tb-bar > i { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--c); transform-origin: left; transform: scaleX(var(--p)); transition: transform .4s var(--ease-out); }
+.tb-day { display: inline-flex; align-items: center; gap: 7px; padding: 0 8px; border-left: 1px solid var(--line); }
+.tb-day[hidden] { display: none; }
+.tb-clock { padding-left: 8px; }
+@media (max-width: 900px) { .tb-day { display: none; } }
+@media (max-width: 720px) { .tb-now .tb-bar, .tb-clock { display: none; } }

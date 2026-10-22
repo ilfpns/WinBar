@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.43',
+    date: '2026-10-22',
+    items: [
+      'PC에 설치한 앱의 맨 윗줄(제목 표시줄)을 Haru가 씀: 로고, 개요, 페이지 탭으로 바로 이동 (지금 페이지는 이름까지)',
+      '윗줄 오른쪽에 진행도: 지금 할 일과 남은 시간 막대, 오늘 계획 중 완료 %, 시계 (누르면 Today)',
+      '윗줄이 있으면 왼쪽 레일은 숨김. 창 버튼 옆 화살표로 원래 제목 표시줄로 되돌릴 수 있음',
+    ],
+  },
+  {
     version: '1.42',
     date: '2026-10-22',
     items: [

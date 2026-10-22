@@ -83,6 +83,26 @@
     <div class="pg-body chat-body" id="chat-body"></div>
   </main>
 
+  <!-- installed on a computer, the window's title bar (ui/titlebar.ts): the logo, the pages, how the day is going -->
+  <header class="titlebar" id="titlebar">
+    <button type="button" class="tb-btn tb-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" title="Haru · settings and more"><i data-icon="circle-dot"></i></button>
+    <button type="button" class="tb-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" title="Open overview  ["><i data-icon="panel-left"></i></button>
+    <span class="tb-rule" aria-hidden="true"></span>
+    <nav class="tb-tabs" aria-label="Pages">
+      <a class="tb-tab" href="#/" data-view="today" title="Today"><i data-icon="clock"></i><span>Today</span></a>
+      <a class="tb-tab" href="#/calendar" data-view="calendar" title="Calendar"><i data-icon="calendar"></i><span>Calendar</span></a>
+      <span class="tb-rule" aria-hidden="true"></span>
+      <a class="tb-tab" href="#/news" data-view="news" title="News"><i data-icon="newspaper"></i><span>News</span></a>
+      <a class="tb-tab" href="#/words" data-view="words" title="Words"><i data-icon="languages"></i><span>Words</span></a>
+      <a class="tb-tab" href="#/journal" data-view="journal" title="Journal"><i data-icon="notebook-pen"></i><span>Journal</span></a>
+      <a class="tb-tab" href="#/archive" data-view="archive" title="Archive"><i data-icon="archive"></i><span>Archive</span></a>
+      <a class="tb-tab" href="#/chat" data-view="chat" title="Chat"><i data-icon="messages"></i><span>Chat</span></a>
+    </nav>
+    <span class="tb-fill"></span>
+    <div class="tb-progress" id="tb-progress"></div>
+    <span class="tb-clock" id="tb-clock"></span>
+  </header>
+
   <!-- the closed overview: a slim glass rail (logo, pages, search); the open panel slides over it -->
   <nav class="rail" id="rail" aria-label="Pages">
     <button type="button" class="rail-btn rail-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" data-tip="Haru · settings and more"><i data-icon="circle-dot"></i></button>

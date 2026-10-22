@@ -440,7 +440,7 @@ export function mountSettings(): void {
 
   // ---- the logo's menu
   const menu = document.getElementById('logo-menu')!;
-  const logos = [...document.querySelectorAll<HTMLButtonElement>('.rail-brand, .brand-mark-btn')];
+  const logos = [...document.querySelectorAll<HTMLButtonElement>('.rail-brand, .brand-mark-btn, .tb-brand')];
   let opener: HTMLButtonElement | null = null;
   // open or not, apart from the closing fade (a click during the fade opens it again)
   let menuOpen = false;
@@ -460,8 +460,10 @@ export function mountSettings(): void {
   function openMenu(from: HTMLButtonElement): void {
     opener = from;
     const r = from.getBoundingClientRect();
-    menu.style.left = `${Math.round(r.right + 10)}px`;
-    menu.style.top = `${Math.round(r.top)}px`;
+    // from the title bar it drops below the logo, elsewhere it opens beside it
+    const below = !!from.closest('.titlebar');
+    menu.style.left = `${Math.round(below ? r.left : r.right + 10)}px`;
+    menu.style.top = `${Math.round(below ? r.bottom + 6 : r.top)}px`;
     clearTimeout(hideTimer);
     menuOpen = true;
     menu.classList.remove('closing');
@@ -528,7 +530,7 @@ export function mountSettings(): void {
   onInstallState(paintInstall);
   paintInstall();
   document.addEventListener('pointerdown', (e) => {
-    if (menuOpen && !(e.target as Element).closest('#logo-menu, .rail-brand, .brand-mark-btn')) closeMenu();
+    if (menuOpen && !(e.target as Element).closest('#logo-menu, .rail-brand, .brand-mark-btn, .tb-brand')) closeMenu();
   });
   menu.addEventListener('keydown', (e) => {
     const items = [...menu.querySelectorAll<HTMLButtonElement>('button:not([hidden])')];
