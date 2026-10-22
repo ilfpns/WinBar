@@ -15,6 +15,12 @@ export const lang = (): 'en' | 'ko' => {
 };
 
 const KO: Record<string, string> = {
+  // the app (ui/pwa.ts)
+  'Install app': '앱으로 설치', Install: '설치', App: '앱', 'New version of Haru': 'Haru 새 버전', 'Reload to use it': '새로고침해서 쓰기', Later: '나중에',
+  'Installed. Haru opens in its own window': '설치됨. Haru가 따로 창으로 열려요',
+  'Put Haru on your home screen or taskbar. It opens like an app, even offline': '홈 화면이나 작업 표시줄에 Haru를 둬요. 앱처럼 열리고 인터넷이 없어도 열려요',
+  'In Safari: Share, then Add to Home Screen. Sign in again in the app; your data comes with your account': 'Safari에서 공유 → 홈 화면에 추가. 앱에서 한 번 더 로그인하면 계정의 데이터가 그대로 와요',
+  'From your browser’s menu: Install app, or Add to Home screen': '브라우저 메뉴에서 "앱 설치" 또는 "홈 화면에 추가"',
   // pages and navigation
   Today: '오늘', Calendar: '캘린더', News: '뉴스', Words: '단어', Journal: '일기', Settings: '설정', Overview: '개요',
   'Search tasks': '할 일 검색', 'Search tasks  /': '할 일 검색  /', Pages: '페이지', Main: '메인',

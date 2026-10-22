@@ -2600,3 +2600,16 @@ html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animat
 /* a picker where the browser has no popover: fixed on top, the same look (see ui/popover.ts) */
 .pop-fb { position: fixed; z-index: 1000; margin: 0; }
 .pop-fb[hidden] { display: none !important; }
+
+/* a new version while Haru is open (ui/pwa.ts): the card to reload, and Later */
+.toast-update {
+  position: fixed; z-index: 61; top: max(14px, env(safe-area-inset-top)); left: 50%; translate: -50% 0;
+  grid-template-columns: minmax(0, 1fr) auto; padding: 6px 6px 6px 14px; cursor: default;
+}
+.toast-update.out { animation: update-out .26s var(--ease-out) forwards; }
+@keyframes update-out { to { opacity: 0; transform: translateY(-16px); } }
+.toast-go { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 6px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.toast-go > .ic { width: 20px; height: 20px; color: var(--accent); }
+.toast-go:hover .toast-text strong { text-decoration: underline; text-underline-offset: 3px; }
+.toast-x { width: 32px; height: 32px; }
+@media (prefers-reduced-motion: reduce) { .toast-update.out { animation: none; } }

@@ -17,6 +17,16 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.42',
+    date: '2026-10-22',
+    items: [
+      'Haru를 앱으로 설치: 홈 화면·작업 표시줄에 아이콘, 주소창 없는 앱 창으로 열림 (로고 메뉴·개요 아래 "앱으로 설치", 설정 → About)',
+      'iPhone은 Safari에서 공유 → 홈 화면에 추가 (설치한 앱에서 한 번 더 로그인)',
+      '인터넷이 끊겨도 마지막으로 연 화면이 열림',
+      '열어 둔 동안 새 버전이 나오면 위에 "새 버전" 카드, 누르면 새로고침 (다시 열면 저절로 새 버전)',
+    ],
+  },
+  {
     version: '1.41',
     date: '2026-10-22',
     items: [

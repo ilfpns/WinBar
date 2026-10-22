@@ -13,6 +13,7 @@ import { labelOf } from '../timetable/model';
 import { hhmm } from '../timetable/time';
 import { type Motion, savedMotion, setMotion } from './motion';
 import { asPopover, hidePop, isPopOpen, onPopToggle, showPop } from './popover';
+import { type InstallState, install, installState, onInstallState } from './pwa';
 
 /**
  * The Haru logo (on the rail, or in the open overview) opens a small menu: Settings, the overview, a quick
@@ -493,12 +494,44 @@ export function mountSettings(): void {
     closeMenu();
     if (what === 'settings') open();
     if (what === 'overview') toggleDrawer('left');
+    if (what === 'install') startInstall();
   });
+
+  // ---- installing Haru as an app (Settings → About; the logo's menu and the overview's foot while there is
+  // something to do, the overview being where a phone finds it)
+  /** The browser's own install where it has one, the steps (Settings → About) where it doesn't. */
+  function startInstall(): void {
+    void install().then((asked) => {
+      if (asked) return;
+      showPage('about');
+      open();
+    });
+  }
+  const HINT: Record<InstallState, string> = {
+    installed: 'Installed. Haru opens in its own window',
+    prompt: 'Put Haru on your home screen or taskbar. It opens like an app, even offline',
+    ios: 'In Safari: Share, then Add to Home Screen. Sign in again in the app; your data comes with your account',
+    manual: 'From your browser’s menu: Install app, or Add to Home screen',
+  };
+  const installHint = document.getElementById('install-hint')!;
+  const installBtn = document.getElementById('install-btn') as HTMLButtonElement;
+  const installItem = menu.querySelector<HTMLButtonElement>('[data-menu="install"]')!;
+  const installFoot = document.getElementById('install-open') as HTMLButtonElement;
+  installFoot.addEventListener('click', startInstall);
+  const paintInstall = () => {
+    const s = installState();
+    installHint.textContent = HINT[s];
+    installBtn.hidden = s !== 'prompt';
+    installItem.hidden = installFoot.hidden = s !== 'prompt' && s !== 'ios';
+  };
+  installBtn.addEventListener('click', () => void install());
+  onInstallState(paintInstall);
+  paintInstall();
   document.addEventListener('pointerdown', (e) => {
     if (menuOpen && !(e.target as Element).closest('#logo-menu, .rail-brand, .brand-mark-btn')) closeMenu();
   });
   menu.addEventListener('keydown', (e) => {
-    const items = [...menu.querySelectorAll<HTMLButtonElement>('button')];
+    const items = [...menu.querySelectorAll<HTMLButtonElement>('button:not([hidden])')];
     const i = items.indexOf(document.activeElement as HTMLButtonElement);
     if (e.key === 'Escape') {
       e.stopPropagation();
