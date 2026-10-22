@@ -26,8 +26,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap"></noscript>
   <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"></noscript>
-  <script type="module" crossorigin src="/WinBar/assets/index-C_73_xFl.js"></script>
-  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-VXTc4sGI.css">
+  <script type="module" crossorigin src="/WinBar/assets/index-CeB0r86S.js"></script>
+  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-DacFUGx7.css">
 </head>
 <body>
   <main class="stage page" id="stage">
@@ -84,6 +84,26 @@
     <header class="pg-head"><h1>Chat</h1><span class="meta" id="chat-sum"></span></header>
     <div class="pg-body chat-body" id="chat-body"></div>
   </main>
+
+  <!-- installed on a computer, the window's title bar (ui/titlebar.ts): the logo, the pages, how the day is going -->
+  <header class="titlebar" id="titlebar">
+    <button type="button" class="tb-btn tb-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" title="Haru · settings and more"><i data-icon="circle-dot"></i></button>
+    <button type="button" class="tb-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" title="Open overview  ["><i data-icon="panel-left"></i></button>
+    <span class="tb-rule" aria-hidden="true"></span>
+    <nav class="tb-tabs" aria-label="Pages">
+      <a class="tb-tab" href="#/" data-view="today" title="Today"><i data-icon="clock"></i><span>Today</span></a>
+      <a class="tb-tab" href="#/calendar" data-view="calendar" title="Calendar"><i data-icon="calendar"></i><span>Calendar</span></a>
+      <span class="tb-rule" aria-hidden="true"></span>
+      <a class="tb-tab" href="#/news" data-view="news" title="News"><i data-icon="newspaper"></i><span>News</span></a>
+      <a class="tb-tab" href="#/words" data-view="words" title="Words"><i data-icon="languages"></i><span>Words</span></a>
+      <a class="tb-tab" href="#/journal" data-view="journal" title="Journal"><i data-icon="notebook-pen"></i><span>Journal</span></a>
+      <a class="tb-tab" href="#/archive" data-view="archive" title="Archive"><i data-icon="archive"></i><span>Archive</span></a>
+      <a class="tb-tab" href="#/chat" data-view="chat" title="Chat"><i data-icon="messages"></i><span>Chat</span></a>
+    </nav>
+    <span class="tb-fill"></span>
+    <div class="tb-progress" id="tb-progress"></div>
+    <span class="tb-clock" id="tb-clock"></span>
+  </header>
 
   <!-- the closed overview: a slim glass rail (logo, pages, search); the open panel slides over it -->
   <nav class="rail" id="rail" aria-label="Pages">
