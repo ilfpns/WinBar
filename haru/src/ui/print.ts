@@ -19,11 +19,17 @@ export function printPdf(fileName: string, heading: string, sections: PrintSecti
   document.getElementById('print-root')?.remove();
   const root = document.createElement('div');
   root.id = 'print-root';
+  // the page has no margin (so the browser adds no date, title or address in it); a blank head and foot
+  // repeated on every page give the paper its margins instead
+  root.innerHTML = '<table class="pr-frame"><thead><tr><td><div class="pr-gap"></div></td></tr></thead>'
+    + '<tfoot><tr><td><div class="pr-gap"></div></td></tr></tfoot><tbody><tr><td class="pr-sheet"></td></tr></tbody></table>';
+  const sheet = root.querySelector<HTMLElement>('.pr-sheet')!;
+  // only the name and a rule on top
   const h = document.createElement('header');
   h.className = 'pr-head';
-  h.innerHTML = '<span class="pr-brand">Haru</span><span class="pr-heading"></span>';
-  h.querySelector('.pr-heading')!.textContent = heading;
-  root.append(h);
+  h.innerHTML = '<span class="pr-brand">Haru</span>';
+  h.setAttribute('aria-label', heading);
+  sheet.append(h);
   for (const s of sections) {
     const art = document.createElement('article');
     art.className = 'pr-entry';
@@ -40,7 +46,7 @@ export function printPdf(fileName: string, heading: string, sections: PrintSecti
     body.className = 'pr-body';
     body.innerHTML = renderMarkdown(s.body, s.imageUrl);
     art.append(body);
-    root.append(art);
+    sheet.append(art);
   }
   document.body.append(root);
   document.body.classList.add('printing');

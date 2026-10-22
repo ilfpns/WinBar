@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.41',
+    date: '2026-10-22',
+    items: [
+      'PDF로 내보낼 때 브라우저가 붙이던 날짜·제목·주소 줄을 없앰',
+      'PDF 머리에는 Haru와 구분선만 (오른쪽 JOURNAL 글자 뺌), 쪽마다 위아래 여백은 그대로',
+    ],
+  },
+  {
     version: '1.40',
     date: '2026-10-22',
     items: [

@@ -1865,11 +1865,15 @@ body.splitting-y { cursor: row-resize; }
 /* ---------- PDF export: only the print layer goes to paper */
 #print-root { display: none; }
 @media print {
-  @page { margin: 18mm 16mm; }
+  /* no page margin: the browser then prints no header or footer (date, title, address) of its own */
+  @page { margin: 0; }
+  .pr-frame { width: 100%; border-collapse: collapse; }
+  .pr-frame td { padding: 0 16mm; vertical-align: top; }
+  .pr-gap { height: 16mm; }
   body.printing { background: #fff !important; color: #111; min-height: 0; overflow: visible; }
   body.printing > :not(#print-root) { display: none !important; }
   body.printing #print-root { display: block; font: 400 11.5pt/1.65 var(--font-sans); color: #111; }
-  .pr-head { display: flex; justify-content: space-between; padding-bottom: 8pt; margin-bottom: 18pt; border-bottom: 1px solid #ddd; font: 500 9pt var(--font-mono); color: #666; letter-spacing: .04em; text-transform: uppercase; }
+  .pr-head { display: flex; justify-content: flex-start; padding-bottom: 8pt; margin-bottom: 18pt; border-bottom: 1px solid #ddd; font: 500 9pt var(--font-mono); color: #666; letter-spacing: .04em; text-transform: uppercase; }
   .pr-entry { break-inside: auto; margin-bottom: 26pt; }
   .pr-entry + .pr-entry { padding-top: 18pt; border-top: 1px solid #eee; }
   .pr-entry > h1 { margin: 0 0 2pt; font-size: 20pt; font-weight: 600; letter-spacing: -.02em; color: #000; }
