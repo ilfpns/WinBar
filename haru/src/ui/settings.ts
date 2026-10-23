@@ -373,7 +373,11 @@ export function mountSettings(): void {
   // ---- name in the greeting on Today
   const greetIn = dialog.querySelector<HTMLInputElement>('#greet-name')!;
   greetIn.value = greetName();
-  greetIn.addEventListener('change', () => setGreetName(greetIn.value));
+  // the greeting changes as you type; empty, it falls back to the account's first name (shown as the hint)
+  greetIn.addEventListener('input', () => setGreetName(greetIn.value));
+  const greetHint = (s: Session | null) => (greetIn.placeholder = s?.name.trim().split(/\s+/)[0] || 'e.g. Public');
+  greetHint(session());
+  onSession(greetHint);
 
   // ---- name in Notion: which column of the Notion attendance table is yours, and whether it was found
   const notionIn = dialog.querySelector<HTMLInputElement>('#notion-name')!;

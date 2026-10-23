@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.46',
+    date: '2026-10-23',
+    items: [
+      'Today 인사 글자를 더 크게',
+      '왼쪽 서랍(개요)을 열면 인사도 서랍 옆으로 같이 밀림 (가려지지 않음)',
+      '설정 → Account → Name: 입력하는 대로 인사가 바로 바뀜, 빈 칸에는 계정 이름이 힌트로 보임',
+    ],
+  },
+  {
     version: '1.45',
     date: '2026-10-23',
     items: [
