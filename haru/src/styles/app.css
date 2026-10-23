@@ -574,24 +574,20 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
   .cal-week div { padding: 0; text-align: center; }
 }
 
-/* ---------- Today's greeting, top left (a click picks another line) */
+/* ---------- Today's greeting, top left */
 .greeting {
-  position: absolute; z-index: 3; top: 30px; left: calc(var(--rail-room, 0px) + 40px); max-width: min(46vw, 560px);
-  display: flex; align-items: center; gap: 12px; padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+  position: absolute; z-index: 3; top: 30px; left: calc(var(--rail-room, 0px) + 40px); max-width: min(58vw, 820px);
+  display: flex; align-items: flex-start; gap: 12px; margin: 0; pointer-events: none;
   font: 400 clamp(28px, 2.7vw, 40px)/1.2 var(--font-sans); letter-spacing: -.015em; color: var(--text-strong);
   /* an open overview drawer pushes it along (same time and curve as the drawer) */
   transition: transform var(--drawer-dur) var(--drawer-ease);
 }
 /* the drawer covers the rail, so it moves past the drawer by the rail's room less, keeping the same gap */
 @media (min-width: 1001px) { body.left-open .stage:is(.current, .leaving) .greeting { transform: translate3d(calc(var(--shift-l, 0px) - var(--rail-room, 0px)), 0, 0); } }
-.greeting span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.greeting-mark { flex: none; width: 1.05em; height: 1.05em; color: var(--accent); stroke-width: 2.25; transition: transform .6s var(--ease-out); }
-.greeting:hover .greeting-mark { transform: rotate(45deg); }
-.greeting.swap span { animation: greet-in .45s var(--ease-out) both; }
-@keyframes greet-in { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
+.greeting span { text-wrap: balance; }
+.greeting-mark { flex: none; width: 1.05em; height: 1.05em; margin-top: .1em; color: var(--accent); stroke-width: 2.25; }
 body.wco .greeting { top: calc(var(--tb, 0px) + 22px); }
 @media (max-width: 760px) { .greeting { top: max(14px, env(safe-area-inset-top)); left: 20px; max-width: calc(100vw - 40px); font-size: 23px; } }
-@media (prefers-reduced-motion: reduce) { .greeting.swap span { animation: none; } .greeting-mark { transition: none; } }
 
 /* ---------- calendar: Month / Week, and the week as seven small dials */
 .cal-mode { display: flex; gap: 2px; padding: 3px; margin-right: 6px; border-radius: 17px; background: rgb(var(--ink) / 0.04); box-shadow: inset 0 0 0 1px var(--glass-edge); }

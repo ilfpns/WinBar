@@ -34,7 +34,7 @@ const KO: Record<string, string> = {
   Work: '업무', Study: '공부', Meeting: '회의', Meal: '식사', Health: '건강', Personal: '개인', Sleep: '수면', Other: '기타',
   'Nothing planned yet': '아직 계획이 없어요', 'Not planned yet': '아직 계획 없음',
   // the greeting on Today (ui/greeting.ts); the lines themselves stay in English
-  'Another greeting': '다른 인사', 'Name for the greeting': '인사에 쓸 이름', 'Used in the greeting on Today. Empty: your account’s first name.': 'Today 인사에 쓰여요. 비워 두면 계정 이름을 써요.',
+  'Name for the greeting': '인사에 쓸 이름', 'Used in the greeting on Today. Empty: your account’s first name.': 'Today 인사에 쓰여요. 비워 두면 계정 이름을 써요.',
   // calendar: the week and plans (calendar/week.ts)
   Week: '주', 'Plan week': '한 주 계획', 'Plan the weekdays ahead with a template': '남은 평일을 템플릿으로 계획해요', 'Previous week': '지난주', 'Next week': '다음 주',
   'Plan this day': '이 날 계획하기', Plan: '계획', Change: '바꾸기', 'Plan cleared': '계획을 지웠어요', 'Plans cleared': '계획을 모두 지웠어요',

@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.47',
+    date: '2026-10-23',
+    items: [
+      'Today 인사가 "…"로 잘리던 문제: 자리를 넓히고, 아주 길면 두 줄로',
+      '인사를 눌러도 문구가 바뀌지 않음 (시간대가 바뀔 때만 새 문구)',
+    ],
+  },
+  {
     version: '1.46',
     date: '2026-10-23',
     items: [

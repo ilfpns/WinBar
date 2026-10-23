@@ -3,7 +3,7 @@ import { icon } from './icons';
 
 /**
  * Today's greeting, top left: one line for the time of day with your name in it ("Good morning, Public"),
- * picked at random from twenty per part of the day. A click picks another. The name is the one set in
+ * picked at random from twenty per part of the day (a new one when the part of the day changes). The name is the one set in
  * Settings → Account, or your account's first name; without either the line simply has none.
  */
 const NAME_KEY = 'haru:greet-name';
@@ -74,11 +74,9 @@ export function setGreetName(name: string): void {
 const nameNow = (): string => read() || (session()?.name ?? '').trim().split(/\s+/)[0] || '';
 
 export function mountGreeting(stage: HTMLElement): void {
-  const el = document.createElement('button');
-  el.type = 'button';
+  const el = document.createElement('p');
   el.className = 'greeting';
   el.dataset.noI18n = '';
-  el.title = 'Another greeting';
   const text = document.createElement('span');
   el.append(icon('asterisk', 'ic greeting-mark'), text);
   stage.append(el);
@@ -103,12 +101,6 @@ export function mountGreeting(stage: HTMLElement): void {
     part = p;
     pick();
   };
-  el.addEventListener('click', () => {
-    pick();
-    el.classList.remove('swap');
-    void el.offsetWidth;
-    el.classList.add('swap');
-  });
   listeners.add(paint);
   onSession(paint);
   tick();
