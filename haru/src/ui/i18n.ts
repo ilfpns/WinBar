@@ -33,6 +33,13 @@ const KO: Record<string, string> = {
   Now: '지금', Day: '하루', Categories: '카테고리', Done: '완료', Planned: '계획', Free: '여유', 'Free time': '여유 시간',
   Work: '업무', Study: '공부', Meeting: '회의', Meal: '식사', Health: '건강', Personal: '개인', Sleep: '수면', Other: '기타',
   'Nothing planned yet': '아직 계획이 없어요', 'Not planned yet': '아직 계획 없음',
+  // the greeting on Today (ui/greeting.ts); the lines themselves stay in English
+  'Another greeting': '다른 인사', 'Name for the greeting': '인사에 쓸 이름', 'Used in the greeting on Today. Empty: your account’s first name.': 'Today 인사에 쓰여요. 비워 두면 계정 이름을 써요.',
+  // calendar: the week and plans (calendar/week.ts)
+  Week: '주', 'Plan week': '한 주 계획', 'Plan the weekdays ahead with a template': '남은 평일을 템플릿으로 계획해요', 'Previous week': '지난주', 'Next week': '다음 주',
+  'Plan this day': '이 날 계획하기', Plan: '계획', Change: '바꾸기', 'Plan cleared': '계획을 지웠어요', 'Plans cleared': '계획을 모두 지웠어요',
+  'Copy Today': '오늘 복사', 'Clear plan': '계획 지우기', 'Clear these plans': '이 계획 모두 지우기',
+  'Save a template on Today to plan with it': 'Today에서 템플릿을 저장하면 그걸로 계획할 수 있어요',
   // tasks drawer
   Tasks: '할 일', 'Tasks  ]': '할 일  ]', 'Toggle tasks': '할 일 열고 닫기', 'Tasks panel': '할 일 패널', New: '새로 만들기',
   'New task': '새 할 일', 'Edit task': '할 일 편집', 'What are you doing?': '무엇을 하나요?', Start: '시작', End: '끝',
@@ -195,6 +202,11 @@ const t = (s: string) => KO[s] ?? s;
 
 /** Strings with numbers or names in them. */
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
+  // plans (calendar/week.ts)
+  [/^Planned · (.+)$/, (_, n) => `계획 · ${n === 'Today' ? '오늘' : n}`],
+  [/^Planned with (.+)$/, (_, n) => `${n === 'Today' ? '오늘' : n}(으)로 계획했어요`],
+  [/^Planned (\d+) days with (.+)$/, (_, d, n) => `${d}일을 ${n}(으)로 계획했어요`],
+  [/^Same as (.+)$/, (_, d) => `${d}처럼`],
   // sharing and other people's Today
   [/^(.+)’s Today$/, (_, n) => `${n}의 오늘`],
   [/^(.+)’s Today \(read only\)$/, (_, n) => `${n}의 오늘 (보기 전용)`],

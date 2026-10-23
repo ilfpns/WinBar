@@ -9,8 +9,11 @@ import { ringsChart, slicesChart } from './day-charts';
 import { icon } from '../ui/icons';
 import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
 import { addBlock, setState, state, subscribe } from '../timetable/state';
-import { dayKey, timetableOn } from '../timetable/history';
-import { CATEGORIES, labelOf } from '../timetable/model';
+import { dayOf, timetableOn } from '../timetable/history';
+import { CATEGORIES, type Block, labelOf } from '../timetable/model';
+import { allTemplates } from '../timetable/templates';
+import { clearPlan, onPlans, planOn, setPlan } from '../timetable/plans';
+import { type MenuItem, dayLine, isAhead, loadDay, miniDial, openPlanMenu, weekDates, weekStart } from './week';
 import { formatDuration, hhmm } from '../timetable/time';
 import { lessMotion } from '../ui/motion';
 
@@ -38,6 +41,9 @@ export interface CalendarRefs {
   next: HTMLButtonElement;
   today: HTMLButtonElement;
   stats: HTMLButtonElement;
+  /** Month / Week switch, and the week's "plan the weekdays" button. */
+  mode: HTMLElement;
+  plan: HTMLButtonElement;
   filters: HTMLElement;
   week: HTMLElement;
   grid: HTMLElement;
@@ -50,6 +56,15 @@ export function mountCalendar(refs: CalendarRefs): void {
   let month = firstOfMonth(new Date());
   let selected = iso(new Date());
   const shown = new Set<Kind>(['holiday', 'observance', 'school']);
+  // the month grid, or one week as seven small dials (remembered)
+  const MODE_KEY = 'haru:cal-mode';
+  let mode: 'month' | 'week' = 'month';
+  try {
+    if (localStorage.getItem(MODE_KEY) === 'week') mode = 'week';
+  } catch {
+    // the month
+  }
+  let weekOf = weekStart(new Date());
 
   // weekday header: Sunday first, as Korean calendars are read
   refs.week.replaceChildren(...['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => {
@@ -141,7 +156,9 @@ export function mountCalendar(refs: CalendarRefs): void {
   const ttView = document.createElement('div');
   ttView.className = 'cal-tt';
   ttView.hidden = true;
-  let ttOpen = false;
+  // the week is about planning: there the day's timetable (or plan) starts open
+  let ttOpen = mode === 'week';
+  ttBtn.setAttribute('aria-pressed', String(ttOpen));
   ttBtn.addEventListener('click', () => {
     ttOpen = !ttOpen;
     ttBtn.setAttribute('aria-pressed', String(ttOpen));
@@ -195,15 +212,37 @@ export function mountCalendar(refs: CalendarRefs): void {
     const from = ttView.hidden ? 0 : ttView.offsetHeight;
     const date = selected;
     ttFor = date;
-    const isToday = date === dayKey();
-    const found = isToday ? { snap: { date, blocks: state.blocks, saved: Date.now() }, carried: false } : date > dayKey() ? null : await timetableOn(date);
+    // Today follows the New day time (at 2 a.m. with a 4 a.m. reset it is still yesterday); later days show their plan
+    const isToday = date === dayOf();
+    const ahead = isAhead(date);
+    const plan = ahead ? planOn(date) : undefined;
+    const found = isToday
+      ? { snap: { date, blocks: state.blocks, saved: Date.now() }, carried: false }
+      : ahead
+        ? plan ? { snap: { date, blocks: plan.blocks.map((b, i): Block => ({ ...b, id: `plan-${i}`, done: false })), saved: plan.saved }, carried: false } : null
+        : await timetableOn(date);
     if (ttFor !== date) return; // another day was picked meanwhile
     const blocks = found?.snap.blocks ?? [];
+    const planBtn = (label: string) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn-text';
+      b.textContent = label;
+      b.addEventListener('click', () => void planMenu([date], b));
+      return b;
+    };
     if (!blocks.length) {
       const empty = document.createElement('p');
       empty.className = 'cal-tt-empty';
-      empty.textContent = date > dayKey() ? 'Not planned yet' : 'No timetable saved for this day';
-      ttView.replaceChildren(empty);
+      empty.textContent = ahead ? 'Not planned yet' : 'No timetable saved for this day';
+      if (ahead) {
+        const row = document.createElement('div');
+        row.className = 'cal-tt-plan';
+        row.append(empty, planBtn('Plan this day'));
+        ttView.replaceChildren(row);
+      } else {
+        ttView.replaceChildren(empty);
+      }
       resizeFrom(from);
       return;
     }
@@ -251,9 +290,25 @@ export function mountCalendar(refs: CalendarRefs): void {
     foot.className = 'cal-tt-foot';
     const note = document.createElement('span');
     note.className = 'meta';
-    note.textContent = found?.carried ? `Carried over from ${found.snap.date.slice(5).replace('-', '/')}` : isToday ? 'Today, live' : 'Saved that day';
+    note.textContent = plan
+      ? plan.from ? `Planned · ${plan.from}` : 'Planned'
+      : found?.carried ? `Carried over from ${found.snap.date.slice(5).replace('-', '/')}` : isToday ? 'Today, live' : 'Saved that day';
     foot.append(note);
-    if (!isToday) {
+    if (plan) {
+      // a day ahead: change its plan or drop it; it becomes Today when that day begins
+      const clear = document.createElement('button');
+      clear.type = 'button';
+      clear.className = 'btn-text danger';
+      clear.textContent = 'Clear plan';
+      clear.addEventListener('click', () => {
+        clearPlan(date);
+        say('Plan cleared');
+      });
+      const tools = document.createElement('div');
+      tools.className = 'cal-tt-foot-tools';
+      tools.append(planBtn('Change'), clear);
+      foot.append(tools);
+    } else if (!isToday) {
       // bring that day back as Today (done marks start over); undo from the memo status line
       const use = document.createElement('button');
       use.type = 'button';
@@ -280,14 +335,64 @@ export function mountCalendar(refs: CalendarRefs): void {
     top.className = 'cal-tt-top';
     const title = document.createElement('span');
     title.className = 'meta';
-    title.textContent = 'Timetable';
+    title.textContent = plan ? 'Plan' : 'Timetable';
     top.append(title, views);
     ttView.replaceChildren(top, svg, list, foot);
     resizeFrom(from);
   }
-  // Today changes show up live while today's timetable is open
+  // Today changes show up live while today's timetable is open (and in the week, on Today's dial)
   subscribe(() => {
-    if (ttOpen && selected === dayKey()) void renderTimetable();
+    if (ttOpen && selected === dayOf()) void renderTimetable();
+    // off the page the week waits: arriving on it redraws (see onView below)
+    if (mode === 'week' && currentView() === 'calendar' && weekDates(weekOf).includes(dayOf())) renderGrid(0);
+  });
+
+  // ---------- planning days ahead (Plans): from the day panel, or the week's weekdays at once
+  const short = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  async function planMenu(dates: string[], from: HTMLElement): Promise<void> {
+    const ahead = dates.filter(isAhead);
+    if (!ahead.length) return;
+    const one = ahead.length === 1 ? ahead[0]! : null;
+    const done = (n: number, name: string) => say(n === 1 ? `Planned with ${name}` : `Planned ${n} days with ${name}`);
+    const items: MenuItem[] = allTemplates().filter((t) => t.blocks.length).map((t) => ({
+      label: t.name,
+      icon: 'file-text',
+      run: () => {
+        for (const d of ahead) setPlan(d, t.blocks, t.name);
+        done(ahead.length, t.name);
+      },
+    }));
+    if (one) {
+      // the same weekday a week earlier (as kept, live, or planned), and Today as it is now
+      const before = new Date(`${one}T00:00`);
+      before.setDate(before.getDate() - 7);
+      const prev = await loadDay(iso(before));
+      if (prev.blocks.length) {
+        const name = short(prev.date);
+        items.push({ label: `Same as ${name}`, icon: 'copy', run: () => { setPlan(one, prev.blocks, name); done(1, name); } });
+      }
+      if (state.blocks.length) items.push({ label: 'Copy Today', icon: 'copy', run: () => { setPlan(one, state.blocks, 'Today'); done(1, 'Today'); } });
+    }
+    if (ahead.some((d) => planOn(d))) {
+      items.push({
+        label: one ? 'Clear plan' : 'Clear these plans',
+        icon: 'eraser',
+        danger: true,
+        run: () => {
+          ahead.forEach(clearPlan);
+          say(one ? 'Plan cleared' : 'Plans cleared');
+        },
+      });
+    }
+    const head = one ? short(one) : `${short(ahead[0]!)} – ${short(ahead[ahead.length - 1]!)}`;
+    openPlanMenu(from, head, items, allTemplates().some((t) => t.blocks.length) ? '' : 'Save a template on Today to plan with it');
+  }
+  /** The weekdays (Mon–Fri) of the shown week that are still ahead. */
+  const weekdaysAhead = () => weekDates(weekOf).slice(1, 6).filter(isAhead);
+  refs.plan.addEventListener('click', () => void planMenu(weekdaysAhead(), refs.plan));
+  onPlans(() => {
+    if (mode === 'week') renderGrid(0);
+    if (ttOpen && isAhead(selected)) void renderTimetable();
   });
   async function attach(files: Blob[]): Promise<void> {
     const n = (await images.add(noteDate, files)).length;
@@ -431,7 +536,15 @@ export function mountCalendar(refs: CalendarRefs): void {
       .trim();
 
   function go(delta: number): void {
-    month = new Date(month.getFullYear(), month.getMonth() + delta, 1);
+    if (mode === 'week') {
+      // a week at a time; the picked day moves along to the same weekday
+      weekOf = new Date(weekOf.getFullYear(), weekOf.getMonth(), weekOf.getDate() + 7 * delta);
+      const d = new Date(`${selected}T00:00`);
+      selected = iso(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7 * delta));
+      month = firstOfMonth(new Date(`${selected}T00:00`));
+    } else {
+      month = new Date(month.getFullYear(), month.getMonth() + delta, 1);
+    }
     render(delta);
   }
   refs.prev.addEventListener('click', () => go(-1));
@@ -439,11 +552,49 @@ export function mountCalendar(refs: CalendarRefs): void {
   refs.next.addEventListener('click', () => go(1));
   refs.today.addEventListener('click', () => {
     const now = new Date();
-    const delta = (now.getFullYear() - month.getFullYear()) * 12 + now.getMonth() - month.getMonth();
+    const delta = mode === 'week'
+      ? Math.sign(weekStart(now).getTime() - weekOf.getTime())
+      : (now.getFullYear() - month.getFullYear()) * 12 + now.getMonth() - month.getMonth();
     month = firstOfMonth(now);
+    weekOf = weekStart(now);
     selected = iso(now);
     render(Math.sign(delta));
   });
+
+  // Month / Week
+  const modeBtns = [...refs.mode.querySelectorAll<HTMLButtonElement>('[data-mode]')];
+  function paintMode(): void {
+    for (const b of modeBtns) b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
+    refs.grid.classList.toggle('week', mode === 'week');
+    refs.grid.classList.remove('enter');
+    refs.plan.hidden = mode !== 'week';
+    refs.prev.setAttribute('aria-label', mode === 'week' ? 'Previous week' : 'Previous month');
+    refs.next.setAttribute('aria-label', mode === 'week' ? 'Next week' : 'Next month');
+  }
+  for (const b of modeBtns) {
+    b.addEventListener('click', () => {
+      const next = b.dataset.mode === 'week' ? 'week' : 'month';
+      if (next === mode) return;
+      mode = next;
+      try {
+        localStorage.setItem(MODE_KEY, mode);
+      } catch {
+        // remembered for this visit only
+      }
+      // both views open on the picked day
+      const d = new Date(`${selected}T00:00`);
+      weekOf = weekStart(d);
+      month = firstOfMonth(d);
+      if (mode === 'week' && !ttOpen) {
+        ttOpen = true;
+        ttBtn.setAttribute('aria-pressed', 'true');
+      }
+      drawnWeek = ''; // the week sweeps in when it opens
+      paintMode();
+      render(0);
+    });
+  }
+  paintMode();
 
   document.addEventListener('keydown', (e) => {
     if (currentView() !== 'calendar' || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
@@ -461,6 +612,11 @@ export function mountCalendar(refs: CalendarRefs): void {
   function pickDate(date: string): void {
     selected = date;
     const d = new Date(`${selected}T00:00`);
+    if (mode === 'week') {
+      month = firstOfMonth(d);
+      render(0);
+      return;
+    }
     // picking a day from the neighbouring month turns the page to it
     if (d.getMonth() !== month.getMonth()) {
       const delta = d < month ? -1 : 1;
@@ -525,7 +681,82 @@ export function mountCalendar(refs: CalendarRefs): void {
     renderDay();
   }
 
+  /** Bumped on every week drawn: days that load after the week moved on are dropped. */
+  let weekToken = 0;
+  /** The week last drawn: only a different one sweeps its dials in. */
+  let drawnWeek = '';
+  function renderWeek(direction: number): void {
+    const dates = weekDates(weekOf);
+    const at = (date: string) => new Date(`${date}T00:00`);
+    const mid = at(dates[3]!);
+    const span = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    refs.month.textContent = mid.toLocaleDateString('en-US', { month: 'long' });
+    refs.year.textContent = `${mid.getFullYear()} · ${span(at(dates[0]!))} – ${span(at(dates[6]!))}`;
+    refs.plan.disabled = !weekdaysAhead().length;
+    const today = iso(new Date());
+    const token = ++weekToken;
+    const cells = dates.map((date) => {
+      const d = at(date);
+      const list = eventsOn(date);
+      const cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'cal-cell wk-cell';
+      cell.dataset.date = date;
+      cell.classList.toggle('is-today', date === today);
+      cell.classList.toggle('sel', date === selected);
+      cell.classList.toggle('sun', d.getDay() === 0);
+      cell.classList.toggle('sat', d.getDay() === 6);
+      cell.classList.toggle('red', list.some((e) => e.kind === 'holiday'));
+      cell.classList.toggle('off', list.some((e) => e.off));
+      cell.classList.toggle('ahead', isAhead(date));
+      const num = document.createElement('span');
+      num.className = 'cal-num';
+      num.textContent = String(d.getDate());
+      const slot = document.createElement('div');
+      slot.className = 'wk-slot';
+      const line = document.createElement('span');
+      line.className = 'wk-line meta';
+      const ul = document.createElement('ul');
+      ul.className = 'cal-evs';
+      for (const ev of list.slice(0, 2)) {
+        const li = document.createElement('li');
+        li.dataset.kind = ev.kind;
+        li.textContent = ev.title;
+        ul.append(li);
+      }
+      cell.append(num, slot, line, ul);
+      cell.setAttribute('aria-label', d.toDateString());
+      return cell;
+    });
+    refs.grid.replaceChildren(...cells);
+    const fresh = drawnWeek !== dates[0];
+    drawnWeek = dates[0]!;
+    void Promise.all(dates.map(loadDay)).then((days) => {
+      if (token !== weekToken) return;
+      refs.grid.classList.toggle('enter', fresh);
+      days.forEach((day, i) => {
+        const cell = cells[i]!;
+        cell.classList.add(`wk-${day.kind}`);
+        cell.querySelector('.wk-slot')!.replaceChildren(miniDial(day));
+        const text = dayLine(day);
+        cell.querySelector('.wk-line')!.textContent = text;
+        const events = eventsOn(day.date).map((e) => e.title).join(', ');
+        cell.setAttribute('aria-label', [at(day.date).toDateString(), text, events].filter(Boolean).join(': '));
+      });
+    });
+    if (direction) {
+      refs.grid.animate(
+        [{ opacity: 0, transform: `translate3d(${direction * 24}px, 0, 0)` }, { opacity: 1, transform: 'none' }],
+        { duration: 320, easing: 'cubic-bezier(.22, 1, .36, 1)' },
+      );
+    }
+  }
+
   function renderGrid(direction: number): void {
+    if (mode === 'week') {
+      renderWeek(direction);
+      return;
+    }
     refs.month.textContent = month.toLocaleDateString('en-US', { month: 'long' });
     refs.year.textContent = String(month.getFullYear());
     const today = iso(new Date());
@@ -603,7 +834,13 @@ export function mountCalendar(refs: CalendarRefs): void {
   // arriving on the page only needs a redraw when the date moved on (e.g. past midnight)
   let shownOn = iso(new Date());
   onView((view) => {
-    if (view !== 'calendar' || iso(new Date()) === shownOn) return;
+    if (view !== 'calendar') return;
+    // the week shows Today live, so it is redrawn on every visit
+    if (mode === 'week' && iso(new Date()) === shownOn) {
+      renderGrid(0);
+      return;
+    }
+    if (iso(new Date()) === shownOn) return;
     shownOn = iso(new Date());
     render(0);
   });

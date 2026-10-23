@@ -1,15 +1,21 @@
-import { listStore } from '../storage/list-store';
 import { dayKey } from '../timetable/history';
 import { icon } from '../ui/icons';
 import { mdPad } from '../ui/md-pad';
 import { type MdEditor } from '../ui/md-editor';
 import { printPdf } from '../ui/print';
-import { IMG_LINE, imageLine } from '../ui/markdown';
+import { IMG_LINE } from '../ui/markdown';
 import { askConfirm, askText, showMenu } from '../ui/modal';
 import { onSession, session } from '../cloud/session';
 import { mentionable } from '../cloud/viewing';
 import { sharePage, unsharePage } from '../archive/archive';
-import { imagesStore, onImagesChanged } from '../calendar/images';
+import { type Entry, type Folder, ROOT, folderStore, journalStore, newId, wordCount } from './journal-store';
+import { mountPhotos } from './journal-photos';
+import { mountTree } from './journal-tree';
+
+export { type Entry, type Folder, folderStore, journalStore } from './journal-store';
+
+/** Which folder was open (per browser). */
+const TAB_KEY = 'haru:journal-folder';
 
 /**
  * Journal: pages written in your own words — a summary of the day, a thought, a plan — always filed in a
@@ -17,47 +23,6 @@ import { imagesStore, onImagesChanged } from '../calendar/images';
  * to the date, how that day's timetable went. Pages move between folders (the picker, or drag one onto a
  * folder tab; a folder's ⋯ or right-click renames or deletes it); deleting asks first and can be undone for a few seconds.
  */
-export interface Entry {
-  id: string;
-  /** YYYY-MM-DD the entry is about. */
-  date: string;
-  title: string;
-  body: string;
-  created: number;
-  updated: number;
-  /** The folder it is filed in (an id from folderStore); none: it sits at the top level (root). */
-  folder?: string;
-  /** Kept at the top of its folder's list. */
-  pinned?: boolean;
-}
-export interface Folder { id: string; name: string; created: number }
-
-const isEntry = (v: unknown): v is Entry => {
-  const e = v as Partial<Entry> | null;
-  return !!e && typeof e.id === 'string' && typeof e.date === 'string' && typeof e.body === 'string';
-};
-export const journalStore = listStore<Entry>('journal', isEntry);
-const isFolder = (v: unknown): v is Folder => {
-  const f = v as Partial<Folder> | null;
-  return !!f && typeof f.id === 'string' && typeof f.name === 'string';
-};
-export const folderStore = listStore<Folder>('journal-folders', isFolder);
-/** Which folder was open (per browser). */
-const TAB_KEY = 'haru:journal-folder';
-const TREE_KEY = 'haru:journal-tree-open';
-/** The top level: pages outside every folder (no folder, or one deleted elsewhere). Also a tab of its own. */
-const ROOT = '/';
-
-const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const wordCount = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
-/** A Markdown line as plain words (marks, fences and dividers dropped). */
-const plain = (line: string) =>
-  IMG_LINE.test(line) || /^\s*(```|([-*_])(\s*\2){2,}\s*$|\|(\s*:?-{3,}:?\s*\|)+\s*$)/.test(line) ? '' : line
-    .replace(/^\s*\|(.*)\|\s*$/, (_, cells: string) => cells.split('|').map((x) => x.trim()).filter(Boolean).join(' · '))
-    .replace(/^\s*(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> )/, '')
-    .replace(/@\[([^\]]+)\]\(user:[\w-]+\)/g, '@$1').replace(/\*\*|__|~~|`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim();
-const fmtDay = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-
 export function mountJournal(body: HTMLElement): void {
   body.innerHTML = `
     <aside class="j-side tree glass-card" aria-label="Pages">
@@ -428,165 +393,10 @@ export function mountJournal(body: HTMLElement): void {
   });
   journalStore.onChange(paintPin);
 
-  // ---- photos: pick, paste (Ctrl+V) or drop them onto the page, and they go into the text where the caret is
-  // (dropped: where they fall), each on a line of its own, as in Notion or Obsidian. Opened large, copied or
-  // removed from the photo itself. They live with the calendar's images (synced and backed up the same way),
-  // filed under the page; photos from before they went inline (or whose line was deleted) stay under the text.
-  const gallery = $<HTMLElement>('.j-images');
-  const addImg = $<HTMLButtonElement>('.j-add-img');
-  const imgFile = $<HTMLInputElement>('.j-img-file');
-  addImg.append(icon('image-plus'));
-  const photoKey = (id: string) => `journal:${id}`;
-  /** A photo of the open page, to show (null: not on this device, or not yet). */
-  function photoUrl(id: string): string | null {
-    const store = imagesStore();
-    const rec = store && openId ? store.get(photoKey(openId)).find((r) => r.id === id) : undefined;
-    return rec ? store!.url(rec) : null;
-  }
-  async function attach(files: Blob[]): Promise<void> {
-    const store = imagesStore();
-    if (!store || !files.some((f) => f.type.startsWith('image/'))) return;
-    // a photo on a blank page starts the page
-    flush(true);
-    if (!openId) return;
-    const at = text.selectionStart;
-    const added = await store.add(photoKey(openId), files);
-    if (!added.length) return;
-    placePhotos(added.map((r) => r.id), at);
-    tell(`${added.length} photo${added.length === 1 ? '' : 's'} added`);
-  }
-  /** Puts photo lines into the text at `at` (on lines of their own), the caret after them. */
-  function placePhotos(ids: string[], at: number): void {
-    const v = text.value;
-    const pos = Math.min(at, v.length);
-    const before = pos > 0 && v[pos - 1] !== '\n' ? '\n' : '';
-    const after = pos < v.length && v[pos] === '\n' ? '' : '\n';
-    text.setRangeText(before + ids.map(imageLine).join('\n') + after, pos, pos, 'end');
-    text.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-  text.imageUrl = photoUrl;
+  // ---- photos: in the text where the caret is, or under it (journal-photos.ts)
+  const { photoUrl, renderPhotos } = mountPhotos({ body, text, titleIn, openId: () => openId, flush, tell });
   // @ names someone invited (yourself aside); shared to Archive, they see a dot until they read it
   text.people = () => mentionable(session()?.uid);
-  text.addEventListener('md-image', (e) => {
-    const { id, action } = (e as CustomEvent<{ id: string; action: string }>).detail;
-    const store = imagesStore();
-    const rec = store && openId ? store.get(photoKey(openId)).find((r) => r.id === id) : undefined;
-    if (!rec || !store) return;
-    if (action === 'open') {
-      big.src = store.url(rec);
-      viewer.showModal();
-    } else if (action === 'copy') {
-      void copyPhoto(rec.blob).then(() => tell('Photo copied'), () => tell('Couldn’t copy the photo'));
-    } else if (action === 'remove') {
-      store.remove(rec.id);
-      tell('Photo removed');
-    }
-  });
-  addImg.addEventListener('click', () => imgFile.click());
-  imgFile.addEventListener('change', () => {
-    void attach([...(imgFile.files ?? [])]);
-    imgFile.value = '';
-  });
-  // an image on the clipboard goes in as a photo; text pastes as usual
-  const onPaste = (e: ClipboardEvent) => {
-    const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
-    if (!files.length) return;
-    e.preventDefault();
-    void attach(files);
-  };
-  text.addEventListener('paste', onPaste);
-  titleIn.addEventListener('paste', onPaste);
-  const editorEl = $<HTMLElement>('.j-editor');
-  editorEl.addEventListener('dragover', (e) => {
-    if (![...(e.dataTransfer?.items ?? [])].some((i) => i.kind === 'file')) return;
-    e.preventDefault();
-    editorEl.classList.add('drop');
-  });
-  editorEl.addEventListener('dragleave', (e) => {
-    if (!editorEl.contains(e.relatedTarget as Node)) editorEl.classList.remove('drop');
-  });
-  editorEl.addEventListener('drop', (e) => {
-    const files = [...(e.dataTransfer?.files ?? [])];
-    editorEl.classList.remove('drop');
-    if (!files.length) return;
-    e.preventDefault();
-    // dropped on the text: they go where they fall
-    const spot = document.caretRangeFromPoint?.(e.clientX, e.clientY);
-    if (spot && text.contains(spot.startContainer)) {
-      text.focus();
-      getSelection()?.collapse(spot.startContainer, spot.startOffset);
-    }
-    void attach(files);
-  });
-
-  /** A photo onto the clipboard as an image (browsers take PNG, so other formats are redrawn as one). */
-  async function copyPhoto(blob: Blob): Promise<void> {
-    let png = blob;
-    if (blob.type !== 'image/png') {
-      const bmp = await createImageBitmap(blob);
-      const c = document.createElement('canvas');
-      c.width = bmp.width;
-      c.height = bmp.height;
-      c.getContext('2d')!.drawImage(bmp, 0, 0);
-      bmp.close();
-      png = await new Promise<Blob>((ok, fail) => c.toBlob((b) => (b ? ok(b) : fail(new Error('no png'))), 'image/png'));
-    }
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-  }
-
-  // full-size view: any click or Esc closes it
-  const viewer = document.createElement('dialog');
-  viewer.className = 'img-view';
-  const big = document.createElement('img');
-  big.alt = '';
-  viewer.append(big);
-  viewer.addEventListener('click', () => viewer.close());
-  document.body.append(viewer);
-
-  function renderPhotos(): void {
-    const store = imagesStore();
-    text.refreshImages();
-    // under the text: only the photos not placed in it
-    const placed = new Set(text.value.split('\n').flatMap((l) => IMG_LINE.exec(l)?.[1] ?? []));
-    const list = store && openId ? store.get(photoKey(openId)).filter((r) => !placed.has(r.id)) : [];
-    gallery.hidden = !list.length;
-    gallery.replaceChildren(...list.map((rec, k) => {
-      const item = document.createElement('div');
-      item.className = 'cal-img';
-      const open = document.createElement('button');
-      open.type = 'button';
-      open.className = 'cal-img-open';
-      open.setAttribute('aria-label', `Open photo ${k + 1}`);
-      const img = document.createElement('img');
-      img.src = store!.url(rec);
-      img.alt = '';
-      img.loading = 'lazy';
-      open.append(img);
-      open.addEventListener('click', () => {
-        big.src = store!.url(rec);
-        viewer.showModal();
-      });
-      const copy = document.createElement('button');
-      copy.type = 'button';
-      copy.className = 'cal-img-del j-img-copy';
-      copy.setAttribute('aria-label', `Copy photo ${k + 1}`);
-      copy.title = 'Copy';
-      copy.append(icon('copy'));
-      copy.addEventListener('click', () => {
-        void copyPhoto(rec.blob).then(() => tell('Photo copied'), () => tell('Couldn’t copy the photo'));
-      });
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'cal-img-del';
-      del.setAttribute('aria-label', `Remove photo ${k + 1}`);
-      del.title = 'Remove';
-      del.append(icon('x'));
-      del.addEventListener('click', () => store!.remove(rec.id));
-      item.append(open, copy, del);
-      return item;
-    }));
-  }
-  onImagesChanged(renderPhotos);
 
   function renderFoot(): void {
     const n = wordCount(`${titleIn.value} ${text.value.split('\n').filter((l) => !IMG_LINE.test(l)).join('\n')}`);
@@ -594,161 +404,9 @@ export function mountJournal(body: HTMLElement): void {
   }
 
 
-  // ---- the pages as a tree (as Octotree draws a repository): every folder with its pages under it, the root's
-  // pages at the top level
-  const readJson = <T,>(key: string, fallback: T): T => {
-    try {
-      return (JSON.parse(localStorage.getItem(key) ?? 'null') as T) ?? fallback;
-    } catch {
-      return fallback;
-    }
-  };
-  const writeJson = (key: string, v: unknown) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(v));
-    } catch {
-      // for this visit
-    }
-  };
-  let unfolded = '';
-  /** Folders unfolded in the tree. */
-  const treeOpen = new Set<string>(readJson<string[]>(TREE_KEY, []));
-
-  /** The menu a page row offers. */
-  const pageMenu = (e: Entry) => [
-    { label: e.pinned ? 'Unpin' : 'Pin to top', icon: 'pin' as const, run: () => togglePin(e.id) },
-    ...[ROOT, ...folders().map((f) => f.id)].filter((id) => id !== folderOf(e))
-      .map((id) => ({ label: `Move to ${placeName(id)}`, icon: (id === ROOT ? 'folder-tree' : 'arrow-right') as 'folder-tree' | 'arrow-right', run: () => moveTo([e.id], id) })),
-    { label: 'Delete page', icon: 'trash' as const, danger: true, run: () => void removePage(e.id) },
-  ];
-  const pageTitle = (e: Entry) => e.title || e.body.split(/\r?\n/).map(plain).find(Boolean) || 'Untitled';
-
-  const byPin = (a: Entry, b: Entry) => Number(!!b.pinned) - Number(!!a.pinned) || b.date.localeCompare(a.date) || b.created - a.created;
-  /** A page in the tree (in a folder, or at the root). */
-  function pageRow(e: Entry): HTMLLIElement {
-    const p = document.createElement('li');
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = `jt-row jt-page${e.id === openId ? ' on' : ''}`;
-    b.draggable = true;
-    const t = document.createElement('span');
-    t.className = 'jt-name';
-    t.textContent = pageTitle(e);
-    const d = document.createElement('span');
-    d.className = 'jt-date';
-    d.textContent = fmtDay(e.date);
-    b.append(icon(e.pinned ? 'pin' : 'file-text', 'ic jt-ic'), t, d);
-    b.title = `${pageTitle(e)} · ${fmtDay(e.date)}`;
-    b.addEventListener('click', () => {
-      if (folderOf(e) !== validTab()) setTab(folderOf(e));
-      open(e.id);
-    });
-    b.addEventListener('contextmenu', (ev) => {
-      ev.preventDefault();
-      showMenu({ x: ev.clientX, y: ev.clientY }, pageMenu(e));
-    });
-    b.addEventListener('dragstart', (ev) => {
-      if (e.id === openId) flush();
-      ev.dataTransfer?.setData('text/x-haru-page', e.id);
-      if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
-    });
-    p.append(b);
-    return p;
-  }
-
-  function renderTree(): void {
-    const all = entries();
-    const here = validTab();
-    // a page opened (or a folder switched to) unfolds its folder; folding it again afterwards is up to you
-    const openEntry = openId ? all.find((e) => e.id === openId) : undefined;
-    const at = openEntry ? folderOf(openEntry) : here;
-    const mark = `${openId}|${here}`;
-    if (at && mark !== unfolded) {
-      unfolded = mark;
-      treeOpen.add(at);
-      writeJson(TREE_KEY, [...treeOpen]);
-    }
-    const rows = folders().map((f) => {
-      const pages = all.filter((e) => e.folder === f.id).sort(byPin);
-      const isOpen = treeOpen.has(f.id);
-      const li = document.createElement('li');
-      li.className = `jt-folder${isOpen ? ' open' : ''}${f.id === here ? ' here' : ''}`;
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'jt-row jt-dir';
-      row.setAttribute('aria-expanded', String(isOpen));
-      const count = document.createElement('span');
-      count.className = 'jt-count';
-      count.textContent = String(pages.length);
-      const name = document.createElement('span');
-      name.className = 'jt-name';
-      name.textContent = f.name;
-      row.append(icon('chevron-right', 'ic jt-caret'), icon(isOpen ? 'folder-open' : 'folder', 'ic jt-ic'), name, count);
-      row.addEventListener('click', () => {
-        if (treeOpen.has(f.id)) treeOpen.delete(f.id);
-        else treeOpen.add(f.id);
-        writeJson(TREE_KEY, [...treeOpen]);
-        renderTree();
-      });
-      row.addEventListener('dblclick', () => setTab(f.id));
-      row.addEventListener('contextmenu', (ev) => {
-        ev.preventDefault();
-        folderMenu(f, { x: ev.clientX, y: ev.clientY });
-      });
-      const more = document.createElement('button');
-      more.type = 'button';
-      more.className = 'jt-more';
-      more.setAttribute('aria-label', `${f.name} options`);
-      more.title = 'Rename or delete this folder';
-      more.append(icon('ellipsis'));
-      more.addEventListener('click', () => folderMenu(f, more));
-      // drop a page on a folder to move it there
-      row.addEventListener('dragover', (ev) => {
-        if (!ev.dataTransfer?.types.includes('text/x-haru-page')) return;
-        ev.preventDefault();
-        row.classList.add('drop');
-      });
-      row.addEventListener('dragleave', () => row.classList.remove('drop'));
-      row.addEventListener('drop', (ev) => {
-        row.classList.remove('drop');
-        const id = ev.dataTransfer?.getData('text/x-haru-page');
-        if (!id) return;
-        ev.preventDefault();
-        treeOpen.add(f.id);
-        moveTo([id], f.id);
-      });
-      const kids = document.createElement('div');
-      kids.className = 'jt-kids';
-      const ul = document.createElement('ul');
-      ul.append(...(pages.length ? pages.map(pageRow) : [Object.assign(document.createElement('li'), { className: 'jt-empty meta', textContent: 'Empty' })]));
-      kids.append(ul);
-      li.append(row, more, kids);
-      return li;
-    });
-    // the root's pages after the folders, at the top level
-    const rootPages = all.filter((e) => folderOf(e) === ROOT).sort(byPin).map((e) => {
-      const li = pageRow(e);
-      li.classList.add('jt-root-page');
-      return li;
-    });
-    list.replaceChildren(...rows, ...rootPages);
-  }
-  // the tree's empty space is the root: a page dropped there leaves its folder
-  list.addEventListener('dragover', (ev) => {
-    if (!ev.dataTransfer?.types.includes('text/x-haru-page') || (ev.target as Element).closest('.jt-dir')) return;
-    ev.preventDefault();
-    list.classList.add('drop-root');
-  });
-  list.addEventListener('dragleave', (ev) => {
-    if (!list.contains(ev.relatedTarget as Node)) list.classList.remove('drop-root');
-  });
-  list.addEventListener('drop', (ev) => {
-    list.classList.remove('drop-root');
-    if ((ev.target as Element).closest('.jt-dir')) return;
-    const id = ev.dataTransfer?.getData('text/x-haru-page');
-    if (!id) return;
-    ev.preventDefault();
-    moveTo([id], ROOT);
+  // ---- the pages as a tree (journal-tree.ts)
+  const renderTree = mountTree({
+    list, entries, folders, openId: () => openId, validTab, folderOf, placeName, setTab, open, flush, togglePin, moveTo, removePage, folderMenu,
   });
 
   const renderList = () => renderTree();

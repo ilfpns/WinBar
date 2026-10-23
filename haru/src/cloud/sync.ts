@@ -3,6 +3,7 @@ import { setState, state, subscribe, fromOutside } from '../timetable/state';
 import { type Block, blocksUpdated, newId, stampBlocks } from '../timetable/model';
 import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templatesUpdated } from '../timetable/templates';
 import { allDays, onDaySaved, putFromRemote, type DaySnapshot } from '../timetable/history';
+import { allPlans, onPlans, plansFromRemote, plansUpdated } from '../timetable/plans';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
 import { checkinStore } from '../calendar/attendance';
@@ -16,6 +17,7 @@ import { folderStore, journalStore } from '../journal/journal';
  *
  *   state/timetable   { blocks, updated }          Today
  *   meta/templates    { list, updated }            day templates
+ *   meta/plans        { list, updated }            days planned ahead
  *   notes/{date}      { date, text, updated }      memos
  *   days/{date}       { date, blocks, saved }      day history
  *   images/{id}       { id, date, created, data }  memo images (data URL, kept under Firestore's 1 MB limit)
@@ -129,6 +131,29 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       templatesFromRemote(data.list, data.updated);
     } else if (templatesUpdated() > data.updated) pushTemplates();
     else cloudTplStamp = data.updated;
+  }, () => onStatus('error')));
+
+  // ---------- plans (one list, last writer wins, like the templates)
+  let cloudPlanStamp = 0;
+  const pushPlans = () => {
+    cloudPlanStamp = plansUpdated() || Date.now();
+    write(fs.setDoc(ref('meta/plans'), { list: allPlans(), updated: cloudPlanStamp }));
+  };
+  onPlans(() => {
+    if (!stopped && plansUpdated() > cloudPlanStamp) pushPlans();
+  });
+  unsubs.push(fs.onSnapshot(ref('meta/plans'), (snap) => {
+    if (snap.metadata.hasPendingWrites) return;
+    const data = snap.data() as { list: unknown[]; updated: number } | undefined;
+    if (!data) {
+      if (allPlans().length) pushPlans();
+      return;
+    }
+    if (data.updated > plansUpdated()) {
+      cloudPlanStamp = data.updated;
+      plansFromRemote(data.list, data.updated);
+    } else if (plansUpdated() > data.updated) pushPlans();
+    else cloudPlanStamp = data.updated;
   }, () => onStatus('error')));
 
   // ---------- memos (per date)

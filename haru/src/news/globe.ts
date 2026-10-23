@@ -1,4 +1,7 @@
 import { onTheme } from '../ui/theme';
+import { DEG, TAU, mul, rotAxis, rotX, rotY, tidy } from './globe-math';
+import { type Dots, type Lit, UNLIGHT_MS, drawCountry, lightUp } from './globe-country';
+import { type Announcement, type Paint, drawAnnouncements, drawMarkers } from './globe-pins';
 
 /**
  * Dot-matrix globe on a 2D canvas: land is ~4.6k points (Natural Earth, generated at build time),
@@ -9,29 +12,18 @@ import { onTheme } from '../ui/theme';
  * click a pin to pick that country (its dots pop up in the accent green), double-click to zoom in on a spot.
  * Monochrome apart from the picked country. Work per frame is a few milliseconds at most (dots are batched by shade).
  */
-const TAU = Math.PI * 2;
-const DEG = Math.PI / 180;
 const AUTO_SPIN = 0.12;      // rad/s while idle
 const IDLE_MS = 1600;        // pause before auto-spin resumes after a drag
 const FRICTION_MS = 450;     // inertia half-life-ish
 const HOVER_PX = 46;
 const SHADES = 10;           // alpha buckets → one fill per bucket
 const PIN_HIT_PX = 16;       // how close a click must land to a pin
-const FLASH_MS = 2600;       // a pin that just got news pulses this long
 const AIM_MS = 260;          // turning a picked place to the front: time constant
-const POP_MS = 650;          // one dot of a picked country popping up
-const POP_SPREAD_MS = 650;   // dots pop at random moments within this window, all over the country
-const UNLIGHT_MS = 300;      // letting go of a country fades its dots back
 const ZOOM_IN = 2.4;         // double-click zoom
 const ZOOM_MS = 180;         // zoom easing time constant
-const ANNOUNCE_MS = 3200;    // a fresh headline floats over its country this long
 const HEAT_BUCKETS = 5;      // heatmap shades
 const HEAT_WAVE_MS = 900;    // switching the heatmap: a sweep across the globe, left to right
 const HEAT_POP_MS = 320;     // …each dot popping as the sweep reaches it
-
-const smooth = (t: number) => t * t * (3 - 2 * t);
-/** 0 → 1 → 0 hump peaking at `peak` (the Today emblem's "pop"). */
-const bump = (t: number, peak: number) => (t < peak ? smooth(t / peak) : smooth((1 - t) / (1 - peak)));
 
 /** A land dot: latitude, longitude and the ISO 3166 numeric code of its country ('' if none). */
 export type LandDot = [lat: number, lon: number, country: string];
@@ -80,8 +72,8 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     pz[i] = Math.cos(φ) * Math.cos(λ);
   });
 
-  /** The picked country's dots: index, pop delay, and whether it is a land dot (vs. a small-country extra). */
-  interface Lit { dots: { i: number; delay: number }[]; start: number; until: number }
+  const dots: Dots = { px, py, pz, cc, n, total };
+
   let lit: Lit | null = null;
   let fading: Lit | null = null;
   /** Land dots currently drawn in the accent (skipped by the plain pass). */
@@ -99,7 +91,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     for (let i = 0; i < n; i++) heat[i] = byIso.get(cc[i]!) ?? 0;
   }
   /** Fresh headlines floating over their countries. */
-  const announcements: { m: Marker; text: string; start: number }[] = [];
+  const announcements: Announcement[] = [];
   function light(m: Marker | null): void {
     const now = performance.now();
     if (lit) {
@@ -108,21 +100,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     }
     litMask = new Uint8Array(n);
     if (!m) return;
-    const want = new Set(m.iso);
-    const φ = m.lat * DEG, λ = m.lon * DEG;
-    const ax = Math.cos(φ) * Math.sin(λ), ay = Math.sin(φ), az = Math.cos(φ) * Math.cos(λ);
-    const angle = (i: number) => Math.acos(Math.max(-1, Math.min(1, px[i]! * ax + py[i]! * ay + pz[i]! * az)));
-    let picked: number[] = [];
-    for (let i = 0; i < total; i++) if (want.has(cc[i]!)) picked.push(i);
-    // a country too small for the dot grid: light the land right around its pin instead
-    if (picked.length < 8) picked = picked.concat([...Array(n).keys()].filter((i) => !want.has(cc[i]!) && angle(i) < 2.5 * DEG));
-    // the whole country lights up together: every dot pops at its own random moment (a slight lead near the pin)
-    const far = Math.max(1e-3, ...picked.map(angle));
-    lit = {
-      start: now,
-      until: Infinity,
-      dots: picked.map((i) => ({ i, delay: (0.8 * Math.random() + 0.2 * (angle(i) / far)) * POP_SPREAD_MS })),
-    };
+    lit = lightUp(m, dots, now);
     for (const { i } of lit.dots) if (i < n) litMask[i] = 1;
   }
 
@@ -134,25 +112,6 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
   // orientation is a 3×3 rotation (row-major), so drags roll the ball freely — over the poles too.
   // Screen-space turns pre-multiply (roll the ball as seen); the idle spin post-multiplies (around Earth's own axis).
   let M = [1, 0, 0, 0, 1, 0, 0, 0, 1];
-  const mul = (a: number[], b: number[]) => [
-    a[0]! * b[0]! + a[1]! * b[3]! + a[2]! * b[6]!, a[0]! * b[1]! + a[1]! * b[4]! + a[2]! * b[7]!, a[0]! * b[2]! + a[1]! * b[5]! + a[2]! * b[8]!,
-    a[3]! * b[0]! + a[4]! * b[3]! + a[5]! * b[6]!, a[3]! * b[1]! + a[4]! * b[4]! + a[5]! * b[7]!, a[3]! * b[2]! + a[4]! * b[5]! + a[5]! * b[8]!,
-    a[6]! * b[0]! + a[7]! * b[3]! + a[8]! * b[6]!, a[6]! * b[1]! + a[7]! * b[4]! + a[8]! * b[7]!, a[6]! * b[2]! + a[7]! * b[5]! + a[8]! * b[8]!,
-  ];
-  /** Rotation about the vertical axis (left/right). */
-  const rotY = (t: number) => { const c = Math.cos(t), s = Math.sin(t); return [c, 0, s, 0, 1, 0, -s, 0, c]; };
-  /** Rotation about the horizontal axis (up/down). */
-  const rotX = (t: number) => { const c = Math.cos(t), s = Math.sin(t); return [1, 0, 0, 0, c, -s, 0, s, c]; };
-  /** Keep M a clean rotation after many small steps (Gram–Schmidt on the rows). */
-  const tidy = () => {
-    const r0 = [M[0]!, M[1]!, M[2]!], r1 = [M[3]!, M[4]!, M[5]!];
-    const n0 = Math.hypot(...r0); r0.forEach((v, i) => (r0[i] = v / n0));
-    const d = r0[0]! * r1[0]! + r0[1]! * r1[1]! + r0[2]! * r1[2]!;
-    r1.forEach((v, i) => (r1[i] = v - d * r0[i]!));
-    const n1 = Math.hypot(...r1); r1.forEach((v, i) => (r1[i] = v / n1));
-    const r2 = [r0[1]! * r1[2]! - r0[2]! * r1[1]!, r0[2]! * r1[0]! - r0[0]! * r1[2]!, r0[0]! * r1[1]! - r0[1]! * r1[0]!];
-    M = [...r0, ...r1, ...r2];
-  };
   /** Roll the ball as seen on screen: dx turns it sideways, dy over the top — any amount, any direction. */
   const roll = (dx: number, dy: number) => { M = mul(rotX(dy), mul(rotY(dx), M)); };
 
@@ -247,16 +206,6 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     }
     return best;
   }
-
-  /** Rodrigues rotation (row-major) of `angle` about the unit `axis`. */
-  const rotAxis = (ax: number, ay: number, az: number, angle: number) => {
-    const c = Math.cos(angle), s = Math.sin(angle), t = 1 - c;
-    return [
-      t * ax * ax + c, t * ax * ay - s * az, t * ax * az + s * ay,
-      t * ax * ay + s * az, t * ay * ay + c, t * ay * az - s * ax,
-      t * ax * az - s * ay, t * ay * az + s * ax, t * az * az + c,
-    ];
-  };
 
   canvas.addEventListener('pointerdown', (e) => {
     // only the main button drags: a right/middle press's release can be swallowed by a context menu,
@@ -379,7 +328,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
           M = mul(rotAxis(ax, ay, 0, angle * (1 - Math.exp((-dt * 1000) / AIM_MS))), M);
         }
       }
-      tidy();
+      M = tidy(M);
     }
     // while pages slide, or a drawer moves, the canvas holds its last frame: no re-raster of a moving layer, and
     // the slide gets the frame to itself
@@ -427,6 +376,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     ctx.arc(cx, cy, disc(), 0, TAU);
     ctx.fill();
 
+    const paint: Paint = { ctx, width: w, dpr, R, cx, cy, M, colors, fonts, project };
     const [m0, m1, m2, m3, m4, m5, m6, m7, m8] = M as [number, number, number, number, number, number, number, number, number];
     const base = Math.max(0.9, R / 240) * dpr * 0.85;
     const back = new Path2D();
@@ -488,7 +438,7 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     ctx.fillStyle = colors.hi;
     ctx.fill(lit);
 
-    drawCountry(now, base);
+    paintCountry(paint, now, base);
 
     // home marker: a steady dot with a slow pulse ring, only while it faces us (monochrome like the rest)
     const h = project(home);
@@ -506,8 +456,8 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    drawMarkers(now, base);
-    drawAnnouncements(now, base);
+    drawMarkers(paint, now, base, markers, selected, hoverPin, flashes);
+    drawAnnouncements(paint, now, base, announcements);
     ctx.restore();
     ctx.strokeStyle = colors.rim;
     ctx.lineWidth = dpr;
@@ -516,136 +466,9 @@ export function createGlobe(canvas: HTMLCanvasElement, land: LandDot[], extra: L
     ctx.stroke();
   }
 
-  /**
-   * The picked country: each dot pops (swells, then settles a little larger) and turns green, rippling
-   * out from the pin like the Today emblem; letting go fades it back. Batched into a few alpha buckets.
-   */
-  function drawCountry(now: number, base: number): void {
-    if (fading && now > fading.until) fading = null;
-    const sets: [Lit, number][] = [];
-    if (fading) sets.push([fading, Math.max(0, (fading.until - now) / UNLIGHT_MS)]);
-    if (lit) sets.push([lit, 1]);
-    if (!sets.length) return;
-    const BUCKETS = 4;
-    const green: Path2D[] = Array.from({ length: BUCKETS }, () => new Path2D());
-    const plain = new Path2D();
-    const [m0, m1, m2, m3, m4, m5, m6, m7, m8] = M as [number, number, number, number, number, number, number, number, number];
-    for (const [set, strength] of sets) {
-      for (const { i, delay } of set.dots) {
-        const x = px[i]!, y = py[i]!, z = pz[i]!;
-        const z2 = m6 * x + m7 * y + m8 * z;
-        if (z2 <= 0) continue;
-        const sx = cx + R * (m0 * x + m1 * y + m2 * z), sy = cy - R * (m3 * x + m4 * y + m5 * z);
-        const small = i >= n; // a small country's own finer dots
-        const size = base * (0.6 + 0.55 * z2) * (small ? 0.75 : 1);
-        const t = (now - set.start - delay) / POP_MS;
-        if (t < 0) {
-          // not reached by the ripple yet: a land dot keeps its plain look, an extra dot isn't there yet
-          if (!small && set === lit) {
-            plain.moveTo(sx + size, sy);
-            plain.arc(sx, sy, size, 0, TAU);
-          }
-          continue;
-        }
-        const p = Math.min(1, t);
-        const r = size * (p < 1 ? 1 + 1.3 * bump(p, 0.35) + 0.35 * smooth(p) : 1.35);
-        const a = Math.min(1, p * 2.5) * strength * (0.8 + 0.2 * z2);
-        const path = green[Math.min(BUCKETS - 1, Math.floor(a * BUCKETS))]!;
-        path.moveTo(sx + r, sy);
-        path.arc(sx, sy, r, 0, TAU);
-      }
-    }
-    ctx.fillStyle = colors.dot;
-    ctx.globalAlpha = 0.6;
-    ctx.fill(plain);
-    ctx.fillStyle = colors.accent;
-    for (let b = 0; b < BUCKETS; b++) {
-      ctx.globalAlpha = (b + 1) / BUCKETS;
-      ctx.fill(green[b]!);
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  /** Fresh headlines: a green dot rises from the pin, and the title floats above it, then both fade. */
-  function drawAnnouncements(now: number, base: number): void {
-    for (let k = announcements.length - 1; k >= 0; k--) if (now - announcements[k]!.start > ANNOUNCE_MS) announcements.splice(k, 1);
-    if (!announcements.length) return;
-    ctx.font = `500 ${11.5 * dpr}px ${fonts.sans}`;
-    ctx.textBaseline = 'middle';
-    for (const a of announcements) {
-      const p = project(a.m);
-      if (p.z <= 0.05) continue;
-      const t = (now - a.start) / ANNOUNCE_MS;
-      // the dot: pops up out of the pin and drifts away
-      const rise = smooth(Math.min(1, t * 1.6));
-      ctx.globalAlpha = Math.max(0, 1 - t * 1.4);
-      ctx.fillStyle = colors.accent;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y - rise * 26 * dpr, base * (1.4 + 1.6 * bump(Math.min(1, t * 2), 0.3)), 0, TAU);
-      ctx.fill();
-      // the title: fades in above the pin, holds, fades out
-      const alpha = t < 0.12 ? t / 0.12 : t > 0.8 ? (1 - t) / 0.2 : 1;
-      const text = a.text.length > 54 ? `${a.text.slice(0, 52).trimEnd()}…` : a.text;
-      const w = ctx.measureText(text).width;
-      const y = p.y - 34 * dpr - rise * 8 * dpr;
-      const x = Math.max(8 * dpr, Math.min(canvas.width - w - 20 * dpr, p.x - w / 2));
-      ctx.globalAlpha = alpha * 0.9;
-      ctx.fillStyle = 'rgba(10,10,10,0.88)';
-      ctx.beginPath();
-      ctx.roundRect(x - 8 * dpr, y - 11 * dpr, w + 16 * dpr, 22 * dpr, 6 * dpr);
-      ctx.fill();
-      ctx.strokeStyle = colors.accent;
-      ctx.lineWidth = dpr;
-      ctx.stroke();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = colors.hi;
-      ctx.fillText(text, x, y + 0.5 * dpr);
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  /** News pins: a ring sized by how much is new there; the hovered or picked one is filled and named. */
-  function drawMarkers(now: number, base: number): void {
-    ctx.font = `500 ${11 * dpr}px ${fonts.mono}`;
-    ctx.textBaseline = 'middle';
-    for (const m of markers) {
-      const p = project(m);
-      if (p.z <= 0) continue;
-      const fade = Math.min(1, p.z * 2.5); // pins near the rim fade out as they turn away
-      const on = m === selected || m === hoverPin;
-      const ink = m === selected ? colors.accent : colors.hi;
-      const r = base * (2.2 + 1.6 * m.weight) * (on ? 1.25 : 1);
-      ctx.globalAlpha = fade;
-      ctx.strokeStyle = ink;
-      ctx.lineWidth = 1.3 * dpr;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, TAU);
-      ctx.stroke();
-      ctx.fillStyle = ink;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, on ? r * 0.62 : base * 0.9, 0, TAU);
-      ctx.fill();
-      // fresh news: a ring rippling outward for a few seconds
-      const since = now - (flashes.get(m.id) ?? -Infinity);
-      if (since < FLASH_MS) {
-        const t = (since % 1300) / 1300;
-        ctx.globalAlpha = fade * (1 - t) * 0.8;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, r + base * 7 * t, 0, TAU);
-        ctx.stroke();
-      }
-      if (on) {
-        ctx.globalAlpha = fade;
-        const tx = p.x + r + 6 * dpr;
-        const w = ctx.measureText(m.label).width;
-        // a dark plate keeps the name readable over the dots
-        ctx.fillStyle = 'rgba(10,10,10,0.82)';
-        ctx.fillRect(tx - 4 * dpr, p.y - 9 * dpr, w + 8 * dpr, 18 * dpr);
-        ctx.fillStyle = ink;
-        ctx.fillText(m.label, tx, p.y + 0.5 * dpr);
-      }
-    }
-    ctx.globalAlpha = 1;
+  /** The picked country, and one being let go of (globe-country.ts). */
+  function paintCountry(paint: Paint, now: number, base: number): void {
+    fading = drawCountry(paint, dots, now, base, lit, fading);
   }
 
   return {

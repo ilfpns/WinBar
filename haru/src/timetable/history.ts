@@ -1,6 +1,7 @@
 import { db } from '../storage/db';
 import { resetAt } from './day-reset';
 import { type Block } from './model';
+import { takePlan } from './plans';
 import { setState, state, subscribe, fromOutside } from './state';
 
 /**
@@ -124,7 +125,10 @@ export function trackHistory(): void {
     // the day that ended keeps the timetable as it was
     snap();
     own(now);
-    if (resetAt() !== null && state.blocks.length) fromOutside(() => setState({ blocks: [], draft: null, selected: [] }));
+    // a day planned ahead (Calendar → Week) starts with its plan, whether or not the reset is on
+    const planned = takePlan(now);
+    if (planned) fromOutside(() => setState({ blocks: planned, draft: null, selected: [] }));
+    else if (resetAt() !== null && state.blocks.length) fromOutside(() => setState({ blocks: [], draft: null, selected: [] }));
     else snap();
   }
   subscribe(() => {

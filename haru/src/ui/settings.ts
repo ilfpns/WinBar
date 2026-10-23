@@ -1,3 +1,4 @@
+import { greetName, setGreetName } from './greeting';
 import { icon } from './icons';
 import { toggleDrawer } from '../timetable/state';
 import { shownTheme, showTheme } from './theme';
@@ -368,6 +369,11 @@ export function mountSettings(): void {
     });
     paint();
   }
+
+  // ---- name in the greeting on Today
+  const greetIn = dialog.querySelector<HTMLInputElement>('#greet-name')!;
+  greetIn.value = greetName();
+  greetIn.addEventListener('change', () => setGreetName(greetIn.value));
 
   // ---- name in Notion: which column of the Notion attendance table is yours, and whether it was found
   const notionIn = dialog.querySelector<HTMLInputElement>('#notion-name')!;

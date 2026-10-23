@@ -3,6 +3,30 @@
 Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호를 붙이고, 처리 결과(고침 / 보류 / 사양대로)를 함께 적는다.
 점검은 사용자의 브라우저가 아니라 별도의 헤드리스 브라우저(gstack browse, `http://localhost:5288`)에서 한다.
 
+## 2026-10-23 (v1.45) — 주 보기·앞날 계획, Today 인사, 큰 파일 나누기
+
+요청: 큰 파일(md-editor·journal·globe) 나누기 / 주간 보기와 주간 계획 / Today 왼쪽 위에 이름 넣은 시간대별 인사(영어, 시간대마다 20개, 무작위).
+
+**만든 것**
+- src/timetable/plans.ts: 날짜별 계획(localStorage + IndexedDB 미러, 클라우드 `meta/plans`, 백업·계정 전환 포함). history의 roll이 새 날이 시작될 때 그날 계획을 Today로 넣고 지난 계획은 지움.
+- src/calendar/week.ts + calendar.ts: Month / Week 전환(기억), 주 7일 작은 다이얼(지난날 저장본, 오늘 실시간, 앞날 계획은 점선), 주 단위 이동, "Plan week"(남은 평일에 템플릿), 날 패널의 "Plan this day"·Change·Clear plan, 메뉴(템플릿 / 지난주 같은 요일 / 오늘 복사 / 지우기).
+- src/ui/greeting.ts: 시간대 5개 × 20줄, 이름은 설정 → Account → Name 또는 계정 이름 첫 단어, 누르면 다른 줄.
+- md-editor → md-draw·md-menu, journal → journal-store·journal-photos·journal-tree, globe → globe-math·globe-country·globe-pins (기존 import 경로 유지).
+
+**확인한 것** (개발 서버, Playwright 별도 컨텍스트, 로그인 화면은 테스트 페이지에서만 숨김)
+- Week: 7칸, 제목 "October 2026 · Oct 25 – Oct 31", 다음 주로 이동 → Plan week → 템플릿 선택 → 월~금 5일 계획, 상태 줄 "Planned 5 days with Weekday". 남은 평일이 없는 주는 Plan week 꺼짐.
+- 날 패널: 앞날에 "Plan this day" → 메뉴 → 계획 카드(Plan, 목록, Change, Clear plan).
+- 날 넘김: 시계를 다음 날 09:00으로 흉내 → 그 날 계획 3개가 Today로, 계획 목록에서 빠짐.
+- 인사: 이름 없음 "Hello, early bird" / 이름 "Public" → "… Public", 30번 눌러 서로 다른 줄 17개. 1400px·390px 화면에서 다이얼과 안 겹침. 콘솔 오류 없음, `npm run build` 통과.
+- 파일 나누기: 옛 코드와 새 코드를 나란히 돌려 편집기 22단계·저널 12단계·지구본 15개 화면 결과가 같음.
+
+**찾은 문제와 처리**
+1. 빈 Today가 주 보기에서 "0m of 0m" → 빈 날은 줄 없음. (고침)
+2. 주 칸 아래 줄이 "Planned · We…"로 잘림 → 점선이 계획 표시이므로 줄에는 템플릿 이름만. (고침)
+3. 작은 다이얼이 가늘고 흐림 → 링 두껍게, 계획 조각 더 진하게. (고침)
+
+**아직 못 본 것** — 실제 로그인 계정에서 두 기기 사이 계획 동기화, 저널 사진(로그인 필요), 실제 Chat 페이지의 편집기.
+
 ## 2026-10-22 (v1.44) — 배경 어둡게, 조각 빛
 
 요청: 배경을 조금 더 어둡게, 색 있는 할 일(조각 보기에서 지난 부분)이 빛나게.

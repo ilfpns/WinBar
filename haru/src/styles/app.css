@@ -574,6 +574,81 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
   .cal-week div { padding: 0; text-align: center; }
 }
 
+/* ---------- Today's greeting, top left (a click picks another line) */
+.greeting {
+  position: absolute; z-index: 3; top: 30px; left: calc(var(--rail-room, 0px) + 40px); max-width: min(46vw, 560px);
+  display: flex; align-items: center; gap: 12px; padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+  font: 400 clamp(20px, 2vw, 28px)/1.25 var(--font-sans); letter-spacing: -.01em; color: var(--text-strong);
+}
+.greeting span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.greeting-mark { flex: none; width: 1.05em; height: 1.05em; color: var(--accent); stroke-width: 2.25; transition: transform .6s var(--ease-out); }
+.greeting:hover .greeting-mark { transform: rotate(45deg); }
+.greeting.swap span { animation: greet-in .45s var(--ease-out) both; }
+@keyframes greet-in { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
+body.wco .greeting { top: calc(var(--tb, 0px) + 22px); }
+@media (max-width: 760px) { .greeting { top: max(14px, env(safe-area-inset-top)); left: 20px; max-width: calc(100vw - 40px); font-size: 18px; } }
+@media (prefers-reduced-motion: reduce) { .greeting.swap span { animation: none; } .greeting-mark { transition: none; } }
+
+/* ---------- calendar: Month / Week, and the week as seven small dials */
+.cal-mode { display: flex; gap: 2px; padding: 3px; margin-right: 6px; border-radius: 17px; background: rgb(var(--ink) / 0.04); box-shadow: inset 0 0 0 1px var(--glass-edge); }
+.cal-mode button {
+  height: 28px; padding: 0 12px; border: 0; border-radius: 14px; background: none; cursor: pointer;
+  font: 500 12.5px/1 var(--font-sans); color: var(--text-muted);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.cal-mode button:hover { color: var(--text-strong); }
+.cal-mode button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+#cal-plan { gap: 6px; }
+#cal-plan[hidden] { display: none; }
+#cal-plan .ic { width: 14px; height: 14px; }
+#cal-plan:disabled { opacity: .4; cursor: default; }
+.cal-grid.week { grid-auto-rows: minmax(0, 1fr); }
+.wk-cell { align-items: stretch; }
+.wk-slot { flex: 1 1 auto; display: grid; place-items: center; min-height: 0; }
+.wk-dial { width: min(100%, 150px); height: auto; aspect-ratio: 1; overflow: visible; }
+.wk-bg { fill: rgb(var(--ink) / 0.05); }
+.wk-slice { fill: color-mix(in srgb, var(--c) 40%, transparent); stroke: var(--bg); stroke-width: .8; }
+.wk-slice.done { fill: var(--c); }
+/* planned days: outlined, not yet filled */
+.wk-plan .wk-slice { fill: color-mix(in srgb, var(--c) 30%, transparent); stroke: color-mix(in srgb, var(--c) 85%, transparent); stroke-width: 1; stroke-dasharray: 2.4 1.6; }
+.wk-carried .wk-dial, .wk-none .wk-dial { opacity: .5; }
+.wk-pct { fill: var(--text-strong); font-family: var(--font-mono); font-weight: 500; }
+.wk-line { min-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; text-transform: none; font-size: 11px; color: var(--text-muted); }
+.wk-none .wk-line { color: var(--text-subtle); }
+/* a new week sweeps in; redraws (a plan changed, Today ticked) don't replay it */
+.cal-grid.week.enter .wk-slice { transform-box: view-box; transform-origin: 50% 50%; animation: tt-slice .5s cubic-bezier(.2, .9, .25, 1.05) both; animation-delay: calc(var(--i, 0) * 35ms); }
+@media (prefers-reduced-motion: reduce) { .cal-grid.week.enter .wk-slice { animation: none; } }
+@media (max-width: 1000px) { .cal-grid.week { grid-auto-rows: minmax(190px, auto); } }
+@media (max-width: 640px) {
+  .cal-mode { margin-right: 0; }
+  .cal-grid.week { grid-auto-rows: auto; }
+  .wk-cell { padding: 6px 2px; }
+  .wk-line, #cal-plan span { display: none; }
+}
+/* the day panel's plan: the empty line with its button, the plan's tools */
+.cal-tt-plan { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal-tt-foot-tools { display: flex; flex: none; gap: 2px; }
+.cal-tt-foot-tools .btn-text { white-space: nowrap; }
+.cal-tt-foot-tools .btn-text, .cal-tt-plan .btn-text { height: 26px; padding: 0 8px; font-size: 12px; }
+/* the plan picker (templates, copy a day, clear) */
+.plan-pop {
+  position: fixed; inset: auto; margin: 0; min-width: 220px; max-width: min(320px, calc(100vw - 16px)); max-height: min(60svh, 420px); overflow-y: auto; padding: 6px;
+  border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--noise), var(--sheet); color: var(--text); box-shadow: var(--glass-shine), var(--glass-drop);
+}
+.plan-pop:popover-open, .plan-pop.pop-fb:not([hidden]) { display: grid; gap: 2px; animation: class-pop-in .18s var(--ease-out); }
+.plan-pop-head { margin: 4px 10px 6px; text-transform: none; }
+.plan-pop-hint { margin: 0 10px 6px; font-size: 12px; text-transform: none; color: var(--text-subtle); }
+.plan-pop button {
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 9px; background: none; cursor: pointer;
+  font: 400 13.5px/1.2 var(--font-sans); color: var(--text); text-align: left;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.plan-pop button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-pop button:is(:hover, :focus-visible) { background: var(--surface-2); color: var(--text-strong); outline: none; }
+.plan-pop button.danger:is(:hover, :focus-visible) { color: var(--danger); }
+.plan-pop .ic { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+@media (prefers-reduced-motion: reduce) { .plan-pop:popover-open { animation: none; } }
+
 /* ---------- news: the dot globe */
 .news-view {
   position: fixed; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; row-gap: 14px;

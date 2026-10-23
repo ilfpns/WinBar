@@ -6,7 +6,7 @@ Haru is WinBar's day planner: a web app built around a 24-hour dial, opened from
 
 - **Today** — drag on the ring to add a block; drag across tasks to select several and edit them together. Done tasks are filled and carry a check; a task can hold a note (a dot by its name). A new day starts at a time you set (drag the ↺ mark on the ring, or Settings → Today); the day that ended stays in the calendar.
 - **School timetable** — Settings → Today: find a school, pick a class, Apply puts today's lessons on Today. 대덕소프트웨어마이스터고 comes from 컴시간알리미 (with its bell times); other schools from NEIS.
-- **Calendar** — Korean holidays & observances, the school's academic calendar, day memos (with images) and statistics.
+- **Calendar** — Korean holidays & observances, the school's academic calendar, day memos (with images) and statistics. **Week** shows seven days as small dials; days ahead can be planned with a template (one day, or the week's weekdays at once), and a plan becomes Today when its day begins.
 - **News** — headlines on the globe, and attendance: check in daily; the grass also fills from the Notion attendance table.
 - **Chat** (one room for everyone invited), **Words**, **Journal** (pages in folders, photos inline in the text, pinning, share to **Archive**), and **Your days** — Today's history as statistics at the top of Journal.
 - **Accounts** — invite-only Google sign-in; everyone's planner is their own and syncs across devices (Firestore). Today of another member can be looked at, read only.
@@ -37,6 +37,7 @@ npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.45** (2026-10-23) — 캘린더 주 보기(7일 작은 다이얼) / 앞날 계획과 한 주 계획(템플릿으로 평일 한 번에) / Today 시간대별 인사 / 큰 파일 나누기
 - **v1.44** (2026-10-22) — 다크 배경 더 어둡게 / Today 조각 보기의 지난 할 일이 빛나게
 - **v1.43** (2026-10-22) — 설치한 PC 앱의 제목 표시줄에 페이지 탭과 진행도
 - **v1.42** (2026-10-22) — 앱으로 설치(PWA): 홈 화면 아이콘, 앱 창, 오프라인으로 열기, 새 버전 카드

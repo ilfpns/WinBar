@@ -25,6 +25,7 @@ import { mountAccount } from './cloud/account';
 import { mountWords } from './words/words';
 import { mountJournal } from './journal/journal';
 import { mountSettings } from './ui/settings';
+import { mountGreeting } from './ui/greeting';
 import { mountPwa } from './ui/pwa';
 import { mountTitlebar } from './ui/titlebar';
 import { mountChangelog } from './ui/changelog';
@@ -75,6 +76,7 @@ trackHistory();
 // the school's lessons and meals, every day by themselves when switched on (Settings → Today)
 mountSchoolAuto();
 mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'), dial);
+mountGreeting(byId('stage'));
 mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountTitlebar();
 mountDrawers(document.querySelector<HTMLElement>('.dial-wrap')!);
@@ -117,6 +119,8 @@ mountCalendar({
   next: byId('cal-next'),
   today: byId('cal-today'),
   stats: byId('cal-stats'),
+  mode: byId('cal-mode'),
+  plan: byId('cal-plan'),
   filters: byId('cal-filters'),
   week: byId('cal-week'),
   grid: byId('cal-grid'),

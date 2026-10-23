@@ -40,6 +40,11 @@
     <header class="cal-head">
       <div class="cal-title"><h1 id="cal-month"></h1><span class="meta" id="cal-year"></span></div>
       <div class="cal-nav">
+        <div class="cal-mode" id="cal-mode" role="group" aria-label="View">
+          <button type="button" data-mode="month" aria-pressed="true">Month</button>
+          <button type="button" data-mode="week" aria-pressed="false">Week</button>
+        </div>
+        <button type="button" class="btn-sm" id="cal-plan" hidden title="Plan the weekdays ahead with a template"><i data-icon="calendar-clock"></i><span>Plan week</span></button>
         <button type="button" class="icon-btn" id="cal-prev" aria-label="Previous month"><i data-icon="chevron-left"></i></button>
         <button type="button" class="btn-sm" id="cal-today">Today</button>
         <button type="button" class="icon-btn" id="cal-next" aria-label="Next month"><i data-icon="chevron-right"></i></button>
@@ -466,6 +471,13 @@
           <div class="section-head"><span>Account</span></div>
         </div>
         <div class="set-card">
+          <div class="set-row">
+            <div class="set-label">
+              <strong>Name</strong>
+              <span>Used in the greeting on Today. Empty: your account’s first name.</span>
+            </div>
+            <input type="text" class="set-input" id="greet-name" placeholder="e.g. Public" maxlength="30" autocomplete="off" aria-label="Name for the greeting">
+          </div>
           <div class="set-row">
             <div class="set-label">
               <strong>Name in Notion</strong>

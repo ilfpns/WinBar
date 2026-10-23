@@ -1,5 +1,9 @@
-import { icon, type IconName } from './icons';
-import { IMG_LINE, imageLine, imageWidth } from './markdown';
+import { icon } from './icons';
+import { IMG_LINE, imageLine } from './markdown';
+import { CALLOUT_ICON, NL, ZW, blockOf, isHiddenMark, isRow, isSep, line, pipesOf, unZW } from './md-draw';
+import { BLOCKS, type EditorCommand, MARKER, type MenuItem, SlashMenu } from './md-menu';
+
+export type { EditorCommand } from './md-menu';
 
 /**
  * <md-editor>: a note you write in Markdown that shows its formatting as you type — a `# ` line is a
@@ -12,241 +16,6 @@ import { IMG_LINE, imageLine, imageWidth } from './markdown';
  * that used a textarea keep their logic. Each line is one block element; Korean (IME) composition is never
  * re-rendered mid-syllable; undo and redo are its own (re-rendering would break the browser's).
  */
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-/**
- * An empty item's only text is its hidden mark (font-size 0), so the caret would sit at the mark's end and
- * what is typed would land inside it — out of sight while a Korean syllable is composed. A zero-width space
- * after the mark gives the caret a visible place to type into; it is never part of the text.
- */
-const NL = String.fromCharCode(10);
-const ZW = '​';
-const unZW = (s: string | null) => (s ?? '').replaceAll(ZW, '');
-/** Marks drawn as a dot, box or bar (their text hidden): the caret never types into them. */
-const isHiddenMark = (t: Text) => !!t.parentElement?.closest('.mk-ind, .mk-h, .mk-li, .mk-task, .mk-q, .mk-img, .mk-callout');
-/** A callout's kind → its icon (Obsidian's `> [!kind]`; an unknown kind reads as a note). */
-const CALLOUT_ICON: Record<string, IconName> = { note: 'lightbulb', tip: 'sparkles', info: 'info', warning: 'triangle-alert' };
-const mk = (s: string) => `<span class="mk mk-in">${esc(s)}</span>`;
-const SAFE_URL = /^(https?:\/\/|mailto:)/i;
-
-/**
- * Links read like Notion's: the site's logo (a chain when it has none) and a short name — the label of a
- * `[label](url)`, or for a bare URL its page title when known (YouTube and the like) or its address cut short.
- * The URL itself stays in the text; it shows only on the line being edited.
- */
-const TITLES_KEY = 'haru:link-titles';
-const titles: Record<string, string> = (() => {
-  try {
-    return JSON.parse(localStorage.getItem(TITLES_KEY) ?? '{}') as Record<string, string>;
-  } catch {
-    return {};
-  }
-})();
-const asked = new Set<string>();
-const hostOf = (url: string): string => {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
-    return '';
-  }
-};
-/** What a bare URL shows: its title when known, else host and path, cut short. */
-function shortLink(url: string): string {
-  if (titles[url]) return titles[url]!;
-  try {
-    const u = new URL(url);
-    const path = decodeURIComponent(u.pathname).replace(/\/$/, '');
-    const s = hostOf(url) + (path && path !== '/' ? path : '');
-    return s.length > 42 ? `${s.slice(0, 40)}…` : s;
-  } catch {
-    return url;
-  }
-}
-/** Pages that oEmbed (noembed.com, open to any site) can name: videos and the like. */
-const NAMED = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|spotify\.com|twitter\.com|x\.com|tiktok\.com|flickr\.com)$/;
-function askTitle(url: string): void {
-  if (titles[url] || asked.has(url) || !NAMED.test(hostOf(url))) return;
-  asked.add(url);
-  void fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`)
-    .then((r) => r.json() as Promise<{ title?: string }>)
-    .then(({ title }) => {
-      if (!title) return;
-      titles[url] = title.length > 60 ? `${title.slice(0, 58)}…` : title;
-      try {
-        localStorage.setItem(TITLES_KEY, JSON.stringify(titles));
-      } catch { /* storage may be off */ }
-      for (const el of document.querySelectorAll<HTMLElement>('md-editor .md-link.bare')) {
-        if (el.dataset.href === url) el.dataset.label = titles[url]!;
-      }
-    })
-    .catch(() => {});
-}
-const attr = (s: string) => esc(s).replace(/"/g, '&quot;');
-/** The logo slot at a link's start (filled after drawing; a chain when the site has none). */
-const fav = (url: string) => `<span class="md-fav" contenteditable="false" data-host="${attr(hostOf(url))}"></span>`;
-
-/** Inline marks, keeping every character (the marks show only on the line being edited). */
-function inline(src: string): string {
-  const re = /(@\[[^\]]+\]\(user:[\w-]+\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(~~[^~]+~~)|(\*[^*\s][^*]*\*)|(\[[^\]]+\]\([^)\s]+\))|(https?:\/\/[^\s<>]*[^\s<>.,;:!?)\]'"])/g;
-  let out = '';
-  let at = 0;
-  for (let m = re.exec(src); m; m = re.exec(src)) {
-    out += esc(src.slice(at, m.index));
-    const t = m[0];
-    if (m[1]) {
-      // a mention: @name as a chip (its uid stays in the text)
-      const [, name, uid] = /^@\[([^\]]+)\]\(user:([\w-]+)\)$/.exec(t)!;
-      out += `<span class="md-mention${uid === 'all' ? ' all' : ''}" data-uid="${attr(uid!)}">${mk('@[')}${esc(name!)}${mk(`](user:${uid})`)}</span>`;
-    } else if (m[2]) out += `<code>${mk('`')}${esc(t.slice(1, -1))}${mk('`')}</code>`;
-    else if (m[3]) out += `<strong>${mk('**')}${esc(t.slice(2, -2))}${mk('**')}</strong>`;
-    else if (m[4]) out += `<del>${mk('~~')}${esc(t.slice(2, -2))}${mk('~~')}</del>`;
-    else if (m[5]) out += `<em>${mk('*')}${esc(t.slice(1, -1))}${mk('*')}</em>`;
-    else if (m[7]) {
-      askTitle(t);
-      out += `<span class="md-link bare" data-href="${attr(t)}" data-label="${attr(shortLink(t))}" title="Ctrl+click to open">${fav(t)}<span class="mk mk-in">${esc(t)}</span></span>`;
-    } else {
-      const [, label, url] = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(t)!;
-      out += SAFE_URL.test(url!)
-        ? `<span class="md-link" data-href="${attr(url!)}" title="Ctrl+click to open">${fav(url!)}${mk('[')}${esc(label!)}${mk(`](${url})`)}</span>`
-        : esc(t);
-    }
-    at = m.index + t.length;
-  }
-  return out + esc(src.slice(at));
-}
-
-/** A drawn line: its classes and HTML, how many leading characters are its block mark (hidden: the
- *  caret never stops inside them) and its indent level. */
-interface Drawn { cls: string; html: string; mark: number; indent: number }
-
-/** The block mark a line starts with (indent included): heading, to-do, bullet, number, quote or a divider. */
-function blockOf(src: string): { kind: string; indent: string; marker: string; rest: string; done?: boolean; callout?: string } | null {
-  if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(src)) return { kind: 'hr', indent: '', marker: src, rest: '' };
-  if (IMG_LINE.test(src)) return { kind: 'img', indent: '', marker: src, rest: '' };
-  let m = /^(#{1,6} )(.*)$/.exec(src);
-  if (m) return { kind: `h${Math.min(3, m[1]!.length - 1)}`, indent: '', marker: m[1]!, rest: m[2]! };
-  m = /^(\s*)([-*] \[([ xX])\] )(.*)$/.exec(src);
-  if (m) return { kind: 'task', indent: m[1]!, marker: m[2]!, rest: m[4]!, done: m[3] !== ' ' };
-  m = /^(\s*)([-*+] )(.*)$/.exec(src);
-  if (m) return { kind: 'li', indent: m[1]!, marker: m[2]!, rest: m[3]! };
-  m = /^(\s*)(\d+\. )(.*)$/.exec(src);
-  if (m) return { kind: 'ol', indent: m[1]!, marker: m[2]!, rest: m[3]! };
-  // a callout (`> [!note] …`), before a plain quote
-  m = /^(\s*)(> ?\[!(\w+)\] ?)(.*)$/.exec(src);
-  if (m) return { kind: 'callout', indent: m[1]!, marker: m[2]!, rest: m[4]!, callout: m[3]!.toLowerCase() };
-  m = /^(\s*)(> ?)(.*)$/.exec(src);
-  if (m) return { kind: 'quote', indent: m[1]!, marker: m[2]!, rest: m[3]! };
-  // `| ` starts a quote too (a table row, with a pipe at each end, was taken before this)
-  m = /^(\s*)(\| )(.*)$/.exec(src);
-  if (m) return { kind: 'quote', indent: m[1]!, marker: m[2]!, rest: m[3]! };
-  return null;
-}
-
-/** A table row: | a | b | (a separator row is | --- | --- |). */
-const isRow = (s: string) => /^\s*\|.*\|\s*$/.test(s);
-const isSep = (s: string) => /^\s*\|(\s*:?-{3,}:?\s*\|)+\s*$/.test(s);
-/** Where the cells of a row start and end (offsets of its pipes). */
-const pipesOf = (s: string) => [...s].flatMap((ch, i) => (ch === '|' ? [i] : []));
-
-/** A table row: the pipes take no room, the cells line up as columns. */
-function row(src: string, header: boolean): Drawn {
-  if (isSep(src)) return { cls: 'md-l tr tsep', html: `<span class="mk mk-sep">${esc(src)}</span>`, mark: src.length, indent: 0 };
-  const pipes = pipesOf(src);
-  let html = src.slice(0, pipes[0]) ? `<span class="mk mk-ind">${esc(src.slice(0, pipes[0]))}</span>` : '';
-  pipes.forEach((at, k) => {
-    html += '<span class="mk mk-pipe">|</span>';
-    const next = pipes[k + 1];
-    if (next !== undefined) html += `<span class="td">${inline(src.slice(at + 1, next)) || ''}</span>`;
-  });
-  const tail = src.slice(pipes.at(-1)! + 1);
-  if (tail) html += `<span class="mk mk-ind">${esc(tail)}</span>`;
-  return { cls: `md-l tr${header ? ' th' : ''}`, html, mark: 0, indent: 0 };
-}
-
-/** One line drawn; `fence` says whether it sits inside a ``` block, `next` is the line after it. */
-function line(src: string, fence: boolean, next?: string): Drawn {
-  if (/^\s*```/.test(src)) return { cls: 'md-l fence', html: `<span class="mk">${esc(src)}</span>`, mark: 0, indent: 0 };
-  if (fence) return { cls: 'md-l code', html: esc(src) || '<br>', mark: 0, indent: 0 };
-  if (!src) return { cls: 'md-l', html: '<br>', mark: 0, indent: 0 };
-  if (isRow(src)) return row(src, next !== undefined && isSep(next) && !isSep(src));
-  const b = blockOf(src);
-  if (!b) return { cls: 'md-l', html: inline(src), mark: 0, indent: 0 };
-  const indent = Math.floor(b.indent.replace(/\t/g, '  ').length / 2);
-  const ind = b.indent ? `<span class="mk mk-ind">${esc(b.indent)}</span>` : '';
-  if (b.kind === 'hr') return { cls: 'md-l hr', html: `<span class="mk mk-hr">${esc(src)}</span>`, mark: src.length, indent: 0 };
-  // a photo: its line hidden, the picture drawn in its place (filled in from the editor's imageUrl)
-  if (b.kind === 'img') {
-    const w = imageWidth(src);
-    const html = `<span class="mk mk-img">${esc(src)}</span><span class="md-img${w ? ' sized' : ''}" contenteditable="false" data-ref="${IMG_LINE.exec(src)![1]}"><img alt="" draggable="false"${w ? ` style="width:${w}px"` : ''}><span class="md-img-grip" aria-hidden="true" title="Drag to resize · double-click for the original size"></span><span class="md-img-bar"><button type="button" class="md-img-btn" data-act="copy" aria-label="Copy photo" title="Copy"></button><button type="button" class="md-img-btn" data-act="remove" aria-label="Remove photo" title="Remove"></button></span></span>`;
-    return { cls: 'md-l img', html, mark: src.length, indent: 0 };
-  }
-  // a numbered item keeps its number visible; the other marks are drawn (a dot, a box, a bar) instead
-  const markCls = b.kind === 'ol' ? 'mk mk-ol' : b.kind === 'task' ? 'mk mk-task' : b.kind === 'li' ? 'mk mk-li' : b.kind === 'quote' ? 'mk mk-q' : b.kind === 'callout' ? 'mk mk-callout' : 'mk mk-h';
-  // a callout carries its icon (filled in after drawing)
-  const calloutIc = b.kind === 'callout' ? `<span class="md-callout-ic" contenteditable="false" data-kind="${CALLOUT_ICON[b.callout!] ? b.callout : 'note'}"></span>` : '';
-  return {
-    cls: `md-l ${b.kind}${b.done ? ' done' : ''}`,
-    html: `${ind}<span class="${markCls}">${esc(b.marker)}</span>${calloutIc}${inline(b.rest) || ''}`,
-    mark: b.indent.length + b.marker.length,
-    indent,
-  };
-}
-
-/** The blocks the / menu offers: each rewrites the line (or inserts text). */
-const BLOCKS: { id: string; label: string; hint: string; icon: IconName; keys: string; prefix?: string; insert?: () => string }[] = [
-  { id: 'h1', label: 'Heading 1', hint: '#', icon: 'chevron-right', keys: 'h1 heading title 제목', prefix: '# ' },
-  { id: 'h2', label: 'Heading 2', hint: '##', icon: 'chevron-right', keys: 'h2 heading subtitle 제목', prefix: '## ' },
-  { id: 'h3', label: 'Heading 3', hint: '###', icon: 'chevron-right', keys: 'h3 heading 제목', prefix: '### ' },
-  { id: 'ul', label: 'Bulleted list', hint: '-', icon: 'circle-dot', keys: 'bullet list ul 목록', prefix: '- ' },
-  { id: 'ol', label: 'Numbered list', hint: '1.', icon: 'circle-dot', keys: 'numbered list ol 번호', prefix: '1. ' },
-  { id: 'todo', label: 'To-do', hint: '[ ]', icon: 'circle-check', keys: 'todo task check 할일 체크', prefix: '- [ ] ' },
-  { id: 'quote', label: 'Quote', hint: '|', icon: 'quote', keys: 'quote 인용 |', prefix: '| ' },
-  { id: 'callout', label: 'Callout', hint: '[!]', icon: 'lightbulb', keys: 'callout note tip 콜아웃 강조 메모', prefix: '> [!note] ' },
-  { id: 'code', label: 'Code block', hint: '```', icon: 'chevron-right', keys: 'code 코드', insert: () => '```\n\n```' },
-  { id: 'table', label: 'Table', hint: '|  |', icon: 'chart-column', keys: 'table grid 표 테이블', insert: () => '| Column 1 | Column 2 | Column 3 |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n' },
-  { id: 'hr', label: 'Divider', hint: '---', icon: 'chevron-right', keys: 'divider line hr 구분선', insert: () => '---\n' },
-  { id: 'date', label: 'Today’s date', hint: 'date', icon: 'calendar', keys: 'date today 날짜 오늘', insert: () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  } },
-];
-/** A row of the / or @ menu: a block to turn the line into, or a person to name. */
-/** A command for the / menu: it puts `text` where "/query" was typed, or (with `run`) clears it and does something. */
-export interface EditorCommand {
-  label: string;
-  /** Short, at the right: what it does. */
-  hint: string;
-  /** A second line: an example of its use. */
-  example?: string;
-  icon?: IconName;
-  /** Other words that find it (English names, for one). */
-  keys?: string[];
-  text?: string;
-  run?: () => void;
-}
-interface MenuItem {
-  label: string;
-  hint: string;
-  /** A second line: how it is used. */
-  example?: string;
-  icon?: IconName;
-  face?: { name: string; photo: string | null };
-  run: () => void;
-}
-/** A person's round face for the @ menu: their photo, or their initial. */
-function faceOf(p: { name: string; photo: string | null }): HTMLElement {
-  const el = document.createElement('span');
-  el.className = 'slash-face';
-  if (p.photo) {
-    const img = document.createElement('img');
-    img.src = p.photo;
-    img.alt = '';
-    img.referrerPolicy = 'no-referrer';
-    el.append(img);
-  } else el.textContent = (p.name.trim()[0] ?? '?').toUpperCase();
-  return el;
-}
-/** List markers a line can carry (stripped when a / block replaces them). */
-const MARKER = /^(\s*)(#{1,6} |[-*] \[[ xX]\] |[-*+] |\d+\. |> ?\[!\w+\] ?|> |\| (?!.*\|\s*$))?/;
 
 export class MdEditor extends HTMLElement {
   /**
@@ -268,10 +37,8 @@ export class MdEditor extends HTMLElement {
   private future: { text: string; caret: number }[] = [];
   private lastPush = 0;
   private lastCaret = 0;
-  private menu: HTMLElement | null = null;
-  private menuItems: MenuItem[] = [];
+  private menu = new SlashMenu(this);
   private menuAt = 0;
-  private menuPick = 0;
 
   constructor() {
     super();
@@ -674,7 +441,7 @@ export class MdEditor extends HTMLElement {
     return { start, end, text: v.slice(start, end) };
   }
   private onKey(e: KeyboardEvent): void {
-    if (this.menu && this.onMenuKey(e)) return;
+    if (this.menu.isOpen && this.menu.onKey(e)) return;
     const mod = e.ctrlKey || e.metaKey;
     if (mod && !e.altKey && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
       e.preventDefault();
@@ -907,9 +674,7 @@ ${newRow}${v.slice(end)}`);
         .slice(0, 8).map((p) => ({ label: p.name, hint: '@', face: p, run: () => this.applyMention(p) }));
       if (!items.length) return this.closeMenu();
       this.menuAt = caret - at[2]!.length - 1;
-      this.menuItems = items;
-      this.menuPick = Math.min(this.menuPick, items.length - 1);
-      return this.drawMenu();
+      return this.menu.show(items);
     }
     const m = /(^|\s)\/([^\s/]{0,20})$/.exec(before);
     if (!m) return this.closeMenu();
@@ -922,76 +687,10 @@ ${newRow}${v.slice(end)}`);
       .map((b) => ({ label: b.label, hint: b.hint, icon: b.icon, run: () => this.applyBlock(b) }))];
     if (!items.length) return this.closeMenu();
     this.menuAt = caret - m[2]!.length - 1;
-    this.menuItems = items;
-    this.menuPick = Math.min(this.menuPick, items.length - 1);
-    this.drawMenu();
-  }
-  private drawMenu(): void {
-    if (!this.menu) {
-      this.menu = document.createElement('div');
-      this.menu.className = 'slash-menu';
-      this.menu.setAttribute('role', 'listbox');
-      // clicks must not take the focus (and the caret) away from the note
-      this.menu.addEventListener('mousedown', (e) => e.preventDefault());
-      document.body.append(this.menu);
-    }
-    this.menu.replaceChildren(...this.menuItems.map((b, i) => {
-      const it = document.createElement('button');
-      it.type = 'button';
-      it.setAttribute('role', 'option');
-      it.setAttribute('aria-selected', String(i === this.menuPick));
-      it.innerHTML = '<span class="slash-ic"></span><span class="slash-label"></span><span class="slash-hint"></span>';
-      const face = b.face ? faceOf(b.face) : icon(b.icon ?? 'chevron-right');
-      it.querySelector('.slash-ic')!.append(face);
-      it.querySelector('.slash-label')!.textContent = b.label;
-      if (b.example) {
-        it.classList.add('has-example');
-        it.append(Object.assign(document.createElement('span'), { className: 'slash-example', textContent: b.example }));
-      }
-      it.querySelector('.slash-hint')!.textContent = b.hint;
-      it.addEventListener('click', () => b.run());
-      it.addEventListener('mousemove', () => {
-        if (this.menuPick === i) return;
-        this.menuPick = i;
-        this.drawMenu();
-      });
-      return it;
-    }));
-    // under the caret
-    const r = getSelection()?.rangeCount ? getSelection()!.getRangeAt(0).getBoundingClientRect() : this.getBoundingClientRect();
-    const h = this.menu.offsetHeight;
-    const top = r.bottom + 6 + h > innerHeight - 8 ? r.top - h - 6 : r.bottom + 6;
-    this.menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - this.menu.offsetWidth - 8))}px`;
-    this.menu.style.top = `${Math.max(8, top)}px`;
-    this.menu.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+    this.menu.show(items);
   }
   private closeMenu(): void {
-    this.menu?.remove();
-    this.menu = null;
-    this.menuPick = 0;
-  }
-  private onMenuKey(e: KeyboardEvent): boolean {
-    if (e.isComposing) return false;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const n = this.menuItems.length;
-      this.menuPick = (this.menuPick + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
-      this.drawMenu();
-      return true;
-    }
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      this.menuItems[this.menuPick]!.run();
-      return true;
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      this.closeMenu();
-      return true;
-    }
-    return false;
+    this.menu.close();
   }
   /** Puts a mention of `p` where "@query" was typed (a space after it, to type on). */
   private applyMention(p: { uid: string; name: string }): void {
