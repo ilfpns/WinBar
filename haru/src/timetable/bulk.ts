@@ -1,5 +1,5 @@
 import { mod } from './time';
-import { CATEGORIES, CATEGORY_KEYS } from './model';
+import { CATEGORIES, CATEGORY_KEYS, withStatus } from './model';
 import { clearSelection, deleteSelected, state, subscribe, updateSelected } from './state';
 
 /** Right-panel card shown while tasks are selected: apply one change to all of them. */
@@ -31,8 +31,8 @@ export function mountBulk(card: HTMLElement): void {
     if (!btn) return;
     const by = Number(btn.dataset.by ?? 0);
     switch (btn.dataset.bulk) {
-      case 'done': return run(updateSelected((b) => ({ ...b, done: true })));
-      case 'undone': return run(updateSelected((b) => ({ ...b, done: false })));
+      case 'done': return run(updateSelected((b) => withStatus(b, 'done')));
+      case 'undone': return run(updateSelected((b) => withStatus(b, 'yet')));
       case 'cat': {
         const cat = btn.dataset.cat as keyof typeof CATEGORIES;
         return run(updateSelected((b) => ({ ...b, cat })));

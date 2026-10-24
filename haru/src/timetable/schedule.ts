@@ -1,6 +1,6 @@
 import { formatDuration, hhmm, nowMinutes, snap } from './time';
-import { type Block, contains, firstFreeSlot, labelOf } from './model';
-import { openDraft, select, state, subscribe, toggleDone, toggleSelected } from './state';
+import { type Block, STATUS_LABEL, STATUSES, contains, firstFreeSlot, labelOf, statusOf } from './model';
+import { cycleStatus, openDraft, select, state, subscribe, toggleSelected } from './state';
 import { setHover } from './hover';
 import { icon } from '../ui/icons';
 
@@ -107,15 +107,21 @@ export function mountSchedule(refs: ScheduleRefs): void {
       const li = document.createElement('li');
       li.classList.toggle('now', contains(b, now));
       li.classList.toggle('done', b.done);
+      const status = statusOf(b);
+      li.classList.toggle('doing', status === 'doing');
+      // the status button: not started (dashed) → in progress (hourglass) → done (check), a press each
       const check = document.createElement('button');
       check.type = 'button';
       // the check pops only when the task has just been checked (not on every redraw of a done task)
       check.className = `check${b.done && wasDone.get(b.id) === false ? ' just' : ''}`;
+      check.dataset.status = status;
       check.setAttribute('role', 'checkbox');
-      check.setAttribute('aria-checked', String(b.done));
-      check.setAttribute('aria-label', `Mark ${labelOf(b)} ${b.done ? 'not done' : 'done'}`);
-      check.append(icon('check'));
-      check.addEventListener('click', () => toggleDone(b.id));
+      check.setAttribute('aria-checked', status === 'done' ? 'true' : status === 'doing' ? 'mixed' : 'false');
+      const next = STATUSES[(STATUSES.indexOf(status) + 1) % STATUSES.length]!;
+      check.setAttribute('aria-label', `${labelOf(b)}: ${STATUS_LABEL[status]}. Press for ${STATUS_LABEL[next]}`);
+      check.title = `${STATUS_LABEL[status]} → ${STATUS_LABEL[next]}`;
+      check.append(icon(status === 'done' ? 'check' : status === 'doing' ? 'hourglass' : 'circle-dashed'));
+      check.addEventListener('click', () => cycleStatus(b.id));
       const row = document.createElement('button');
       row.type = 'button';
       row.className = 'row';

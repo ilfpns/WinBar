@@ -158,6 +158,8 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .block.done { fill: color-mix(in srgb, var(--c) 34%, var(--cf)); }
 :is(#dial, .peek-dial) .block.done:hover { fill: color-mix(in srgb, var(--c) 42%, var(--cf)); }
 :is(#dial, .peek-dial) .block-arc.done { opacity: 1; stroke-width: 8; }
+/* in progress: the rim in dashes, more present than a task not started */
+:is(#dial, .peek-dial) .block-arc.doing { opacity: .95; stroke-width: 6; stroke-dasharray: 14 8; }
 :is(#dial, .peek-dial) .done-badge { pointer-events: none; }
 /* a task with a note: a small dot by its name */
 :is(#dial, .peek-dial) .note-dot { fill: var(--accent); pointer-events: none; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent)); }
@@ -1191,6 +1193,18 @@ body.gated > :not(.gate, .connect) { visibility: hidden; }
 .title-input::placeholder { color: var(--text-subtle); }
 .title-input:focus { border-bottom-color: var(--info); }
 .chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+/* the editor's status: Yet · In progress · Done, side by side */
+.status-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: 12px; background: rgb(var(--shade) / .35); }
+.status-seg button {
+  display: flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 6px; border: 0; border-radius: 9px;
+  background: none; color: var(--text-muted); font: 500 12.5px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.status-seg button .ic { flex: none; width: 14px; height: 14px; }
+.status-seg button:hover { color: var(--text-strong); }
+.status-seg [aria-checked="true"] { background: var(--gray-btn-hover); color: var(--text-strong); }
+.status-seg [data-status="doing"][aria-checked="true"] { background: color-mix(in srgb, var(--status-doing) 22%, transparent); color: var(--status-doing); }
+.status-seg [data-status="done"][aria-checked="true"] { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
 .chip {
   display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-width: 0; height: 30px; padding: 0 10px;
   border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well);
@@ -1302,6 +1316,16 @@ body.gated > :not(.gate, .connect) { visibility: hidden; }
 /* only a check just made pops (see schedule.ts) */
 #list .check.just[aria-checked="true"] { animation: done-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
 #list .check .ic { width: 14px; height: 14px; stroke-width: 2.5; }
+/* task status: not started (a dashed box, a faint dashed ring), in progress (blue, an hourglass), done (green check) */
+:root { --status-doing: #5aa7e0; }
+:root[data-theme="light"] { --status-doing: #2f7fbf; }
+#list .check[data-status="yet"] { border-style: dashed; border-color: var(--text-subtle); color: var(--text-subtle); }
+#list .check[data-status="yet"] .ic { width: 12px; height: 12px; stroke-width: 2; opacity: .55; }
+#list .check[data-status="doing"] { border-color: var(--status-doing); background: color-mix(in srgb, var(--status-doing) 16%, transparent); color: var(--status-doing); }
+#list .check[data-status="doing"] .ic { width: 13px; height: 13px; stroke-width: 2.2; animation: hourglass-tip 2.4s var(--ease-out) infinite; }
+@keyframes hourglass-tip { 0%, 70% { transform: none; } 85%, 100% { transform: rotate(180deg); } }
+#list .doing .t { color: var(--status-doing); }
+@media (prefers-reduced-motion: reduce) { #list .check[data-status="doing"] .ic { animation: none; } }
 #list .done .n { color: var(--text-subtle); text-decoration: line-through; }
 #list .row {
   width: 100%; height: 40px; padding: 0 10px 0 6px;

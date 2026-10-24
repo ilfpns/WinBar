@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.55',
+    date: '2026-10-24',
+    items: [
+      '할 일 상태 3단계: 시작 전 · 진행 중 · 완료. 새 할 일은 시작 전으로 시작',
+      '할 일 목록의 칸을 누를 때마다 시작 전(점선) → 진행 중(파란 모래시계) → 완료(초록 체크)',
+      '편집기 제목 아래에 상태 고르기, 다이얼에서는 진행 중인 할 일의 테두리가 점선',
+    ],
+  },
+  {
     version: '1.54',
     date: '2026-10-24',
     items: [

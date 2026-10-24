@@ -1,6 +1,6 @@
 import { mod } from './time';
-import { CATEGORIES, CATEGORY_KEYS, type Category } from './model';
-import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, state, subscribe } from './state';
+import { CATEGORIES, CATEGORY_KEYS, type Category, type Status, statusOf } from './model';
+import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, setDraftStatus, state, subscribe } from './state';
 import { timeField } from '../ui/time-field';
 
 interface EditorFields extends HTMLFormControlsCollection {
@@ -49,6 +49,13 @@ export function mountEditor(form: HTMLFormElement): void {
     return b;
   }));
 
+  // where the task stands: Yet (new tasks) · In progress · Done
+  const statusSeg = req<HTMLElement>(form, '#status-seg');
+  statusSeg.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('[data-status]');
+    if (b) setDraftStatus(b.dataset.status as Status);
+  });
+
   let filledKey = -1;
 
   function render(): void {
@@ -70,6 +77,8 @@ export function mountEditor(form: HTMLFormElement): void {
     startField.set(d.start);
     endField.set(mod(d.start + d.dur));
     chips.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.cat === d.cat)));
+    const status = statusOf(d);
+    statusSeg.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.status === status)));
   }
 
   f.title.addEventListener('input', () => patchDraft({ title: f.title.value }));

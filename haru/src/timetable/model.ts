@@ -25,12 +25,25 @@ export interface Block {
   dur: number;
   /** Checked off as a finished task. */
   done: boolean;
+  /** Started but not finished ("In progress"). Absent: not started yet. Ignored once done. */
+  doing?: boolean;
   /** More about the task, written in the editor (a dot by its name says there is some). */
   note?: string;
 }
 
 /** A block being created (id null) or edited. */
 export type Draft = Omit<Block, 'id'> & { id: string | null };
+
+/** Where a task stands: not started yet, in progress, or done. New tasks start as `yet`. */
+export type Status = 'yet' | 'doing' | 'done';
+export const STATUSES: Status[] = ['yet', 'doing', 'done'];
+export const STATUS_LABEL: Record<Status, string> = { yet: 'Yet', doing: 'In progress', done: 'Done' };
+export const statusOf = (b: Pick<Block, 'done' | 'doing'>): Status => (b.done ? 'done' : b.doing ? 'doing' : 'yet');
+/** The task (or draft) put in `status`. The `doing` key is left out unless set: the cloud copy takes no undefined fields. */
+export function withStatus<T extends Pick<Block, 'done' | 'doing'>>(b: T, status: Status): T {
+  const { doing: _, ...rest } = b;
+  return (status === 'doing' ? { ...rest, done: false, doing: true } : { ...rest, done: status === 'done' }) as T;
+}
 
 /**
  * Day progress in minutes: how much of the 24h day is planned, and how much of that is done.

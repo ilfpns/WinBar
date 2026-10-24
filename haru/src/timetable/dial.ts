@@ -639,7 +639,7 @@ function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean, pop: stri
   const style = `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)`;
   const out: SVGElement[] = [
     svgEl('path', { class: `block${isSel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }),
-    svgEl('path', { class: `block-arc${b.done ? ' done' : ''}`, d: arcPath(b.start, b.dur, R_OUT - 3.5), style }),
+    svgEl('path', { class: `block-arc${b.done ? ' done' : b.doing ? ' doing' : ''}`, d: arcPath(b.start, b.dur, R_OUT - 3.5), style }),
   ];
   if (b.done && b.dur >= 20) {
     const [cx, cy] = pointAt(R_IN + 26, b.start + b.dur / 2);

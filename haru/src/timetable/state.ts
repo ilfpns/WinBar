@@ -1,5 +1,5 @@
 import { DAY, SNAP, hhmm, mod } from './time';
-import { type Block, type Category, type Draft, labelOf, loadBlocks, newId, overlaps, saveBlocks } from './model';
+import { type Block, type Category, type Draft, labelOf, loadBlocks, newId, overlaps, saveBlocks, type Status, STATUSES, statusOf, withStatus } from './model';
 
 export interface DragState {
   /** Snapped minute where the drag began. */
@@ -202,9 +202,25 @@ export function commitDraft(): string | null {
 
 export function toggleDone(id: string): void {
   const done = !state.blocks.find((b) => b.id === id)?.done;
+  setStatus(id, done ? 'done' : 'yet');
+}
+
+/** Puts a task in a status (yet / in progress / done). */
+export function setStatus(id: string, status: Status): void {
   // the same task open in the editor follows, so the dial (which draws the draft) and a later Save agree
-  const draft = state.draft?.id === id ? { ...state.draft, done } : state.draft;
-  setState({ blocks: state.blocks.map((b) => (b.id === id ? { ...b, done } : b)), draft });
+  const draft = state.draft?.id === id ? withStatus(state.draft, status) : state.draft;
+  setState({ blocks: state.blocks.map((b) => (b.id === id ? withStatus(b, status) : b)), draft });
+}
+
+/** The editor's status picker: the draft's status (saved with the task). */
+export function setDraftStatus(status: Status): void {
+  if (state.draft) setState({ draft: withStatus(state.draft, status) });
+}
+
+/** The list's status button: yet → in progress → done → yet. */
+export function cycleStatus(id: string): void {
+  const b = state.blocks.find((x) => x.id === id);
+  if (b) setStatus(id, STATUSES[(STATUSES.indexOf(statusOf(b)) + 1) % STATUSES.length]!);
 }
 
 // ---------- selection & batch actions

@@ -35,6 +35,8 @@ const KO: Record<string, string> = {
   'Nothing planned yet': '아직 계획이 없어요', 'Not planned yet': '아직 계획 없음',
   // the greeting on Today (ui/greeting.ts); the lines themselves stay in English
   'Name for the greeting': '인사에 쓸 이름', 'Used in the greeting on Today. Empty: your account’s first name.': 'Today 인사에 쓰여요. 비워 두면 계정 이름을 써요.',
+  // task status (timetable/model.ts)
+  Yet: '시작 전', 'In progress': '진행 중', Status: '상태',
   // who reacted to a chat message (chat/chat.ts)
   you: '나', someone: '누군가',
   // the rule between the swipe pages and the rest (ui/page-order.ts, ui/page-drag.ts)
@@ -206,7 +208,11 @@ const LEVEL_KO: Record<string, string> = { Low: '낮음', Medium: '보통', High
 const t = (s: string) => KO[s] ?? s;
 
 /** Strings with numbers or names in them. */
+const ST: Record<string, string> = { Yet: '시작 전', 'In progress': '진행 중', Done: '완료' };
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
+  // task status: the list's status button
+  [/^(.+): (Yet|In progress|Done)\. Press for (Yet|In progress|Done)$/, (_, n, a, b) => `${n}: ${ST[a]!} · 누르면 ${ST[b]!}`],
+  [/^(Yet|In progress|Done) → (Yet|In progress|Done)$/, (_, a, b) => `${ST[a]!} → ${ST[b]!}`],
   // plans (calendar/week.ts)
   [/^Planned · (.+)$/, (_, n) => `계획 · ${n === 'Today' ? '오늘' : n}`],
   [/^Planned with (.+)$/, (_, n) => `${n === 'Today' ? '오늘' : n}(으)로 계획했어요`],

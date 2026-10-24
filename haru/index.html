@@ -216,6 +216,11 @@
         <span class="dot"></span><span id="ed-head">New task</span>
       </div>
       <input class="title-input" name="title" placeholder="What are you doing?" maxlength="40">
+      <div class="status-seg" id="status-seg" role="radiogroup" aria-label="Status">
+        <button type="button" role="radio" data-status="yet"><i data-icon="circle-dashed"></i>Yet</button>
+        <button type="button" role="radio" data-status="doing"><i data-icon="hourglass"></i>In progress</button>
+        <button type="button" role="radio" data-status="done"><i data-icon="check"></i>Done</button>
+      </div>
       <div class="chips" id="chips" role="radiogroup" aria-label="Category"></div>
       <div class="times">
         <div class="time-col"><span class="meta">Start</span><button type="button" class="time-field" data-field="start" aria-label="Start time"></button></div>
