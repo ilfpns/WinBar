@@ -124,9 +124,13 @@ export function mountDial(svg: SVGSVGElement): Dial {
     gBlocks.replaceChildren();
     gHalo.replaceChildren();
     if (dialStyle === 'thin') renderSlices(picked, now);
-    else for (const b of visibleBlocks()) {
-      const isSel = b === draft || (b.id !== null && picked.has(b.id));
-      gBlocks.append(...blockShapes(b, isSel, !isSel && contains(b, now), popStyle(b.id)));
+    else {
+      for (const b of visibleBlocks()) {
+        const isSel = b === draft || (b.id !== null && picked.has(b.id));
+        gBlocks.append(...blockShapes(b, isSel, !isSel && contains(b, now), popStyle(b.id)));
+      }
+      // every task is in its colour here: only two of one colour need a line where they meet
+      gBlocks.append(...seams(visibleBlocks(), () => true));
     }
 
     renderCallouts(visibleBlocks(), picked, now);
@@ -279,7 +283,7 @@ export function mountDial(svg: SVGSVGElement): Dial {
     const pct = Math.round((done / DAY) * 100);
     orb.focus(null);
     // slices: the emblem carries the slices' colours inward, with a radar trail behind the hand
-    orb.setSlices(dialStyle === 'thin' ? blocks.map((b) => ({ start: b.start, dur: b.dur, color: catColor(b) })) : null, nowMinutes());
+    orb.setSlices(dialStyle === 'thin' ? blocks.map((b) => ({ start: b.start, dur: b.dur, color: catColor(b), done: b.done })) : null, nowMinutes());
     orb.setDone(blocks.filter((b) => b.done).map((b) => ({ start: b.start, dur: b.dur, color: catColor(b) })));
     // finishing something makes the core bounce once
     gInfo.replaceChildren(...core(`${pct}%`, 'var(--accent)', 'var(--bg)', lastPct >= 0 && pct > lastPct));
@@ -301,10 +305,11 @@ export function mountDial(svg: SVGSVGElement): Dial {
    */
   function renderSlices(picked: Set<string>, now: number): void {
     const list = [...visibleBlocks()].sort((a, b) => a.start - b.start);
+    const passedOf = (b: Block | Draft) => (contains(b, now) ? mod(now - b.start) : b.start + b.dur <= now ? b.dur : 0);
     list.forEach((b) => {
       const sel = b === state.draft || (b.id !== null && picked.has(b.id));
       const live = contains(b, now);
-      const passed = live ? mod(now - b.start) : b.start + b.dur <= now ? b.dur : 0;
+      const passed = passedOf(b);
       const style = `--c:var(--cat-${b.cat})`;
       gBlocks.append(svgEl('path', { class: `slice${sel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }));
       if (passed > 0) {
@@ -319,6 +324,9 @@ export function mountDial(svg: SVGSVGElement): Dial {
         }
       }
     });
+    // where two tasks meet: lit on both sides (the earlier one wholly past, the later one begun) they only need a
+    // line when they share a colour; still gray ahead of now they always do
+    gBlocks.append(...seams(list, (a, b) => a.start + a.dur <= now && passedOf(b) > 0));
   }
 
   /**
@@ -605,6 +613,25 @@ export function mountDial(svg: SVGSVGElement): Dial {
 }
 
 /**
+ * Lines where one task ends just as the next begins — only where the two would otherwise run together into
+ * one: the same colour on both sides, or (`lit` false) both still gray. Tasks of different colours simply
+ * meet, with no dark gap between them.
+ */
+function seams(blocks: readonly (Block | Draft)[], lit: (a: Block | Draft, b: Block | Draft) => boolean): SVGElement[] {
+  const out: SVGElement[] = [];
+  for (const b of blocks) {
+    const a = blocks.find((x) => x !== b && mod(x.start + x.dur) === mod(b.start));
+    if (!a) continue;
+    const colored = lit(a, b);
+    if (colored && a.cat !== b.cat) continue;
+    const [x0, y0] = pointAt(R_IN, b.start);
+    const [x1, y1] = pointAt(R_OUT, b.start);
+    out.push(svgEl('line', { class: `seam${colored ? '' : ' gray'}`, x1: x0, y1: y0, x2: x1, y2: y1 }));
+  }
+  return out;
+}
+
+/**
  * One task on the full dial: its slice, its arc on the rim, and (when it fits) its name and hours. A done
  * task reads at a glance: filled in its colour, a full-strength rim, and a check badge by the inner edge.
  */
@@ -652,6 +679,7 @@ export function drawReadOnlyDial(svg: SVGSVGElement, blocks: Block[]): void {
   drawBase(g('base'));
   const gBlocks = g('blocks');
   for (const b of blocks) gBlocks.append(...blockShapes(b, false, contains(b, now)));
+  gBlocks.append(...seams(blocks, () => true));
   const [x0, y0] = pointAt(R_IN - 14, now);
   const [x1, y1] = pointAt(R_OUT + 14, now);
   g('now').append(

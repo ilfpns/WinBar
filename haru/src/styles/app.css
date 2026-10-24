@@ -93,9 +93,12 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .disk { fill: var(--disk); }
 #dial.thin .layer-blocks { clip-path: url(#ring-clip); }
 #dial.thin .ring-bg { fill: rgb(var(--ink) / 0.018); }
-:is(#dial, .peek-dial) .slice { fill: var(--slice); stroke: var(--slice-gap); stroke-width: 2; transition: fill var(--dur-fast) var(--ease-out); }
+/* slices have no outline: tasks that follow one another meet edge to edge (a seam marks the joins that need one) */
+:is(#dial, .peek-dial) .slice { fill: var(--slice); transition: fill var(--dur-fast) var(--ease-out); }
 :is(#dial, .peek-dial) .slice.sel { fill: var(--slice-sel); }
-:is(#dial, .peek-dial) .slice-past { fill: color-mix(in srgb, var(--c) 66%, var(--slice-base)); stroke: var(--slice-gap); stroke-width: 2; pointer-events: none; }
+:is(#dial, .peek-dial) .slice-past { fill: color-mix(in srgb, var(--c) 66%, var(--slice-base)); pointer-events: none; }
+:is(#dial, .peek-dial) .seam { stroke: color-mix(in srgb, var(--bg) 70%, transparent); stroke-width: 1.5; pointer-events: none; }
+:is(#dial, .peek-dial) .seam.gray { stroke: var(--slice-gap); stroke-width: 2; }
 :is(#dial, .peek-dial) .slice-glow { fill: var(--c); opacity: .22; pointer-events: none; }
 /* the lit slices' glow (dial.ts gHalo) */
 #dial .layer-halo { display: none; pointer-events: none; }
@@ -145,7 +148,7 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .hour { font: 400 17px var(--font-mono); fill: var(--text-subtle); }
 :is(#dial, .peek-dial) .hour.major { font-size: 20px; fill: var(--text); }
 :is(#dial, .peek-dial) .block {
-  fill: var(--cf); stroke: var(--bg); stroke-width: 3; cursor: pointer;
+  fill: var(--cf); cursor: pointer;
   transition: fill var(--dur-fast) var(--ease-out);
 }
 :is(#dial, .peek-dial) .block:hover { fill: color-mix(in srgb, var(--c) 22%, var(--cf)); }

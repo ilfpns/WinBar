@@ -38,6 +38,8 @@ interface Dot {
   /** Slices view: the colour of the task at this dot's minute, and whether that time has passed. */
   sliceRgb: RGB | null;
   slicePast: boolean;
+  /** The task at this dot's minute is finished (slices view). */
+  sliceDone: boolean;
 }
 
 /** A time range to tint on the emblem; `color` is any CSS colour (custom properties allowed). */
@@ -45,6 +47,8 @@ export interface OrbRange {
   start: number;
   dur: number;
   color: string;
+  /** Slices view: a finished task (its dots in full colour; an unfinished one's stay pale). */
+  done?: boolean;
 }
 
 /** Entrance orders for effects: each maps a dot to a 0..1 start delay. One is picked at random. */
@@ -156,7 +160,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
       // smooth pseudo-noise so dot sizes swell and shrink across the field
       const base = 2.2 + 4.6 * (0.5 + 0.5 * Math.sin(x * 0.043 + 1.3) * Math.cos(y * 0.051 - 0.7));
       const minute = (((Math.atan2(x, -y) / (Math.PI * 2)) + 1) % 1) * DAY;
-      dots.push({ x, y, d, base, minute, phase: (d / R) * 2400, rgb: [...restRgb], alpha: 1, swell: 0, doneRgb: null, hlRgb: null, sliceRgb: null, slicePast: false });
+      dots.push({ x, y, d, base, minute, phase: (d / R) * 2400, rgb: [...restRgb], alpha: 1, swell: 0, doneRgb: null, hlRgb: null, sliceRgb: null, slicePast: false, sliceDone: false });
     }
   }
   const inRange = (dot: Dot, r: { start: number; dur: number }) => mod(dot.minute - r.start) < r.dur;
@@ -256,13 +260,14 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
     for (const dot of dots) {
       // slices: the trail behind the hand (1 right at it, 0 after SWEEP_TRAIL minutes)
       const trail = slices ? Math.max(0, 1 - mod(hand - dot.minute) / SWEEP_TRAIL) : 0;
-      const sliced = slices && dot.sliceRgb ? mix(restRgb, dot.sliceRgb, dot.slicePast ? 0.85 : 0.3) : null;
+      // finished tasks in full colour; unfinished ones clearly paler — a little stronger where their time has passed
+      const sliced = slices && dot.sliceRgb ? mix(restRgb, dot.sliceRgb, dot.sliceDone ? 0.9 : dot.slicePast ? 0.3 : 0.18) : null;
       const target = dot.hlRgb ? mix(restRgb, dot.hlRgb, 0.55)
         : sliced ? mix(sliced, glow, 0.45 * trail * trail)
         : slices ? mix(restRgb, glow, 0.25 * trail * trail)
         : dot.doneRgb ? mix(restRgb, dot.doneRgb, 0.4) : restRgb;
       dot.rgb = mix(dot.rgb, target, ease);
-      const restAlpha = slices && !dot.sliceRgb ? 0.4 + 0.6 * trail : 1;
+      const restAlpha = slices && !dot.sliceRgb ? 0.4 + 0.6 * trail : slices && !dot.sliceDone ? 0.55 + 0.45 * trail : 1;
       dot.alpha += ((focused && !dot.hlRgb ? 0.45 : restAlpha) - dot.alpha) * ease;
       const k = pointer ? Math.max(0, 1 - Math.hypot(dot.x - pointer.x, dot.y - pointer.y) / REACH) : 0;
       dot.swell += (0.35 * k * k - dot.swell) * Math.min(1, ease * 1.6);
@@ -330,6 +335,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
         const off = hit ? mod(now - hit.start) : 0;
         const passed = !hit ? 0 : off < hit.dur ? off : hit.start + hit.dur <= now ? hit.dur : 0;
         dot.slicePast = !!hit && mod(dot.minute - hit.start) < passed;
+        dot.sliceDone = !!hit?.done;
       }
     },
 
