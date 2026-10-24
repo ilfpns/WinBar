@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.54',
+    date: '2026-10-24',
+    items: [
+      '저널이 마지막에 보던 페이지를 기억: 다른 페이지에 다녀오거나 새로고침·다시 열어도 그 페이지(와 그 폴더)가 그대로',
+    ],
+  },
+  {
     version: '1.53',
     date: '2026-10-24',
     items: [

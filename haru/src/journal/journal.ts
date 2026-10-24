@@ -17,6 +17,23 @@ export { type Entry, type Folder, folderStore, journalStore } from './journal-st
 
 /** Which folder was open (per browser). */
 const TAB_KEY = 'haru:journal-folder';
+/** The page last open in the editor: Journal opens on it again (after a page turn, a reload, a new visit). */
+const OPEN_KEY = 'haru:journal-open';
+const remember = (id: string | null): void => {
+  try {
+    if (id) localStorage.setItem(OPEN_KEY, id);
+    else localStorage.removeItem(OPEN_KEY);
+  } catch {
+    // for this visit
+  }
+};
+const remembered = (): string | null => {
+  try {
+    return localStorage.getItem(OPEN_KEY);
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Journal: pages written in your own words — a summary of the day, a thought, a plan — always filed in a
@@ -289,6 +306,7 @@ export function mountJournal(body: HTMLElement): void {
   function open(id: string | null, date = dayKey()): void {
     flush();
     openId = id;
+    remember(id);
     const e = id ? entries().find((x) => x.id === id) : undefined;
     draftDate = e?.date ?? date;
     dateEl.textContent = new Date(`${draftDate}T00:00`).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
@@ -326,6 +344,7 @@ export function mountJournal(body: HTMLElement): void {
       const folder = place && place !== ROOT ? place : undefined;
       const e: Entry = { id: newId(), date: draftDate, title, body: bodyText, created: now, updated: now, ...(folder ? { folder } : {}) };
       openId = e.id;
+      remember(e.id);
       del.hidden = false;
       journalStore.set([e, ...all]);
     } else {
@@ -435,13 +454,28 @@ export function mountJournal(body: HTMLElement): void {
     renderFolders();
     renderList();
   });
-  // start on today's page in the open folder, if there is one
-  open(entries().find((e) => e.date === dayKey() && inTab(e))?.id ?? null);
+  /** The page to start on: the one last open (its folder shown too), else today's page in the open folder. */
+  // read once now: opening a blank page while the pages are still loading must not forget it
+  const lastOpen = remembered();
+  function startPage(): string | null {
+    const last = entries().find((e) => e.id === (remembered() ?? lastOpen));
+    if (last) {
+      tab = folderOf(last);
+      try {
+        localStorage.setItem(TAB_KEY, tab);
+      } catch {
+        // for this visit
+      }
+      return last.id;
+    }
+    return entries().find((e) => e.date === dayKey() && inTab(e))?.id ?? null;
+  }
+  open(startPage());
   journalStore.onChange(() => {
-    // the stored copy arrived late (IndexedDB) while the page still shows a blank: open today's
+    // the stored copy arrived late (IndexedDB, the cloud) while the page still shows a blank: open the last one
     if (!openId && !titleIn.value && !text.value) {
-      const today = entries().find((e) => e.date === dayKey() && inTab(e));
-      if (today) open(today.id);
+      const id = startPage();
+      if (id) open(id);
     }
   });
 }
