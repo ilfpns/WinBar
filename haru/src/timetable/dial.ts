@@ -668,11 +668,13 @@ export function drawReadOnlyDial(svg: SVGSVGElement, blocks: Block[]): void {
 function drawBase(g: SVGGElement, style: DialStyle = 'full'): void {
   if (style === 'thin') {
     // slices sit on a black disk with only a faint track: no hour numbers or ticks, the slices carry the day.
-    // Disk and slices end on one clean rim, a hair inside the ring: the slices' dividing strokes are
-    // clipped there, so no dark line runs round the outside or pokes out past it.
+    // Disk and slices end on one clean rim, a hair inside the ring — and start a hair outside the hole: the
+    // slices' dividing strokes are clipped at both edges, so no dark line runs round the outside or along the
+    // inside (the colour meets the centre directly).
     const rim = R_OUT - 1.5;
+    const inner = R_IN + 1.5;
     const clip = svgEl('clipPath', { id: 'ring-clip' });
-    clip.append(svgEl('path', { d: sectorPath(0, DAY, R_IN, rim) }));
+    clip.append(svgEl('path', { d: sectorPath(0, DAY, inner, rim) }));
     g.append(svgEl('defs'), svgEl('circle', { class: 'disk', r: rim }), svgEl('path', { class: 'ring-bg', d: sectorPath(0, DAY, R_IN, rim) }));
     g.firstElementChild!.append(clip);
     return;

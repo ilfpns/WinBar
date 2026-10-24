@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.52',
+    date: '2026-10-24',
+    items: [
+      'Today 조각 보기: 할 일 색이 안쪽 끝까지 채워짐 (안쪽 가장자리를 따라 보이던 검은 선 제거)',
+    ],
+  },
+  {
     version: '1.51',
     date: '2026-10-24',
     items: [
