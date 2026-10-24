@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.61',
+    date: '2026-10-25',
+    items: [
+      'Today 인사말이 창이 낮을 때 다이얼·작업 이름과 겹치던 문제를 고침: 다이얼이 인사말 아래 공간에 맞춰 줄어듦',
+    ],
+  },
+  {
     version: '1.60',
     date: '2026-10-24',
     items: [

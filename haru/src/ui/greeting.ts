@@ -101,6 +101,10 @@ export function mountGreeting(stage: HTMLElement): void {
     part = p;
     pick();
   };
+  // the room it takes at the top of Today, so the dial and its labels stay below it at any window size
+  const room = () => stage.style.setProperty('--greet-room', `${Math.ceil(el.offsetTop + el.offsetHeight + 14)}px`);
+  new ResizeObserver(room).observe(el);
+  addEventListener('resize', room);
   listeners.add(paint);
   onSession(paint);
   tick();

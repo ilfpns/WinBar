@@ -73,6 +73,8 @@ img, svg, a { -webkit-user-drag: none; }
 .dial-wrap {
   position: relative;
   width: min(100%, calc(100svh - 60px), 860px); aspect-ratio: 1;
+  /* kept clear of Today's greeting at every size: centred, a dial this big starts below it (--greet-room, from ui/greeting) */
+  max-width: calc(100svh - var(--tb, 0px) - 2 * var(--greet-room, 0px));
   transform: translate3d(var(--dial-x, 0px), 0, 0) scale(var(--dial-s, 1));
   transition: transform var(--drawer-dur) var(--drawer-ease);
   will-change: transform;
