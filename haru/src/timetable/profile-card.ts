@@ -1,6 +1,5 @@
 import { avatar, session, type Profile } from '../cloud/session';
 import { onViewing, watchTheirs } from '../cloud/viewing';
-import { notionView } from '../calendar/notion-attendance';
 import { dayKey } from './history';
 import { type Block, isBlock, labelOf } from './model';
 import { formatDuration, hhmm, mod, nowMinutes } from './time';
@@ -51,7 +50,6 @@ export function mountProfileCard(stage: HTMLElement): void {
   let who: Profile | null = null;
   let blocks: Block[] = [];
   let checkins = new Set<string>();
-  let notion = new Set<string>();
   let recent: { date: string; planned: number; done: number }[] = [];
   let clock = 0;
 
@@ -63,7 +61,7 @@ export function mountProfileCard(stage: HTMLElement): void {
     const pct = planned ? Math.round((done / planned) * 100) : 0;
     const cur = blocks.find((b) => mod(now - b.start) < b.dur);
     const next = [...blocks].filter((b) => b !== cur).sort((a, b) => mod(a.start - now) - mod(b.start - now))[0];
-    const days = new Set([...checkins, ...notion]);
+    const days = checkins;
     const { now: streak, best } = streaks(days);
 
     card.replaceChildren();
@@ -181,7 +179,6 @@ export function mountProfileCard(stage: HTMLElement): void {
     who = p;
     blocks = [];
     checkins = new Set();
-    notion = new Set();
     recent = [];
     card.hidden = !p;
     if (!p) return;
@@ -197,11 +194,6 @@ export function mountProfileCard(stage: HTMLElement): void {
       checkins = new Set((data?.items ?? []).filter((x): x is string => typeof x === 'string'));
       paint();
     }));
-    if (p.notionName) void notionView(p.notionName).then((v) => {
-      if (who !== p) return;
-      notion = v.days;
-      paint();
-    });
     void loadRecent(p);
     clock = window.setInterval(paint, 30_000);
   });

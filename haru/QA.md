@@ -3,7 +3,20 @@
 Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호를 붙이고, 처리 결과(고침 / 보류 / 사양대로)를 함께 적는다.
 점검은 사용자의 브라우저가 아니라 별도의 헤드리스 브라우저(gstack browse, `http://localhost:5288`)에서 한다.
 
-## 2026-10-24 (v1.55) — 할 일 상태: 시작 전 · 진행 중 · 완료
+## 2026-10-24 (v1.56) — 상태 애니메이션·배지, Notion 삭제
+
+요청: 편집기 상태 칸이 바뀌는 애니메이션 / 상태마다 아이콘(지금은 완료만) / Notion 관련 기능 모두 삭제, 출석은 여기서 체크한 날만 초록.
+
+**처리**
+1. 상태 칸: 하나의 배경(::before)이 고른 칸으로 미끄러짐(스프링 곡선), 색도 상태 색으로. 바뀐 칸 아이콘이 한 번 움직임(점선 원 회전 / 모래시계 뒤집기 / 체크 그리기). 다른 할 일을 열 때는 미끄러지지 않고 바로.
+2. 상태 배지(statusBadge): 조각 보기 이름 옆과 다이얼 안쪽에 완료(색 원·체크), 진행 중(파란 원·모래시계), 시작 전(흐린 점선 원). 목록의 시작 전 아이콘도 더 잘 보이게.
+3. Notion: notion-attendance.ts, scripts/fetch-attendance.mjs, .github/workflows/haru-attendance.yml 삭제. 설정의 "Name in Notion" 줄, 다른 사람 카드의 Notion 날짜, 번역, firestore.rules의 notion-checkins, 배포 때 attendance.json을 옮겨 오던 코드 삭제. 출석 = 체크인 목록만(예전 "체크인 전 Haru를 연 날"도 이제 안 셈).
+
+**확인한 것** (개발 서버) — 상태 칸: 시작 전 → 진행 중 → 완료로 배경 0 → 96 → 193px, 'changed' 표시. 배지: 조각·다이얼 화면. 출석: 체크인 3일만 초록 → Check in 누르면 오늘 추가·연속 1일 → 다시 누르면 취소, attendance.json 요청 없음, 설정에 Notion 줄 없음. 콘솔 오류 없음, `npm run build` 통과.
+
+**사용자가 할 일** — firestore.rules가 바뀜(notion-checkins 삭제): Firebase 콘솔에 다시 게시. GitHub 저장소 Secrets의 NOTION_TOKEN·FIREBASE_API_KEY는 이제 안 쓰임(지워도 됨).
+
+ — 할 일 상태: 시작 전 · 진행 중 · 완료
 
 요청: 할 일을 시작 전(Yet?) / 진행 중 / 완료로 나누고 상태마다 다른 아이콘, 새로 만들면 시작 전.
 

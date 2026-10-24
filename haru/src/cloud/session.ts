@@ -20,8 +20,6 @@ export interface Profile {
   name: string;
   email: string;
   photo: string | null;
-  /** Their column in the Notion attendance database (Settings → Account), if they set one. */
-  notionName?: string;
 }
 
 let current: Session | null = null;

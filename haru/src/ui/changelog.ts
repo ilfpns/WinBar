@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.56',
+    date: '2026-10-24',
+    items: [
+      '편집기 상태(시작 전·진행 중·완료)를 바꾸면 배경이 미끄러지듯 옮겨가고 아이콘이 움직임 (점선 원 회전, 모래시계 뒤집기, 체크 그리기)',
+      '조각 보기 이름 옆과 다이얼에 상태 배지: 완료 체크, 진행 중 모래시계, 시작 전 점선 원',
+      'Notion 연동 전부 삭제: 설정의 "Notion에서 쓰는 이름", Notion 출석 동기화. 출석 잔디는 Haru에서 체크인한 날만 초록',
+    ],
+  },
+  {
     version: '1.55',
     date: '2026-10-24',
     items: [

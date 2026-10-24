@@ -1,18 +1,15 @@
-import { allDays, dayKey } from '../timetable/history';
+import { dayKey } from '../timetable/history';
 import { listStore } from '../storage/list-store';
 import { icon } from '../ui/icons';
-import { type NotionView, checkinMarks, markCheckin, notionName, notionView, onNotionAttendance } from './notion-attendance';
 import { lessMotion } from '../ui/motion';
 import { currentView, onView } from '../ui/router';
 
 /**
  * Attendance, on the News (globe) page: a Check in button for today and the recent weeks as a grass grid
- * (weeks across, Mon–Sun down). A day you checked in is filled; nothing else counts. Above it, the streak
- * now and the longest one. Before check-ins existed, opening Haru counted as attending: those days (a saved
- * snapshot before CHECKIN_SINCE) still count, so no old grass disappears.
+ * (weeks across, Mon–Sun down). A day you checked in here is green; nothing else counts. Above it, the streak
+ * now and the longest one.
  */
 const WEEKS = 53;
-const CHECKIN_SINCE = '2026-10-16';
 
 const isDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 /** The days you checked in on (YYYY-MM-DD). Backups carry it as `checkins`. */
@@ -71,33 +68,11 @@ export function createAttendance(): Attendance {
   }
   grid.replaceChildren(...cells);
 
-  /** Days with a saved timetable from before check-ins existed. */
-  let opened = new Set<string>();
   // the frame a repaint is waiting for (see paintSoon)
   let painting = 0;
 
-  /** What Notion says for your column (see notion-attendance). */
-  let notion: NotionView | null = null;
-  const refreshNotion = async () => {
-    notion = notionName() ? await notionView(notionName()) : null;
-    paintSoon();
-  };
-  onNotionAttendance(() => void refreshNotion());
-  void refreshNotion();
-
-  /**
-   * Every attended day: Haru's check-ins and Notion's, plus the days Haru was opened before check-ins existed.
-   * A check-in or undo made here counts over Notion for that date until the Notion row is edited after it.
-   */
-  function attendedDays(): Set<string> {
-    const days = new Set([...checkinStore.all(), ...[...opened].filter((k) => k < CHECKIN_SINCE), ...(notion?.days ?? [])]);
-    for (const [date, m] of Object.entries(checkinMarks())) {
-      if (notion && m.at <= notion.editedAt(date)) continue;
-      if (m.on) days.add(date);
-      else days.delete(date);
-    }
-    return days;
-  }
+  /** Every attended day: the days you pressed Check in. */
+  const attendedDays = (): Set<string> => new Set(checkinStore.all());
 
   /** Repaints at the next frame: the several reasons arriving together at startup make one paint, not three. */
   function paintSoon(): void {
@@ -174,18 +149,11 @@ export function createAttendance(): Attendance {
     if (v === 'news') setTimeout(toThisWeek, 340);
   });
 
-  async function load(): Promise<void> {
-    const saved = await allDays().catch(() => []);
-    opened = new Set(saved.map((s) => s.date));
-    paintSoon();
-  }
-
-  // check in, or undo today's — wherever it was ticked (here or in Notion), it goes both ways
+  // check in, or undo today's
   check.addEventListener('click', () => {
     const today = dayKey();
     const on = !attendedDays().has(today);
     const list = checkinStore.all().filter((k) => k !== today);
-    markCheckin(today, on);
     checkinStore.set(on ? [...list, today] : list);
     if (on) {
       check.classList.remove('pop');
@@ -226,7 +194,7 @@ export function createAttendance(): Attendance {
     stacked = now;
     lastH = h;
   }).observe(root);
-  void load();
+  paintSoon();
   return { el: root };
 }
 

@@ -11,7 +11,7 @@ permissions:
   contents: write
   actions: write   # keep-alive below
 
-# shared with haru-attendance.yml: both rewrite the one gh-pages commit, so they take turns
+# one gh-pages writer at a time (a run waits for the one before it)
 concurrency:
   group: haru-pages
   cancel-in-progress: false

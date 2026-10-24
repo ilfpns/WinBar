@@ -57,6 +57,8 @@ export function mountEditor(form: HTMLFormElement): void {
   });
 
   let filledKey = -1;
+  /** The draft the status picker last showed: a new one jumps straight to its status instead of sliding. */
+  let shownKey = -1;
 
   function render(): void {
     const d = state.draft;
@@ -79,6 +81,18 @@ export function mountEditor(form: HTMLFormElement): void {
     chips.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.cat === d.cat)));
     const status = statusOf(d);
     statusSeg.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.status === status)));
+    // the highlight slides to the new status and its icon plays once (not when another task is opened)
+    const changed = statusSeg.dataset.status !== status && shownKey === state.draftKey;
+    statusSeg.dataset.status = status;
+    shownKey = state.draftKey;
+    if (changed) {
+      statusSeg.classList.remove('changed');
+      void statusSeg.offsetWidth;
+      statusSeg.classList.add('changed');
+    } else if (statusSeg.dataset.key !== String(state.draftKey)) {
+      statusSeg.classList.remove('changed');
+    }
+    statusSeg.dataset.key = String(state.draftKey);
   }
 
   f.title.addEventListener('input', () => patchDraft({ title: f.title.value }));

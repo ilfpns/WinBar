@@ -33,7 +33,7 @@ import { mountI18n } from './ui/i18n';
 import { mountFeatures } from './ui/features';
 import { mountPageOrder } from './ui/page-order';
 import { makeSortable } from './ui/page-drag';
-import { checkinStore, mountAttendance } from './calendar/attendance';
+import { mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountChat } from './chat/chat';
 import { mountInsights } from './journal/insights';
@@ -41,7 +41,6 @@ import { addSplit } from './ui/splitter';
 import { mountPeek } from './timetable/peek';
 import { mountProfileCard } from './timetable/profile-card';
 import { mountViewing, viewing } from './cloud/viewing';
-import { mountNotionAttendance } from './calendar/notion-attendance';
 import { anyPopOpen } from './ui/popover';
 
 hydrateIcons();
@@ -117,7 +116,6 @@ mountNews({
   list: byId('news-list'),
 });
 mountAttendance(byId('news'));
-mountNotionAttendance(checkinStore);
 mountCalendar({
   month: byId('cal-month'),
   year: byId('cal-year'),

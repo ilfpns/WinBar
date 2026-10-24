@@ -210,7 +210,7 @@ export function mountAccount(refs: AccountRefs): void {
       stopSync = startSync(fb, user.uid, (s) => (status.textContent = labels[s]));
       if (owner) mountInvites(fb, email);
       // how the others see this account (the Today switcher, the Archive)
-      // (merged, so what else the profile holds — the Notion name — stays)
+      // (merged, so anything else the profile holds stays)
       void fs.setDoc(fs.doc(db, 'profiles', user.uid), { uid: user.uid, name, email, photo: user.photoURL ?? null, updated: Date.now() }, { merge: true }).catch(() => {});
       setSession({ fb, uid: user.uid, email, name, photo: user.photoURL ?? null, owner });
     });

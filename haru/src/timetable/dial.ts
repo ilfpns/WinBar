@@ -1,6 +1,6 @@
 import { DAY, SNAP, formatDuration, hhmm, mod, nowMinutes, snap } from './time';
 import { R_IN, R_MID, R_OUT, angleOf, arcPath, pointAt, polarOf, sectorPath, setRing } from './geometry';
-import { type Block, type Draft, blockAt, blocksInRange, contains, freeAround, labelOf, progressOf } from './model';
+import { type Block, type Draft, blockAt, blocksInRange, contains, freeAround, labelOf, progressOf, statusOf } from './model';
 import { clearSelection, closeDraft, onCancelled, onRemoved, onSaved, openDraft, select, setState, state, subscribe, toggleSelected } from './state';
 import { centeredText, svgEl } from './svg';
 import { createOrb } from './orb';
@@ -370,7 +370,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
       // sits between it and the leader's end
       const label = labelOf(b);
       const nameW = textWidth(label) * (22 / 21);
-      const tx = side > 0 ? legX : -(legX + (b.done ? 34 : 0));
+      // every task carries its status badge after its name (done, in progress, not started)
+      const tx = side > 0 ? legX : -(legX + 34);
       const right = side > 0 ? tx + nameW : tx;
       g.append(
         svgEl('polyline', { class: 'callout-line', points: `${p0.join(',')} ${p1.join(',')} ${p2.join(',')}` }),
@@ -379,17 +380,9 @@ export function mountDial(svg: SVGSVGElement): Dial {
         svgEl('text', { class: 'callout-detail', x: tx, y: y + DETAIL + 3, 'text-anchor': anchor },
           `${hhmm(b.start)}–${hhmm(b.start + b.dur)} · ${Math.round((b.dur / DAY) * 100)}%`),
       );
-      let after = right + 7;
-      if (b.done) {
-        const [bx, by] = [right + 17, y - 10];
-        const tick = icon('check', 'done-ic');
-        for (const [k, v] of Object.entries({ x: bx - 7, y: by - 7, width: 14, height: 14 })) tick.setAttribute(k, String(v));
-        const pop = popStyle(b.id);
-        const badge = svgEl('g', { class: `done-badge${pop ? ' pop' : ''}`, style: `transform-origin:${bx}px ${by}px;${pop ?? ''}` });
-        badge.append(svgEl('circle', { cx: bx, cy: by, r: 11 }), tick);
-        g.append(badge);
-        after = bx + 18;
-      }
+      const [bx, by] = [right + 17, y - 10];
+      g.append(statusBadge(b, bx, by, 11, 14, popStyle(b.id)));
+      const after = bx + 18;
       // a note on the task: a small dot at the name's top right (past the check, when there is one)
       if (b.note?.trim()) g.append(noteDot(after, y - 20));
       return g;
@@ -613,6 +606,26 @@ export function mountDial(svg: SVGSVGElement): Dial {
 }
 
 /**
+ * A task's status as a small round badge: done — a check on its colour; in progress — an hourglass on blue;
+ * not started — a faint dashed ring. A task just checked springs in (`pop`).
+ */
+function statusBadge(b: Block | Draft, cx: number, cy: number, r: number, size: number, pop: string | null = null): SVGGElement {
+  const status = statusOf(b);
+  const badge = svgEl('g', {
+    class: `status-badge ${status}${status === 'done' ? ' done-badge' : ''}${pop && status === 'done' ? ' pop' : ''}`,
+    style: `transform-origin:${cx}px ${cy}px;${pop && status === 'done' ? pop : ''}`,
+  });
+  badge.append(svgEl('circle', { cx, cy, r }));
+  if (status !== 'yet') {
+    const ic = icon(status === 'done' ? 'check' : 'hourglass', status === 'done' ? 'done-ic' : 'doing-ic');
+    const s = status === 'done' ? size : size * 0.78;
+    for (const [k, v] of Object.entries({ x: cx - s / 2, y: cy - s / 2, width: s, height: s })) ic.setAttribute(k, String(v));
+    badge.append(ic);
+  }
+  return badge;
+}
+
+/**
  * Lines where one task ends just as the next begins — only where the two would otherwise run together into
  * one: the same colour on both sides, or (`lit` false) both still gray. Tasks of different colours simply
  * meet, with no dark gap between them.
@@ -641,12 +654,10 @@ function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean, pop: stri
     svgEl('path', { class: `block${isSel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }),
     svgEl('path', { class: `block-arc${b.done ? ' done' : b.doing ? ' doing' : ''}`, d: arcPath(b.start, b.dur, R_OUT - 3.5), style }),
   ];
-  if (b.done && b.dur >= 20) {
+  if (b.dur >= 20) {
     const [cx, cy] = pointAt(R_IN + 26, b.start + b.dur / 2);
-    const tick = icon('check', 'done-ic');
-    for (const [k, v] of Object.entries({ x: cx - 11, y: cy - 11, width: 22, height: 22 })) tick.setAttribute(k, String(v));
-    const badge = svgEl('g', { class: `done-badge${pop ? ' pop' : ''}`, style: `${style};transform-origin:${cx}px ${cy}px;${pop ?? ''}` });
-    badge.append(svgEl('circle', { cx, cy, r: 16 }), tick);
+    const badge = statusBadge(b, cx, cy, 16, 22, pop);
+    badge.setAttribute('style', `${style};${badge.getAttribute('style') ?? ''}`);
     out.push(badge);
   }
   if (b.dur < 45) return out;
