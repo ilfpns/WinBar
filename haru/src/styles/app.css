@@ -317,7 +317,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-filters .chip[aria-pressed="false"] { color: var(--text-subtle); opacity: .6; }
 .cal-filters [data-kind="holiday"] .dot, .cal-day-list [data-kind="holiday"] .dot { --c: var(--cal-red); }
 .cal-filters [data-kind="observance"] .dot, .cal-day-list [data-kind="observance"] .dot { --c: var(--text-muted); }
-.cal-filters [data-kind="school"] .dot, .cal-day-list [data-kind="school"] .dot { --c: var(--cat-work); }
+.cal-filters [data-kind="school"] .dot, .cal-day-list [data-kind="school"] .dot { --c: var(--cat-school); }
 
 .cal-body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w, 260px); gap: 20px; min-height: 0; }
 .cal-main {
@@ -437,7 +437,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-evs [data-kind="holiday"] { color: color-mix(in srgb, var(--cal-red) 70%, var(--text)); }
 .cal-evs [data-kind="holiday"]::before { background: var(--cal-red); }
 .cal-evs [data-kind="school"] { color: var(--text); }
-.cal-evs [data-kind="school"]::before { background: var(--cat-work); }
+.cal-evs [data-kind="school"]::before { background: var(--cat-school); }
 .cal-evs .more { padding-left: 2px; font: 400 11px var(--font-mono); color: var(--text-subtle); }
 .cal-evs .more::before { display: none; }
 
@@ -569,7 +569,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
   .cal-cell { border-radius: 9px; }
   .cal-main { padding: 8px; border-radius: 16px; }
   .cal-evs [data-kind="holiday"] { background: var(--cal-red); }
-  .cal-evs [data-kind="school"] { background: var(--cat-work); }
+  .cal-evs [data-kind="school"] { background: var(--cat-school); }
   .cal-evs [data-kind="note"] { background: var(--text-strong); }
   .cal-evs .more { display: none; }
   .cal-week div { padding: 0; text-align: center; }

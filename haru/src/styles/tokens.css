@@ -73,16 +73,21 @@
   --amber-1: #44300c;  --amber-2: #7a5512;  --amber-3: #a0721c;
   --slate-1: #26282e;  --slate-2: #474b55;  --slate-3: #686d79;
 
-  /* schedule categories, each its own hue: line/dot = mid shade, fill = deep shade pushed well toward black */
-  --cat-work: var(--petrol-2);    --cat-work-fill: color-mix(in srgb, var(--petrol-1) 42%, #000);
-  --cat-study: var(--navy-3);     --cat-study-fill: color-mix(in srgb, var(--navy-1) 42%, #000);
-  --cat-school: var(--steel-2);   --cat-school-fill: color-mix(in srgb, var(--steel-1) 42%, #000);
-  --cat-meeting: var(--wine-2);   --cat-meeting-fill: color-mix(in srgb, var(--wine-1) 42%, #000);
-  --cat-meal: var(--amber-2);     --cat-meal-fill: color-mix(in srgb, var(--amber-1) 42%, #000);
-  --cat-health: var(--moss-2);    --cat-health-fill: color-mix(in srgb, var(--moss-1) 42%, #000);
-  --cat-personal: var(--green-2); --cat-personal-fill: color-mix(in srgb, var(--green-1) 42%, #000);
-  --cat-sleep: var(--plum-2);     --cat-sleep-fill: color-mix(in srgb, var(--plum-1) 42%, #000);
-  --cat-etc: var(--slate-2);      --cat-etc-fill: color-mix(in srgb, var(--slate-1) 42%, #000);
+  /* outdoor palette for the schedule categories — the colours of climbing gear: bright enough to read on black,
+     each its own hue, spread round the wheel (orange, ochre, lichen, forest, lake, glacier, dusk, rope; granite grey) */
+  --blaze: #e8642e; --ochre: #d6a32f; --lichen: #9fc23f; --forest: #4f9f68; --lake: #2aa596;
+  --glacier: #4a95d6; --dusk: #8461cc; --rope: #d4527f; --granite: #8b9099;
+
+  /* schedule categories: line/dot = the gear colour, fill = that colour sunk well toward black */
+  --cat-work: var(--blaze);       --cat-work-fill: color-mix(in srgb, var(--blaze) 30%, #0b0b0d);
+  --cat-study: var(--glacier);    --cat-study-fill: color-mix(in srgb, var(--glacier) 30%, #0b0b0d);
+  --cat-school: var(--lake);      --cat-school-fill: color-mix(in srgb, var(--lake) 30%, #0b0b0d);
+  --cat-meeting: var(--rope);     --cat-meeting-fill: color-mix(in srgb, var(--rope) 30%, #0b0b0d);
+  --cat-meal: var(--ochre);       --cat-meal-fill: color-mix(in srgb, var(--ochre) 28%, #0b0b0d);
+  --cat-health: var(--lichen);    --cat-health-fill: color-mix(in srgb, var(--lichen) 26%, #0b0b0d);
+  --cat-personal: var(--forest);  --cat-personal-fill: color-mix(in srgb, var(--forest) 32%, #0b0b0d);
+  --cat-sleep: var(--dusk);       --cat-sleep-fill: color-mix(in srgb, var(--dusk) 32%, #0b0b0d);
+  --cat-etc: var(--granite);      --cat-etc-fill: color-mix(in srgb, var(--granite) 26%, #0b0b0d);
 
   /* type */
   --font-sans: "Geist", "Pretendard Variable", Pretendard, system-ui, sans-serif;
@@ -168,14 +173,14 @@
   --card-bg: #ffffff;
   --slice: #e3e4ea; --slice-sel: #d2d4dc; --slice-gap: #f2f3f6; --slice-base: #ffffff;
   --disk: #f6f7f9;
-  /* task colours: the same hues, as light tints */
-  --cat-work-fill: color-mix(in srgb, var(--petrol-3) 26%, #fff);
-  --cat-study-fill: color-mix(in srgb, var(--navy-3) 22%, #fff);
-  --cat-school-fill: color-mix(in srgb, var(--steel-3) 24%, #fff);
-  --cat-meeting-fill: color-mix(in srgb, var(--wine-3) 22%, #fff);
-  --cat-meal-fill: color-mix(in srgb, var(--amber-3) 26%, #fff);
-  --cat-health-fill: color-mix(in srgb, var(--moss-3) 28%, #fff);
-  --cat-personal-fill: color-mix(in srgb, var(--green-3) 24%, #fff);
-  --cat-sleep-fill: color-mix(in srgb, var(--plum-3) 22%, #fff);
-  --cat-etc-fill: color-mix(in srgb, var(--slate-3) 26%, #fff);
+  /* task colours: the same gear colours, as light tints (lines a shade deeper to hold up on white) */
+  --cat-work: color-mix(in srgb, var(--blaze) 88%, #000);     --cat-work-fill: color-mix(in srgb, var(--blaze) 22%, #fff);
+  --cat-study: color-mix(in srgb, var(--glacier) 88%, #000);  --cat-study-fill: color-mix(in srgb, var(--glacier) 22%, #fff);
+  --cat-school: color-mix(in srgb, var(--lake) 85%, #000);    --cat-school-fill: color-mix(in srgb, var(--lake) 22%, #fff);
+  --cat-meeting: color-mix(in srgb, var(--rope) 88%, #000);   --cat-meeting-fill: color-mix(in srgb, var(--rope) 20%, #fff);
+  --cat-meal: color-mix(in srgb, var(--ochre) 80%, #000);     --cat-meal-fill: color-mix(in srgb, var(--ochre) 26%, #fff);
+  --cat-health: color-mix(in srgb, var(--lichen) 78%, #000);  --cat-health-fill: color-mix(in srgb, var(--lichen) 28%, #fff);
+  --cat-personal: color-mix(in srgb, var(--forest) 85%, #000); --cat-personal-fill: color-mix(in srgb, var(--forest) 22%, #fff);
+  --cat-sleep: color-mix(in srgb, var(--dusk) 88%, #000);     --cat-sleep-fill: color-mix(in srgb, var(--dusk) 20%, #fff);
+  --cat-etc: color-mix(in srgb, var(--granite) 85%, #000);    --cat-etc-fill: color-mix(in srgb, var(--granite) 24%, #fff);
 }

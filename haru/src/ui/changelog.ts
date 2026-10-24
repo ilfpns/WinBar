@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.51',
+    date: '2026-10-24',
+    items: [
+      '카테고리 색을 아웃도어 장비 색으로: Work 블레이즈 오렌지, Study 글레이셔 블루, School 레이크 틸, Meeting 로프 핑크, Meal 오커, Health 라이켄 라임, Personal 포레스트, Sleep 더스크 퍼플, Other 그래나이트',
+      '서로 더 또렷이 구분되게 색상환에 고르게 배치 (다크·라이트 테마 모두)',
+      '달력의 학교 일정 점은 School 색으로',
+    ],
+  },
+  {
     version: '1.50',
     date: '2026-10-24',
     items: [
