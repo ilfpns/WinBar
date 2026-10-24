@@ -51,10 +51,12 @@ export function makeSortable(list: HTMLElement): void {
 
   function begin(): void {
     const { el, id } = press!;
-    const row = getComputedStyle(list).flexDirection.startsWith('row');
-    const axis = row ? 'x' : 'y';
     const all = items();
     const rects = all.map((it) => it.getBoundingClientRect());
+    // which way the list runs, from where its items actually sit (a grid or a flex column alike)
+    const [a, b] = [rects[0]!, rects[rects.length - 1]!];
+    const row = Math.abs(b.left - a.left) > Math.abs(b.top - a.top);
+    const axis = row ? 'x' : 'y';
     const from = all.indexOf(el);
     const r = rects[from]!;
     const cs = getComputedStyle(el);

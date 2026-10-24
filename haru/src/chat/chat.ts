@@ -1,5 +1,5 @@
 import { avatar, onSession, session, type Session } from '../cloud/session';
-import { mentionable } from '../cloud/viewing';
+import { memberList, mentionable } from '../cloud/viewing';
 import { mentionsIn } from '../ui/markdown';
 import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
@@ -302,7 +302,9 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
   }
 
   /** A name for a uid, from who has written in the chat (or "someone"). */
-  const nameOf = (uid: string): string => (uid === session()?.uid ? 'you' : msgs.find(({ m }) => m.uid === uid)?.m.name ?? 'someone');
+  // members' profiles first (someone who reacted may never have written here), then the names on messages
+  const nameOf = (uid: string): string => (uid === session()?.uid ? 'you'
+    : memberList().find((p) => p.uid === uid)?.name ?? msgs.find(({ m }) => m.uid === uid)?.m.name ?? 'someone');
 
   /** Puts your heart or check on a message, or takes it back. */
   async function react(s: Session, id: string, m: Message, r: Reaction): Promise<void> {
@@ -447,11 +449,23 @@ export function mountChat(body: HTMLElement, sum: HTMLElement): void {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = `chat-react r-${r}${who.includes(s.uid) ? ' on' : ''}`;
-          b.disabled = mine;
+          // on your own message it can't be pressed, but it still shows who reacted (a disabled button gets no hover)
+          if (mine) b.setAttribute('aria-disabled', 'true');
           const names = who.map((u) => nameOf(u)).join(', ');
-          b.title = `${REACTION_LABEL[r]} · ${names}`;
           b.setAttribute('aria-label', `${REACTION_LABEL[r]} ${who.length}: ${names}`);
           b.append(icon(r), Object.assign(document.createElement('span'), { textContent: String(who.length) }));
+          // who reacted: a small card over the chip on hover (or keyboard focus)
+          const card = document.createElement('span');
+          card.className = 'chat-react-who';
+          card.setAttribute('aria-hidden', 'true');
+          for (const u of who) {
+            const p = memberList().find((x) => x.uid === u);
+            const row = document.createElement('span');
+            row.className = 'chat-react-person';
+            row.append(avatar({ name: nameOf(u), photo: p?.photo ?? null }, 'acct-avatar chat-react-av'), Object.assign(document.createElement('span'), { textContent: nameOf(u) }));
+            card.append(row);
+          }
+          b.append(card);
           if (!mine) b.addEventListener('click', () => void react(s, id, m, r));
           chips.append(b);
         }

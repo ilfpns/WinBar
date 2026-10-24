@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.49',
+    date: '2026-10-24',
+    items: [
+      '펼친 개요에서 페이지를 끌 때 다른 항목이 옆으로 사라지고 순서가 안 바뀌던 문제',
+      '채팅 반응(하트·체크)에 마우스를 올리면 누가 눌렀는지 이름과 프로필로 보임 (내 메시지에서도)',
+    ],
+  },
+  {
     version: '1.48',
     date: '2026-10-24',
     items: [

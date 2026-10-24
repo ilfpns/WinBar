@@ -35,6 +35,8 @@ const KO: Record<string, string> = {
   'Nothing planned yet': '아직 계획이 없어요', 'Not planned yet': '아직 계획 없음',
   // the greeting on Today (ui/greeting.ts); the lines themselves stay in English
   'Name for the greeting': '인사에 쓸 이름', 'Used in the greeting on Today. Empty: your account’s first name.': 'Today 인사에 쓰여요. 비워 두면 계정 이름을 써요.',
+  // who reacted to a chat message (chat/chat.ts)
+  you: '나', someone: '누군가',
   // the rule between the swipe pages and the rest (ui/page-order.ts, ui/page-drag.ts)
   'Swipe line · pages above it turn with the wheel or a swipe. Drag pages or this line to rearrange': '넘기기 선 · 위쪽 페이지는 휠이나 스와이프로 넘어가요. 페이지나 이 선을 끌어서 순서를 바꿔요',
   'Pages above this line turn with the wheel or a swipe. Drag to rearrange': '이 선 위쪽 페이지는 휠이나 스와이프로 넘어가요. 끌어서 순서를 바꿔요',

@@ -2443,7 +2443,20 @@ md-editor .md-l:not(.active) .md-mention::before { content: "@"; }
 .chat-react .ic { width: 12px; height: 12px; }
 .chat-react.on { border-color: currentColor; background: color-mix(in srgb, currentColor 12%, transparent); }
 .chat-react.r-heart.on .ic { fill: currentColor; }
-.chat-react:disabled { cursor: default; }
+.chat-react[aria-disabled="true"] { cursor: default; }
+/* who reacted: a card over the chip on hover */
+.chat-react { position: relative; }
+.chat-react-who {
+  position: absolute; z-index: 5; bottom: calc(100% + 6px); left: 0; display: grid; gap: 4px; min-width: 120px; max-width: 220px; padding: 6px 8px;
+  border: 1px solid var(--glass-edge); border-radius: 10px; background: var(--popover); box-shadow: 0 10px 28px rgb(0 0 0 / .45);
+  font: 400 12px/1.3 var(--font-sans); color: var(--text); text-align: left;
+  opacity: 0; transform: translate3d(0, 4px, 0); pointer-events: none; transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.chat-react:is(:hover, :focus-visible) .chat-react-who { opacity: 1; transform: none; transition-delay: .12s; }
+.chat-react-person { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.chat-react-person > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-react-av { flex: none; width: 18px; height: 18px; font-size: 9px; }
+@media (prefers-reduced-motion: reduce) { .chat-react-who { transition: none; } }
 .chat-msg:hover .chat-del, .chat-del:focus-visible { opacity: 1; }
 @media (hover: none) { .chat-time, .chat-del, .chat-react-pick { opacity: 1; } }
 /* a narrow screen: the heart and check float over the bubble's corner when you touch the message, so they take no
