@@ -1,6 +1,6 @@
 import { DAY, SNAP, formatDuration, hhmm, mod, nowMinutes, snap } from './time';
 import { R_IN, R_MID, R_OUT, angleOf, arcPath, pointAt, polarOf, sectorPath, setRing } from './geometry';
-import { type Block, type Draft, blockAt, blocksInRange, contains, freeAround, labelOf, progressOf, statusOf } from './model';
+import { type Block, type Draft, type Status, blockAt, blocksInRange, contains, freeAround, labelOf, progressOf, statusOf } from './model';
 import { clearSelection, closeDraft, onCancelled, onRemoved, onSaved, openDraft, select, setState, state, subscribe, toggleSelected } from './state';
 import { centeredText, svgEl } from './svg';
 import { createOrb } from './orb';
@@ -98,26 +98,34 @@ export function mountDial(svg: SVGSVGElement): Dial {
     return draft ? [...rest, draft] : rest;
   }
 
-  // status as of the last paint: the badge of a task whose status changed since then pops in (never on first paint)
-  let statusSeen: Map<string, string> | null = null;
-  // task id → when its badge began popping; a repaint mid-pop resumes the animation instead of restarting it
-  const popping = new Map<string, number>();
-  const popStyle = (id: string | null): string | null => {
-    const t0 = id === null ? undefined : popping.get(id);
-    return t0 === undefined ? null : `--pop-at:${Math.round(t0 - performance.now())}ms`;
+  // status as of the last paint (the task open in the editor counts as its draft, so picking a status there plays
+  // at once): a badge whose status changed since then swaps with an animation (never on first paint)
+  let statusSeen: Map<string, Status> | null = null;
+  // task id → when its badge began swapping and from which status; a repaint mid-swap resumes the animation
+  const popping = new Map<string, { t0: number; from: Status }>();
+  const popStyle = (id: string | null): BadgePop | null => {
+    const p = id === null ? undefined : popping.get(id);
+    return p ? { style: `--pop-at:${Math.round(p.t0 - performance.now())}ms`, from: p.from } : null;
   };
 
   function render(): void {
     const now = nowMinutes();
-    const statusNow = new Map(state.blocks.map((b) => [b.id, statusOf(b)]));
-    // only a known task changing status pops; tasks arriving with one (a sync, a restore) just appear
-    if (statusSeen) for (const [id, st] of statusNow) if (statusSeen.has(id) && statusSeen.get(id) !== st) popping.set(id, performance.now());
+    const statusNow = new Map(visibleBlocks().flatMap((b) => (b.id === null ? [] : [[b.id, statusOf(b)] as const])));
+    // only a known task changing status swaps; tasks arriving with one (a sync, a restore) just appear
+    if (statusSeen) {
+      for (const [id, st] of statusNow) {
+        const was = statusSeen.get(id);
+        if (was && was !== st) popping.set(id, { t0: performance.now(), from: was });
+      }
+    }
     for (const id of popping.keys()) if (!statusNow.has(id)) popping.delete(id);
     statusSeen = statusNow;
-    for (const [id, t0] of popping) if (performance.now() - t0 > 700) popping.delete(id);
+    for (const [id, p] of popping) if (performance.now() - p.t0 > 800) popping.delete(id);
+    // once the swap is over, a repaint drops the outgoing icon (no lingering shape if nothing else redraws)
     if (popping.size) window.setTimeout(() => {
-      for (const [id, t0] of popping) if (performance.now() - t0 > 700) popping.delete(id);
-    }, 750);
+      for (const [id, p] of popping) if (performance.now() - p.t0 > 800) popping.delete(id);
+      if (!popping.size) render();
+    }, 850);
     const { draft, drag } = state;
     const picked = new Set(state.selected);
 
@@ -609,20 +617,30 @@ export function mountDial(svg: SVGSVGElement): Dial {
  * A task's status as a small round badge: done — a check on its colour; in progress — an hourglass on blue;
  * not started — a faint dashed ring. A task just checked springs in (`pop`).
  */
-function statusBadge(b: Block | Draft, cx: number, cy: number, r: number, size: number, pop: string | null = null): SVGGElement {
+/** A status badge mid-swap: when it started (as a CSS delay) and the status it is leaving. */
+interface BadgePop { style: string; from: Status }
+
+function statusBadge(b: Block | Draft, cx: number, cy: number, r: number, size: number, pop: BadgePop | null = null): SVGGElement {
+  const one = (status: Status, cls: string): SVGGElement => {
+    const g = svgEl('g', {
+      class: `status-badge ${status}${status === 'done' ? ' done-badge' : ''}${cls}`,
+      style: `transform-origin:${cx}px ${cy}px;${pop?.style ?? ''}`,
+    });
+    g.append(svgEl('circle', { cx, cy, r }));
+    if (status !== 'yet') {
+      const ic = icon(status === 'done' ? 'check' : 'hourglass', status === 'done' ? 'done-ic' : 'doing-ic');
+      const s = status === 'done' ? size : size * 0.78;
+      for (const [k, v] of Object.entries({ x: cx - s / 2, y: cy - s / 2, width: s, height: s })) ic.setAttribute(k, String(v));
+      g.append(ic);
+    }
+    return g;
+  };
   const status = statusOf(b);
-  const badge = svgEl('g', {
-    class: `status-badge ${status}${status === 'done' ? ' done-badge' : ''}${pop ? ' pop' : ''}`,
-    style: `transform-origin:${cx}px ${cy}px;${pop ?? ''}`,
-  });
-  badge.append(svgEl('circle', { cx, cy, r }));
-  if (status !== 'yet') {
-    const ic = icon(status === 'done' ? 'check' : 'hourglass', status === 'done' ? 'done-ic' : 'doing-ic');
-    const s = status === 'done' ? size : size * 0.78;
-    for (const [k, v] of Object.entries({ x: cx - s / 2, y: cy - s / 2, width: s, height: s })) ic.setAttribute(k, String(v));
-    badge.append(ic);
-  }
-  return badge;
+  if (!pop) return one(status, '');
+  // a swap: the old badge spins away and shrinks while the new one springs in after it
+  const wrap = svgEl('g', { class: 'status-swap' });
+  wrap.append(one(pop.from, ' leaving'), one(status, ' pop'));
+  return wrap;
 }
 
 /**
@@ -648,7 +666,7 @@ function seams(blocks: readonly (Block | Draft)[], lit: (a: Block | Draft, b: Bl
  * One task on the full dial: its slice, its arc on the rim, and (when it fits) its name and hours. A done
  * task reads at a glance: filled in its colour, a full-strength rim, and a check badge by the inner edge.
  */
-function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean, pop: string | null = null): SVGElement[] {
+function blockShapes(b: Block | Draft, isSel: boolean, isNow: boolean, pop: BadgePop | null = null): SVGElement[] {
   const style = `--c:var(--cat-${b.cat});--cf:var(--cat-${b.cat}-fill)`;
   const out: SVGElement[] = [
     svgEl('path', { class: `block${isSel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }),

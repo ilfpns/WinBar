@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.58',
+    date: '2026-10-24',
+    items: [
+      '이름 옆 상태 아이콘이 바뀔 때 이전 아이콘이 돌며 작아져 사라지고 새 아이콘이 튀어나옴',
+      '편집기에서 상태를 고르는 순간(저장 전) 다이얼·조각 보기의 아이콘도 바로 바뀌며 움직임',
+    ],
+  },
+  {
     version: '1.57',
     date: '2026-10-24',
     items: [

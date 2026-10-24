@@ -177,10 +177,17 @@ img, svg, a { -webkit-user-drag: none; }
 #dial .status-badge.doing.pop .doing-ic { transform-box: fill-box; transform-origin: center; animation: badge-flip .55s cubic-bezier(.3, 1.4, .5, 1) calc(var(--pop-at, 0ms) + 120ms) both; }
 #dial .status-badge.yet.pop circle { animation: badge-wind .6s var(--ease-out) var(--pop-at, 0ms) both; }
 @keyframes badge-flip { from { transform: rotate(-180deg) scale(.6); } }
+/* a swap: the old badge spins off and shrinks away, then the new one springs in (pop starts a beat later) */
+#dial .status-badge.leaving { pointer-events: none; animation: badge-out .28s var(--ease-out) var(--pop-at, 0ms) both; }
+#dial .status-swap .status-badge.pop { animation-delay: calc(var(--pop-at, 0ms) + 150ms); }
+#dial .status-swap .done-badge.pop .done-ic * { animation-delay: calc(var(--pop-at, 0ms) + 310ms); }
+#dial .status-swap .status-badge.doing.pop .doing-ic { animation-delay: calc(var(--pop-at, 0ms) + 270ms); }
+#dial .status-swap .status-badge.yet.pop circle { animation-delay: calc(var(--pop-at, 0ms) + 150ms); }
+@keyframes badge-out { to { transform: rotate(120deg) scale(.2); opacity: 0; } }
 @keyframes badge-wind { from { stroke-dashoffset: 18; } }
 @keyframes badge-pop { from { transform: scale(0); opacity: 0; } 60% { opacity: 1; } to { transform: scale(1); opacity: 1; } }
 @keyframes badge-tick { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@media (prefers-reduced-motion: reduce) { #dial .status-badge.pop, #dial .status-badge.pop *, #dial .done-badge.pop .done-ic * { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #dial .status-badge.pop, #dial .status-badge.pop *, #dial .done-badge.pop .done-ic * { animation: none; } #dial .status-badge.leaving { display: none; } }
 :is(#dial, .peek-dial) .block-label { font: 500 21px var(--font-sans); letter-spacing: -.01em; fill: var(--text); pointer-events: none; }
 :is(#dial, .peek-dial) .block-label.done { fill: var(--text-strong); }
 :is(#dial, .peek-dial) .block-label.now, :is(#dial, .peek-dial) .block-label.sel { fill: var(--text-strong); }
