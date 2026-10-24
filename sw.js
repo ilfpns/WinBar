@@ -8,8 +8,8 @@
  * worker, which waits until the page asks it to take over (the "new version" card) or every Haru window closes,
  * so a page that is open keeps the files it was built with.
  */
-const BUILD = 'mvm522jx';
-const ASSETS = ["assets/index-BfUaBPP1.js","assets/index-CE-0-Vv9.css","assets/index.esm-BqERl4ov.js","assets/index.esm-CSFFbSE9.js","assets/index.esm-DLczCD-c.js","assets/index.esm2017-Bhx3z6WW.js"];
+const BUILD = 'mvm5bdrn';
+const ASSETS = ["assets/index-B2yDqNKW.js","assets/index-BtKBiISd.css","assets/index.esm-BqERl4ov.js","assets/index.esm-CSFFbSE9.js","assets/index.esm-DLczCD-c.js","assets/index.esm2017-Bhx3z6WW.js"];
 const CACHE = `haru-${BUILD}`;
 const DATA = 'haru-data';
 
