@@ -121,10 +121,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
     for (const id of popping.keys()) if (!statusNow.has(id)) popping.delete(id);
     statusSeen = statusNow;
     for (const [id, p] of popping) if (performance.now() - p.t0 > 800) popping.delete(id);
-    // once the swap is over, a repaint drops the outgoing icon (no lingering shape if nothing else redraws)
     if (popping.size) window.setTimeout(() => {
       for (const [id, p] of popping) if (performance.now() - p.t0 > 800) popping.delete(id);
-      if (!popping.size) render();
     }, 850);
     const { draft, drag } = state;
     const picked = new Set(state.selected);
@@ -617,14 +615,14 @@ export function mountDial(svg: SVGSVGElement): Dial {
  * A task's status as a small round badge: done — a check on its colour; in progress — an hourglass on blue;
  * not started — a faint dashed ring. A task just checked springs in (`pop`).
  */
-/** A status badge mid-swap: when it started (as a CSS delay) and the status it is leaving. */
+/** A status badge mid-swap: when it started (as a CSS delay) and the status it left. */
 interface BadgePop { style: string; from: Status }
 
 function statusBadge(b: Block | Draft, cx: number, cy: number, r: number, size: number, pop: BadgePop | null = null): SVGGElement {
   const one = (status: Status, cls: string): SVGGElement => {
     const g = svgEl('g', {
       class: `status-badge ${status}${status === 'done' ? ' done-badge' : ''}${cls}`,
-      style: `transform-origin:${cx}px ${cy}px;${pop?.style ?? ''}`,
+      style: pop?.style ?? '',
     });
     g.append(svgEl('circle', { cx, cy, r }));
     if (status !== 'yet') {
@@ -635,12 +633,8 @@ function statusBadge(b: Block | Draft, cx: number, cy: number, r: number, size: 
     }
     return g;
   };
-  const status = statusOf(b);
-  if (!pop) return one(status, '');
-  // a swap: the old badge spins away and shrinks while the new one springs in after it
-  const wrap = svgEl('g', { class: 'status-swap' });
-  wrap.append(one(pop.from, ' leaving'), one(status, ' pop'));
-  return wrap;
+  // a status just changed: the new badge turns in place (see app.css)
+  return one(statusOf(b), pop ? ' pop' : '');
 }
 
 /**

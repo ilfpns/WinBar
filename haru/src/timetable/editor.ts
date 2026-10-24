@@ -1,6 +1,6 @@
 import { mod } from './time';
 import { CATEGORIES, CATEGORY_KEYS, type Category, type Status, statusOf } from './model';
-import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, setDraftStatus, state, subscribe } from './state';
+import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, setDraftStatus, setStatus, state, subscribe } from './state';
 import { timeField } from '../ui/time-field';
 
 interface EditorFields extends HTMLFormControlsCollection {
@@ -49,11 +49,16 @@ export function mountEditor(form: HTMLFormElement): void {
     return b;
   }));
 
-  // where the task stands: Yet (new tasks) · In progress · Done
+  // where the task stands: Yet (new tasks) · In progress · Done. A saved task takes it at once (no Save needed);
+  // a new one keeps it until it is saved
   const statusSeg = req<HTMLElement>(form, '#status-seg');
   statusSeg.addEventListener('click', (e) => {
     const b = (e.target as Element).closest<HTMLButtonElement>('[data-status]');
-    if (b) setDraftStatus(b.dataset.status as Status);
+    if (!b) return;
+    const status = b.dataset.status as Status;
+    const id = state.draft?.id;
+    if (id && state.blocks.some((x) => x.id === id)) setStatus(id, status);
+    else setDraftStatus(status);
   });
 
   let filledKey = -1;

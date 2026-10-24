@@ -170,24 +170,14 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .status-badge.doing circle { fill: color-mix(in srgb, var(--status-doing) 26%, var(--bg)); stroke: var(--status-doing); stroke-width: 1.5; }
 :is(#dial, .peek-dial) .status-badge.doing .doing-ic { color: var(--status-doing); stroke-width: 2.4; }
 :is(#dial, .peek-dial) .status-badge.yet circle { fill: none; stroke: var(--text-subtle); stroke-width: 1.6; stroke-dasharray: 3 3; opacity: .8; }
-/* a badge for a task just checked: springs in, then its tick draws */
-#dial .status-badge.pop { animation: badge-pop .42s cubic-bezier(.34, 1.56, .64, 1) var(--pop-at, 0ms) both; }
-#dial .done-badge.pop .done-ic * { stroke-dasharray: 1; animation: badge-tick .3s calc(var(--pop-at, 0ms) + 160ms) ease-out both; }
-/* a task set in progress: its hourglass turns over; set back to not started: the dashed ring winds round */
-#dial .status-badge.doing.pop .doing-ic { transform-box: fill-box; transform-origin: center; animation: badge-flip .55s cubic-bezier(.3, 1.4, .5, 1) calc(var(--pop-at, 0ms) + 120ms) both; }
-#dial .status-badge.yet.pop circle { animation: badge-wind .6s var(--ease-out) var(--pop-at, 0ms) both; }
-@keyframes badge-flip { from { transform: rotate(-180deg) scale(.6); } }
-/* a swap: the old badge spins off and shrinks away, then the new one springs in (pop starts a beat later) */
-#dial .status-badge.leaving { pointer-events: none; animation: badge-out .28s var(--ease-out) var(--pop-at, 0ms) both; }
-#dial .status-swap .status-badge.pop { animation-delay: calc(var(--pop-at, 0ms) + 150ms); }
-#dial .status-swap .done-badge.pop .done-ic * { animation-delay: calc(var(--pop-at, 0ms) + 310ms); }
-#dial .status-swap .status-badge.doing.pop .doing-ic { animation-delay: calc(var(--pop-at, 0ms) + 270ms); }
-#dial .status-swap .status-badge.yet.pop circle { animation-delay: calc(var(--pop-at, 0ms) + 150ms); }
-@keyframes badge-out { to { transform: rotate(120deg) scale(.2); opacity: 0; } }
-@keyframes badge-wind { from { stroke-dashoffset: 18; } }
-@keyframes badge-pop { from { transform: scale(0); opacity: 0; } 60% { opacity: 1; } to { transform: scale(1); opacity: 1; } }
-@keyframes badge-tick { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-@media (prefers-reduced-motion: reduce) { #dial .status-badge.pop, #dial .status-badge.pop *, #dial .done-badge.pop .done-ic * { animation: none; } #dial .status-badge.leaving { display: none; } }
+/* a status just changed: the badge turns in place like the editor's picker (around its own centre, never from
+   the dial's corner) — the hourglass flips over, the check draws itself, the dashed ring turns */
+#dial .status-badge.pop, #dial .status-badge.pop :is(circle, .doing-ic) { transform-box: fill-box; transform-origin: center; }
+#dial .status-badge.pop { animation: st-pop .34s var(--ease-out) var(--pop-at, 0ms); }
+#dial .status-badge.doing.pop .doing-ic { animation: st-flip .55s cubic-bezier(.3, 1.4, .5, 1) var(--pop-at, 0ms) both; }
+#dial .done-badge.pop .done-ic * { stroke-dasharray: 1; animation: ic-draw .4s var(--ease-out) calc(var(--pop-at, 0ms) + 60ms) both; }
+#dial .status-badge.yet.pop circle { animation: st-spin .5s var(--ease-out) var(--pop-at, 0ms); }
+@media (prefers-reduced-motion: reduce) { #dial .status-badge.pop, #dial .status-badge.pop * { animation: none; } }
 :is(#dial, .peek-dial) .block-label { font: 500 21px var(--font-sans); letter-spacing: -.01em; fill: var(--text); pointer-events: none; }
 :is(#dial, .peek-dial) .block-label.done { fill: var(--text-strong); }
 :is(#dial, .peek-dial) .block-label.now, :is(#dial, .peek-dial) .block-label.sel { fill: var(--text-strong); }

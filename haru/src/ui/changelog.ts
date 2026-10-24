@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.59',
+    date: '2026-10-24',
+    items: [
+      '상태 아이콘이 어디선가 날아오던 문제: 편집기처럼 제자리에서 돌며 바뀜 (모래시계 뒤집기, 체크 그리기, 점선 원 돌기)',
+      '편집기에서 상태를 고르면 Save 없이 바로 저장 (새 할 일은 처음 저장할 때 같이)',
+    ],
+  },
+  {
     version: '1.58',
     date: '2026-10-24',
     items: [
