@@ -98,8 +98,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
     return draft ? [...rest, draft] : rest;
   }
 
-  // done state as of the last paint: the badge of a task checked since then pops in (never on first paint)
-  let doneSeen: Map<string, boolean> | null = null;
+  // status as of the last paint: the badge of a task whose status changed since then pops in (never on first paint)
+  let statusSeen: Map<string, string> | null = null;
   // task id → when its badge began popping; a repaint mid-pop resumes the animation instead of restarting it
   const popping = new Map<string, number>();
   const popStyle = (id: string | null): string | null => {
@@ -109,11 +109,11 @@ export function mountDial(svg: SVGSVGElement): Dial {
 
   function render(): void {
     const now = nowMinutes();
-    const doneNow = new Map(state.blocks.map((b) => [b.id, b.done]));
-    // only a known task turning done pops; tasks arriving already done (a sync, a restore) just appear
-    if (doneSeen) for (const [id, done] of doneNow) if (done && doneSeen.get(id) === false) popping.set(id, performance.now());
-    for (const id of popping.keys()) if (!doneNow.get(id)) popping.delete(id);
-    doneSeen = doneNow;
+    const statusNow = new Map(state.blocks.map((b) => [b.id, statusOf(b)]));
+    // only a known task changing status pops; tasks arriving with one (a sync, a restore) just appear
+    if (statusSeen) for (const [id, st] of statusNow) if (statusSeen.has(id) && statusSeen.get(id) !== st) popping.set(id, performance.now());
+    for (const id of popping.keys()) if (!statusNow.has(id)) popping.delete(id);
+    statusSeen = statusNow;
     for (const [id, t0] of popping) if (performance.now() - t0 > 700) popping.delete(id);
     if (popping.size) window.setTimeout(() => {
       for (const [id, t0] of popping) if (performance.now() - t0 > 700) popping.delete(id);
@@ -612,8 +612,8 @@ export function mountDial(svg: SVGSVGElement): Dial {
 function statusBadge(b: Block | Draft, cx: number, cy: number, r: number, size: number, pop: string | null = null): SVGGElement {
   const status = statusOf(b);
   const badge = svgEl('g', {
-    class: `status-badge ${status}${status === 'done' ? ' done-badge' : ''}${pop && status === 'done' ? ' pop' : ''}`,
-    style: `transform-origin:${cx}px ${cy}px;${pop && status === 'done' ? pop : ''}`,
+    class: `status-badge ${status}${status === 'done' ? ' done-badge' : ''}${pop ? ' pop' : ''}`,
+    style: `transform-origin:${cx}px ${cy}px;${pop ?? ''}`,
   });
   badge.append(svgEl('circle', { cx, cy, r }));
   if (status !== 'yet') {

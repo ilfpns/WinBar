@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.57',
+    date: '2026-10-24',
+    items: [
+      '상태가 바뀌면 다이얼·조각 보기의 상태 배지가 톡 튀어나오며 바뀜: 진행 중은 모래시계가 뒤집히고, 완료는 체크가 그려지고, 시작 전은 점선 원이 감김',
+      '할 일 목록의 상태 칸도 진행 중·시작 전으로 바뀔 때 움직임 (완료만 움직이던 것)',
+    ],
+  },
+  {
     version: '1.56',
     date: '2026-10-24',
     items: [

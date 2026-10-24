@@ -86,7 +86,7 @@ export function mountSchedule(refs: ScheduleRefs): void {
   // what the list showed last time: typing in the editor (a draft's title, its note) changes nothing here, and
   // redrawing anyway would replay every done task's check animation at each keystroke
   let lastKey = '';
-  let doneBefore = new Map<string, boolean>();
+  let statusBefore = new Map<string, string>();
   function render(): void {
     const now = nowMinutes();
     const shown = visibleTasks();
@@ -94,8 +94,8 @@ export function mountSchedule(refs: ScheduleRefs): void {
     const key = JSON.stringify([shown, state.blocks.length, state.selected, state.draft?.id ?? null, Math.floor(now)]);
     if (key === lastKey) return;
     lastKey = key;
-    const wasDone = doneBefore;
-    doneBefore = new Map(shown.map((b) => [b.id, b.done]));
+    const wasStatus = statusBefore;
+    statusBefore = new Map(shown.map((b) => [b.id, statusOf(b)]));
     refs.count.textContent = String(state.blocks.length);
     refs.add.disabled = !firstFreeSlot(state.blocks, 0);
 
@@ -109,11 +109,14 @@ export function mountSchedule(refs: ScheduleRefs): void {
       li.classList.toggle('done', b.done);
       const status = statusOf(b);
       li.classList.toggle('doing', status === 'doing');
+      // the button plays only when the task's status has just changed (not on every redraw)
+      const was = wasStatus.get(b.id);
+      const just = was !== undefined && was !== status;
       // the status button: not started (dashed) → in progress (hourglass) → done (check), a press each
       const check = document.createElement('button');
       check.type = 'button';
       // the check pops only when the task has just been checked (not on every redraw of a done task)
-      check.className = `check${b.done && wasDone.get(b.id) === false ? ' just' : ''}`;
+      check.className = `check${just ? ' just' : ''}`;
       check.dataset.status = status;
       check.setAttribute('role', 'checkbox');
       check.setAttribute('aria-checked', status === 'done' ? 'true' : status === 'doing' ? 'mixed' : 'false');
