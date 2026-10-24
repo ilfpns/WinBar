@@ -31,6 +31,8 @@ import { mountTitlebar } from './ui/titlebar';
 import { mountChangelog } from './ui/changelog';
 import { mountI18n } from './ui/i18n';
 import { mountFeatures } from './ui/features';
+import { mountPageOrder } from './ui/page-order';
+import { makeSortable } from './ui/page-drag';
 import { checkinStore, mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountChat } from './chat/chat';
@@ -48,6 +50,10 @@ mountI18n();
 mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal'), archive: byIdEarly('archive'), chat: byIdEarly('chat') });
 mountRouter();
 mountFeatures();
+// the pages in your order (the rail's rule splits off the ones that turn by swipe); drag to rearrange
+mountPageOrder();
+makeSortable(byIdEarly('rail'));
+makeSortable(document.querySelector<HTMLElement>('.panel-left .nav')!);
 
 // labels, icons and links are not draggable content
 document.addEventListener('dragstart', (e) => {

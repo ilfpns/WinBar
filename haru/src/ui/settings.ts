@@ -568,7 +568,8 @@ export function mountSettings(): void {
   };
   rail.addEventListener('pointerover', (e) => {
     const btn = (e.target as Element).closest<HTMLElement>('[data-tip]');
-    if (!btn || e.pointerType === 'touch') return;
+    // no hints while a page is being dragged into another place
+    if (!btn || e.pointerType === 'touch' || rail.classList.contains('sorting')) return;
     clearTimeout(showTimer);
     // the first hint waits a moment; moving along the rail then updates at once
     showTimer = window.setTimeout(() => {

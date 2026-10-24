@@ -1,5 +1,5 @@
-import { type Feature, featureOn } from './features';
-import { VIEW_ORDER, type View, currentView, goTo, onView } from './router';
+import { type View, currentView, goTo, onView } from './router';
+import { pageOrder, swipeViews } from './page-order';
 import { lessMotion } from './motion';
 
 const TURN_MS = 300;           // one page turn
@@ -8,13 +8,11 @@ const WHEEL_TRIGGER = 40;      // accumulated wheel/trackpad px that turns the p
 const SWIPE_TRIGGER = 50;      // touch travel in px
 const NOTCH_GAP = 110;         // a mouse-wheel notch this long after the last turn turns again
 const STREAM_GAP = 120;        // silence that ends a trackpad stream (its inertia) for sure
-/** Only these pages turn by wheel or swipe; the rest are opened from the rail. */
-const SWIPE_PAGES: View[] = ['today', 'calendar'];
-/** The swipe pages that are switched on (Settings → Features). */
-const swipePages = () => SWIPE_PAGES.filter((v) => v === 'today' || featureOn(v as Feature));
+/** Only the pages above the rail's rule turn by wheel or swipe (switched-on ones, in the rail's order). */
+const swipePages = swipeViews;
 
 /**
- * The pages are stacked (Today on top). Between Today and Calendar, a gesture past a small threshold turns exactly one
+ * The pages are stacked in the rail's order. Between the pages above the rail's rule, a gesture past a small threshold turns exactly one
  * page with a crisp, short slide (transform only, on the compositor). The next gesture is taken
  * as soon as the previous one's trackpad inertia stops — even while the slide is finishing.
  */
@@ -31,7 +29,7 @@ export function mountViewSwipe(pages: Record<View, HTMLElement>): void {
     // a new turn cuts the previous one short instead of queueing behind it
     running.forEach((a) => a.finish());
     if (lessMotion()) return;
-    const down = VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(prev);
+    const down = pageOrder().indexOf(view) > pageOrder().indexOf(prev);
     const out = pages[prev];
     const into = pages[view];
     out.classList.add('leaving');

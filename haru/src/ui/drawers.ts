@@ -110,8 +110,8 @@ export function mountDrawers(dialWrap: HTMLElement): void {
   document.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     const t = e.target as Element;
-    // controls and cards (the attendance bar, menus) are not background
-    if (t.closest('.drawer, .time-pop, button, input, textarea, select, a, .cal-day, .attend, .glass-card, .logo-menu, dialog, .split')) return;
+    // controls and cards (the attendance bar, menus) are not background; nor is the rail's rule (it is dragged)
+    if (t.closest('.drawer, .time-pop, button, input, textarea, select, a, .cal-day, .attend, .glass-card, .logo-menu, dialog, .split, [data-split]')) return;
     const view = currentView();
     if (view === 'words' || view === 'journal' || view === 'archive' || view === 'chat') {
       // text pages: only the margin around the content pulls the overview out

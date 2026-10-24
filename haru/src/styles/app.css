@@ -902,6 +902,24 @@ body.left-open .rail { opacity: 0; pointer-events: none; transition-delay: 0s; }
 .rail-brand:hover { background: radial-gradient(circle at 35% 28%, rgb(var(--ink) / 0.28), rgb(var(--ink) / 0.07) 70%); }
 .rail-rule { flex: none; width: 24px; height: 1px; margin: 4px 0; background: var(--glass-edge); }
 .rail-fill { flex: 1; }
+/* ---------- pages dragged into another order (ui/page-drag.ts); the rule between swipe pages and the rest
+   gets a taller grip so it can be picked up too */
+.rail-rule[data-split] { height: 11px; margin: 1px 0; background: none; position: relative; cursor: grab; }
+.rail-rule[data-split]::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 1px; background: var(--glass-edge); transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.rail-rule[data-split]:hover::before { background: var(--text-muted); transform: scaleX(1.2); }
+.nav-rule[data-split] { height: 9px; margin: 0 10px; background: none; position: relative; cursor: grab; }
+.nav-rule[data-split]::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: var(--glass-edge); }
+.nav-rule[data-split]:hover::before { background: var(--text-muted); }
+:is(.rail, .nav) > :is([data-view], [data-split]) { touch-action: none; -webkit-user-drag: none; user-select: none; }
+.sorting { cursor: grabbing; }
+/* the rail's hint stays away while something is dragged */
+#rail.sorting ~ .rail-tip { display: none; }
+.sorting > :is([data-view], [data-split]) { cursor: grabbing; transition: transform .22s cubic-bezier(.22, 1, .36, 1); }
+.sorting > .dragging { position: relative; z-index: 2; transition: none; }
+.rail.sorting > .rail-btn.dragging { color: var(--text-strong); background: var(--surface-2); box-shadow: 0 8px 22px rgb(0 0 0 / .45), inset 0 0 0 1px var(--glass-edge); scale: 1.06; }
+.nav.sorting > .nav-item.dragging { background: var(--surface-2); box-shadow: 0 8px 22px rgb(0 0 0 / .45), inset 0 0 0 1px var(--glass-edge); }
+.sorting > [data-split].dragging::before { background: var(--accent); height: 2px; }
+@media (prefers-reduced-motion: reduce) { .sorting > :is([data-view], [data-split]) { transition: none; } }
 /* pages leave room for the rail on the left */
 :root { --rail-room: calc(var(--rail-w) + var(--panel-inset) + 24px); }
 
@@ -2021,9 +2039,7 @@ body.splitting-y { cursor: row-resize; }
 /* ---------- features switched off in Settings: out of the rail and the overview */
 body.off-calendar [data-view="calendar"], body.off-news [data-view="news"], body.off-words [data-view="words"],
 body.off-journal [data-view="journal"], body.off-archive [data-view="archive"] { display: none !important; }
-/* with every page below the rule off, the rule goes too */
-body.off-news.off-words.off-journal.off-archive :is(.rail, .nav) > :is(.rail-rule, .nav-rule):nth-of-type(2),
-body.off-news.off-words.off-journal.off-archive .nav-rule { display: none; }
+/* (the rule between the swipe pages and the rest hides itself when one side is all off: ui/page-order.ts) */
 
 /* ---------- Archive: pages everyone shared, read only */
 .a-reader { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; gap: 12px; min-height: 0; }
