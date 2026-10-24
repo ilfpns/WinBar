@@ -629,7 +629,10 @@ function statusBadge(b: Block | Draft, cx: number, cy: number, r: number, size: 
       const ic = icon(status === 'done' ? 'check' : 'hourglass', status === 'done' ? 'done-ic' : 'doing-ic');
       const s = status === 'done' ? size : size * 0.78;
       for (const [k, v] of Object.entries({ x: cx - s / 2, y: cy - s / 2, width: s, height: s })) ic.setAttribute(k, String(v));
-      g.append(ic);
+      // the icon is a nested <svg>, which browsers will not turn about its own centre: a <g> around it takes the motion
+      const wrap = svgEl('g', { class: 'ic-wrap' });
+      wrap.append(ic);
+      g.append(wrap);
     }
     return g;
   };

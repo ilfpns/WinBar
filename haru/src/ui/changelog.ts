@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.60',
+    date: '2026-10-24',
+    items: [
+      '진행 중 아이콘이 화면 밖에서 날아오던 문제를 고침: 이제 모든 상태 아이콘이 제자리에서 살짝 커졌다가 자리 잡음 (모래시계 뒤집기, 체크 그리기, 점선 원 돌기)',
+    ],
+  },
+  {
     version: '1.59',
     date: '2026-10-24',
     items: [
