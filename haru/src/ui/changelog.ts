@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.50',
+    date: '2026-10-24',
+    items: [
+      '전체 QA: 오늘이 토요일이면 달력의 오늘 날짜 숫자가 초록 원 위에서 파랗게 묻혀 안 보이던 문제',
+      '저널 제목에서 Enter(또는 ↓)를 누르면 본문 맨 앞으로 (한글 입력 중에도)',
+      '한국어 화면에서 저널 폴더 버튼의 "Root"가 "루트"로',
+    ],
+  },
+  {
     version: '1.49',
     date: '2026-10-24',
     items: [

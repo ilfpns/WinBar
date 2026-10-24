@@ -1,4 +1,5 @@
 import { dayKey } from '../timetable/history';
+import { lang } from '../ui/i18n';
 import { icon } from '../ui/icons';
 import { mdPad } from '../ui/md-pad';
 import { type MdEditor } from '../ui/md-editor';
@@ -142,7 +143,8 @@ export function mountJournal(body: HTMLElement): void {
   /** Where a page sits: its folder, or the root. */
   const folderOf = (e: Entry) => (isFolder(e.folder) ? e.folder! : ROOT);
   const inTab = (e: Entry) => folderOf(e) === validTab();
-  const placeName = (id: string) => (id === ROOT ? 'Root' : folders().find((f) => f.id === id)?.name ?? '');
+  // the folder button keeps folder names as written (no translation there), so Root brings its own Korean
+  const placeName = (id: string) => (id === ROOT ? (lang() === 'ko' ? '루트' : 'Root') : folders().find((f) => f.id === id)?.name ?? '');
   /** A page put in `folder` (the root: no folder at all). */
   const filedIn = (e: Entry, folder: string | undefined): Entry => {
     const { folder: _, ...rest } = e;
@@ -334,6 +336,24 @@ export function mountJournal(body: HTMLElement): void {
   titleIn.addEventListener('input', () => {
     schedule();
     renderFoot();
+  });
+  // Enter (or ↓) in the title goes on to the start of the text, as in a document. With a Korean IME the Enter
+  // may come while the last syllable is still being composed: it moves on once that has committed.
+  const toText = () => {
+    text.focus();
+    text.setSelectionRange(0, 0);
+  };
+  let afterComposition = false;
+  titleIn.addEventListener('keydown', (e) => {
+    if ((e.key !== 'Enter' && e.key !== 'ArrowDown') || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+    e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) afterComposition = true;
+    else toText();
+  });
+  titleIn.addEventListener('compositionend', () => {
+    if (!afterComposition) return;
+    afterComposition = false;
+    setTimeout(toText, 0);
   });
   text.addEventListener('input', () => {
     schedule();
