@@ -482,7 +482,7 @@ const tools = [
     description: "Lays out a future day (replacing its plan, if any). It becomes that day's Today when the day begins. Tasks can't overlap.",
     inputSchema: {
       type: 'object',
-      properties: { date: DATE_ARG, tasks: { type: 'array', items: TASK }, from: { type: 'string', description: 'Shown under the day (default "Claude")' } },
+      properties: { date: DATE_ARG, tasks: { type: 'array', items: { ...TASK, properties: { ...TASK.properties, note: { type: 'string' } } } }, from: { type: 'string', description: 'Shown under the day (default "Claude")' } },
       required: ['date', 'tasks'],
     },
     async run(a) {
@@ -492,6 +492,7 @@ const tools = [
       const blocks = [];
       for (const t of a.tasks ?? []) {
         const b = { title: String(t.title ?? '').trim(), cat: category(t.cat), ...span(t) };
+        if (String(t.note ?? '').trim()) b.note = String(t.note);
         checkFree(blocks, b);
         blocks.push(b);
       }

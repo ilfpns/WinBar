@@ -48,6 +48,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.66** (2026-10-26) — 앞날 계획에 할 일 메모 쓰기·Today로 넘기기 / 계획·템플릿 첫 로딩 수정
 - **v1.65** (2026-10-26) — 캘린더 Timetable에 할 일 세부 일정 표시(길면 펼치기)
 - **v1.64** (2026-10-26) — Claude 연동(MCP 서버): Claude Code에서 Today·계획·캘린더·저널 읽고 정리
 - **v1.63** (2026-10-25) — 5일 동안 Today에 작업 추가가 없으면 자동 내보내기, 설정 → Expired 목록

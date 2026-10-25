@@ -529,6 +529,15 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-tt-list .sub.long:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
 .cal-tt-list .sub.open .mark .ic { transform: rotate(90deg); }
 .cal-tt-list .sub.open .sub-text { white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; }
+.cal-tt-list .sub[hidden] { display: none; }
+/* a planned task: its row opens a note box */
+.cal-tt-list li.editable { border-radius: 6px; cursor: pointer; transition: background-color var(--dur-fast) var(--ease-out); }
+.cal-tt-list li.editable:hover { background: rgb(var(--shade) / .25); }
+.cal-tt-list li.editable:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
+.cal-tt-list .sub-edit { grid-column: 3 / -1; width: 100%; min-height: 0; margin: 2px 0; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px;
+  background: rgb(var(--shade) / .35); color: var(--text); font: 12px/1.5 var(--font-sans); word-break: keep-all; overflow-wrap: anywhere; resize: none; overflow: hidden; cursor: text; }
+.cal-tt-list .sub-edit:focus { outline: none; border-color: var(--text-subtle); }
+.cal-tt-list .sub-edit::placeholder { color: var(--text-subtle); }
 .cal-tt-list .t, .cal-tt-list .d { font: 400 11px var(--font-mono); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
 .cal-tt-list .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .cal-tt-list li.done .n { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-subtle); }

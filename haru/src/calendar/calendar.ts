@@ -12,7 +12,7 @@ import { addBlock, setState, state, subscribe } from '../timetable/state';
 import { dayOf, timetableOn } from '../timetable/history';
 import { CATEGORIES, type Block, labelOf } from '../timetable/model';
 import { allTemplates } from '../timetable/templates';
-import { clearPlan, onPlans, planOn, setPlan } from '../timetable/plans';
+import { clearPlan, onPlans, planOn, setPlan, setPlanNote } from '../timetable/plans';
 import { type MenuItem, dayLine, isAhead, loadDay, miniDial, openPlanMenu, weekDates, weekStart } from './week';
 import { formatDuration, hhmm } from '../timetable/time';
 import { lessMotion } from '../ui/motion';
@@ -293,6 +293,7 @@ export function mountCalendar(refs: CalendarRefs): void {
         sub.querySelector('.sub-text')!.textContent = text;
         li.append(sub);
       }
+      if (plan) noteEditable(li, date, b.start, b.note ?? '', labelOf(b));
       list.append(li);
     }
     const foot = document.createElement('div');
@@ -349,6 +350,59 @@ export function mountCalendar(refs: CalendarRefs): void {
     ttView.replaceChildren(top, svg, list, foot);
     resizeFrom(from);
     foldNotes(list);
+  }
+  /** A planned task takes a note: its row opens a box under it, saved on leaving it (Esc: as it was). */
+  function noteEditable(li: HTMLElement, date: string, start: number, note: string, label: string): void {
+    li.classList.add('editable');
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+    li.setAttribute('aria-label', `Note for ${label}`);
+    const open = () => {
+      if (li.querySelector('.sub-edit')) return;
+      const box = document.createElement('textarea');
+      box.className = 'sub-edit';
+      box.rows = 1;
+      box.placeholder = 'Note';
+      box.value = note;
+      const fit = () => {
+        box.style.height = 'auto';
+        box.style.height = `${box.scrollHeight}px`;
+      };
+      li.querySelector<HTMLElement>('.sub')?.setAttribute('hidden', '');
+      li.append(box);
+      fit();
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+      let cancelled = false;
+      box.addEventListener('input', fit);
+      box.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Escape') {
+          cancelled = true;
+          box.blur();
+        } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) box.blur();
+      });
+      box.addEventListener('blur', () => {
+        const value = box.value.trim() ? box.value.replace(/\s+$/, '') : '';
+        if (!cancelled && value !== note) {
+          // the plan list changes and the panel draws again with the note in place
+          setPlanNote(date, start, value);
+          say(value ? 'Note saved' : 'Note removed');
+          return;
+        }
+        box.remove();
+        li.querySelector<HTMLElement>('.sub')?.removeAttribute('hidden');
+        li.focus();
+      });
+    };
+    li.addEventListener('click', (e) => {
+      if (!(e.target as Element).closest('.sub.long, .sub-edit')) open();
+    });
+    li.addEventListener('keydown', (e) => {
+      if (e.target !== li || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      open();
+    });
   }
   /** A note longer than its one line (or of several lines) shows its first line behind a chevron that opens it. */
   function foldNotes(list: HTMLElement): void {

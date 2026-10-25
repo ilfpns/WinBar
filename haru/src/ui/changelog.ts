@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.66',
+    date: '2026-10-26',
+    items: [
+      '앞날 계획에도 할 일 메모: 캘린더 Plan에서 할 일을 눌러 메모를 쓰면 저장되고, 그날이 되면 Today로 같이 넘어감 (Copy Today·지난주 같은 요일 복사도 메모 유지)',
+      '계획·템플릿을 처음 불러올 때 이 기기의 저장본을 못 읽던 문제를 고침 (다른 기기에서 바꾼 계획이 예전 것으로 덮일 수 있었음)',
+    ],
+  },
+  {
     version: '1.65',
     date: '2026-10-26',
     items: [

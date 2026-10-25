@@ -14,7 +14,6 @@ const STAMP = 'haru:templates:updated';
 /** When the template list last changed on this device (0 if never). */
 export const templatesUpdated = (): number => Number(localStorage.getItem(STAMP) ?? 0) || 0;
 const listeners = new Set<() => void>();
-let templates: Template[] = load();
 
 function isTemplate(v: unknown): v is Template {
   if (typeof v !== 'object' || v === null) return false;
@@ -30,6 +29,8 @@ const cleanBlocks = (blocks: unknown[]): TemplateBlock[] =>
   });
 const clean = (list: unknown[]): Template[] =>
   list.filter(isTemplate).map((t) => ({ id: t.id, name: t.name, blocks: cleanBlocks(t.blocks), updated: Number(t.updated) || 0 }));
+// after the helpers above: read any earlier, they aren't defined yet and the saved templates load as none
+let templates: Template[] = load();
 
 function load(): Template[] {
   try {

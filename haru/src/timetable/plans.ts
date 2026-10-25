@@ -7,9 +7,12 @@ import type { TemplateBlock } from './templates';
  * day begins (see history's roll) its plan becomes Today and is used up. Kept in localStorage — read at once
  * when the day rolls over — and mirrored to IndexedDB like the templates.
  */
+/** A planned task: a template's, plus the note it carries into Today (the key only when there is one). */
+export type PlanBlock = TemplateBlock & { note?: string };
+
 export interface Plan {
   date: string;
-  blocks: TemplateBlock[];
+  blocks: PlanBlock[];
   /** Where the tasks came from (a template's name, a day copied), shown under the day. */
   from: string;
   saved: number;
@@ -27,13 +30,15 @@ export const plansUpdated = (): number => {
   }
 };
 const listeners = new Set<() => void>();
-let plans: Plan[] = load();
 
-const cleanBlocks = (blocks: unknown[]): TemplateBlock[] =>
+/** The task as kept: `note` only when it says something (the cloud copy takes no undefined fields). */
+const planBlock = ({ title, cat, start, dur, note }: PlanBlock): PlanBlock =>
+  note?.trim() ? { title, cat, start, dur, note } : { title, cat, start, dur };
+const cleanBlocks = (blocks: unknown[]): PlanBlock[] =>
   blocks.flatMap((b) => {
     const x = b as Record<string, unknown>;
     return typeof x?.start === 'number' && typeof x.dur === 'number' && typeof x.cat === 'string' && x.cat in CATEGORIES
-      ? [{ title: typeof x.title === 'string' ? x.title : '', cat: x.cat as Category, start: x.start, dur: x.dur }]
+      ? [planBlock({ title: typeof x.title === 'string' ? x.title : '', cat: x.cat as Category, start: x.start, dur: x.dur, note: typeof x.note === 'string' ? x.note : undefined })]
       : [];
   });
 const clean = (list: unknown[]): Plan[] =>
@@ -43,6 +48,8 @@ const clean = (list: unknown[]): Plan[] =>
       ? [{ date: p.date, blocks: cleanBlocks(p.blocks), from: typeof p.from === 'string' ? p.from : '', saved: Number(p.saved) || 0 }]
       : [];
   });
+// after the helpers above: read any earlier, they aren't defined yet and the saved plans load as none
+let plans: Plan[] = load();
 
 function load(): Plan[] {
   try {
@@ -79,15 +86,24 @@ export function onPlans(fn: () => void): void {
   listeners.add(fn);
 }
 
-/** Lays out `date` with these tasks (replacing its plan); `from` says where they came from. */
-export function setPlan(date: string, blocks: readonly TemplateBlock[], from: string): void {
+/** Lays out `date` with these tasks (replacing its plan); `from` says where they came from. Notes come along. */
+export function setPlan(date: string, blocks: readonly PlanBlock[], from: string): void {
   const p: Plan = {
     date,
-    blocks: blocks.map(({ title, cat, start, dur }) => ({ title, cat, start, dur })).sort((a, b) => a.start - b.start),
+    blocks: blocks.map(planBlock).sort((a, b) => a.start - b.start),
     from,
     saved: Date.now(),
   };
   plans = [...plans.filter((x) => x.date !== date), p].sort((a, b) => a.date.localeCompare(b.date));
+  save();
+}
+
+/** Writes (or, blank, removes) the note of the task planned at `start` on `date`. */
+export function setPlanNote(date: string, start: number, note: string): void {
+  const p = planOn(date);
+  if (!p || !p.blocks.some((b) => b.start === start)) return;
+  const blocks = p.blocks.map((b) => (b.start === start ? planBlock({ ...b, note }) : b));
+  plans = plans.map((x) => (x.date === date ? { ...x, blocks, saved: Date.now() } : x));
   save();
 }
 
