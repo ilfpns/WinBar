@@ -1,6 +1,6 @@
 import { DAY, SNAP, formatDuration, hhmm, mod, nowMinutes, snap } from './time';
 import { R_IN, R_MID, R_OUT, angleOf, arcPath, pointAt, polarOf, sectorPath, setRing } from './geometry';
-import { type Block, type Draft, type Status, blockAt, blocksInRange, contains, freeAround, labelOf, progressOf, statusOf } from './model';
+import { type Block, type Draft, type Status, blockAt, blocksInRange, contains, freeAround, labelOf, passedOf, progressOf, statusOf } from './model';
 import { clearSelection, closeDraft, onCancelled, onRemoved, onSaved, openDraft, select, setState, state, subscribe, toggleSelected } from './state';
 import { centeredText, svgEl } from './svg';
 import { createOrb } from './orb';
@@ -311,28 +311,30 @@ export function mountDial(svg: SVGSVGElement): Dial {
    */
   function renderSlices(picked: Set<string>, now: number): void {
     const list = [...visibleBlocks()].sort((a, b) => a.start - b.start);
-    const passedOf = (b: Block | Draft) => (contains(b, now) ? mod(now - b.start) : b.start + b.dur <= now ? b.dur : 0);
+    // counted from the New day time: before it on the clock is the end of the day, still ahead
+    const dayStart = resetAt() ?? 0;
+    const passed = (b: Block | Draft) => passedOf(b, now, dayStart);
     list.forEach((b) => {
       const sel = b === state.draft || (b.id !== null && picked.has(b.id));
       const live = contains(b, now);
-      const passed = passedOf(b);
+      const gone = passed(b);
       const style = `--c:var(--cat-${b.cat})`;
       gBlocks.append(svgEl('path', { class: `slice${sel ? ' sel' : ''}${b.done ? ' done' : ''}`, d: sectorPath(b.start, b.dur), style }));
-      if (passed > 0) {
-        gBlocks.append(svgEl('path', { class: 'slice-past', d: sectorPath(b.start, passed), style }));
-        gHalo.append(svgEl('path', { class: 'halo', d: sectorPath(b.start, passed), style }));
+      if (gone > 0) {
+        gBlocks.append(svgEl('path', { class: 'slice-past', d: sectorPath(b.start, gone), style }));
+        gHalo.append(svgEl('path', { class: 'halo', d: sectorPath(b.start, gone), style }));
       }
       // the running task glows toward the now edge (stacked washes: a gradient along the arc)
       if (live) {
         for (const span of [120, 60, 25]) {
-          const from = Math.max(0, passed - span);
-          if (passed - from > 0) gBlocks.append(svgEl('path', { class: 'slice-glow', d: sectorPath(b.start + from, passed - from), style }));
+          const from = Math.max(0, gone - span);
+          if (gone - from > 0) gBlocks.append(svgEl('path', { class: 'slice-glow', d: sectorPath(b.start + from, gone - from), style }));
         }
       }
     });
     // where two tasks meet: lit on both sides (the earlier one wholly past, the later one begun) they only need a
     // line when they share a colour; still gray ahead of now they always do
-    gBlocks.append(...seams(list, (a, b) => a.start + a.dur <= now && passedOf(b) > 0));
+    gBlocks.append(...seams(list, (a, b) => !contains(a, now) && passed(a) > 0 && passed(b) > 0));
   }
 
   /**

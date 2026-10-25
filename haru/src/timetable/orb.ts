@@ -1,4 +1,6 @@
 import { DAY, mod } from './time';
+import { passedOf } from './model';
+import { resetAt } from './day-reset';
 import { lessMotion, onMotion } from '../ui/motion';
 
 /**
@@ -332,8 +334,7 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
         const hit = ranges?.find((r) => inRange(dot, r));
         dot.sliceRgb = hit ? colors.get(hit)! : null;
         // passed: like the ring — all of a task that ended, the elapsed part of the one running
-        const off = hit ? mod(now - hit.start) : 0;
-        const passed = !hit ? 0 : off < hit.dur ? off : hit.start + hit.dur <= now ? hit.dur : 0;
+        const passed = hit ? passedOf(hit, now, resetAt() ?? 0) : 0;
         dot.slicePast = !!hit && mod(dot.minute - hit.start) < passed;
         dot.sliceDone = !!hit?.done;
       }

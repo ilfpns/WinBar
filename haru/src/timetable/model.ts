@@ -57,6 +57,16 @@ export function progressOf(blocks: readonly Block[]): { done: number; planned: n
 export const labelOf = (b: Pick<Block, 'title' | 'cat'>): string => b.title || CATEGORIES[b.cat];
 export const contains = (b: Pick<Block, 'start' | 'dur'>, m: number): boolean => mod(m - b.start) < b.dur;
 
+/**
+ * Minutes of `b` gone by at `now`, in a day that begins at `dayStart` (the New day time; 0: midnight): all of a
+ * task that ended earlier that day, the elapsed part of the running one, none of one still ahead. A task before
+ * the day's start on the clock (00:15 with a 01:30 start) belongs to the day's end, so it is still ahead.
+ */
+export function passedOf(b: Pick<Block, 'start' | 'dur'>, now: number, dayStart = 0): number {
+  if (contains(b, now)) return mod(now - b.start);
+  return mod(b.start - dayStart) + b.dur <= mod(now - dayStart) ? b.dur : 0;
+}
+
 export function blockAt(blocks: readonly Block[], m: number, excludeId?: string | null): Block | undefined {
   return blocks.find((b) => b.id !== excludeId && contains(b, m));
 }

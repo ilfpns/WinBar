@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.67',
+    date: '2026-10-26',
+    items: [
+      'Slices에서 새 하루 시작 시각보다 앞쪽(예: 1:30 시작일 때 00:15~01:30) 할 일이 이미 지난 것처럼 불 켜지던 문제를 고침: 그 할 일은 하루의 끝이라 아직 남은 것으로 보임 (가운데 점도 같이)',
+    ],
+  },
+  {
     version: '1.66',
     date: '2026-10-26',
     items: [
