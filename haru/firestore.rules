@@ -58,6 +58,11 @@ service cloud.firestore {
       allow read: if isInvited();
     }
 
+    // members taken off for not adding a task to Today for 5 days (the owners' Haru writes these): owners only
+    match /expired/{email} {
+      allow read, write: if isOwner();
+    }
+
     // app settings the owners keep out of the public site (the NEIS API key): invited accounts read, owners write
     match /config/{doc} {
       allow read: if isInvited();

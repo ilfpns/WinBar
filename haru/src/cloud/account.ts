@@ -4,6 +4,7 @@ import { setSession } from './session';
 import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
 import { switchAccountData } from '../storage/backup';
+import { EXPIRED_VIEWER, IDLE_DAYS, sweepIdle, type Expired } from './activity';
 
 /**
  * Sign-in with Google, invite-only. Who may use Haru is the `allow/{email}` collection (the owners manage it;
@@ -239,7 +240,11 @@ export function mountAccount(refs: AccountRefs): void {
     signOut.hidden = false;
   }
 
-  /** Owner only: the members (invited accounts) with their names; invite by email, and Kick one (asked first). */
+  /**
+   * Owner only: the members (invited accounts) with their names; invite by email, and Kick one (asked first).
+   * Members idle on Today for IDLE_DAYS are taken off by themselves (checked now and every hour while open);
+   * EXPIRED_VIEWER also sees them under Expired, and can invite one again.
+   */
   function mountInvites(fb: Fb, ownerEmail: string): void {
     const { fs, db } = fb;
     invites.hidden = false;
@@ -260,27 +265,54 @@ export function mountAccount(refs: AccountRefs): void {
     summary.append(icon('chevron-right'), 'Members', count);
     more.append(summary, form, list);
     invites.replaceChildren(more);
-    // names, from the profiles of those who have signed in
+    // names and last task added, from the profiles of those who have signed in
+    let profiles = new Map<string, { name: string; lastAdded: number }>();
     let names = new Map<string, string>();
     let rows: string[] = [];
+    let invitedAt = new Map<string, number>();
+    // both lists loaded at least once: only then can anyone be judged idle
+    let gotProfiles = false;
+    let gotAllow = false;
+    const sweep = () => {
+      if (gotProfiles && gotAllow) void sweepIdle(fb, invitedAt, profiles);
+    };
     const unsubNames = fs.onSnapshot(fs.collection(db, 'profiles'), (snap) => {
-      names = new Map(snap.docs.map((d) => {
-        const p = d.data() as { email?: string; name?: string };
-        return [String(p.email ?? '').toLowerCase(), String(p.name ?? '')] as [string, string];
+      profiles = new Map(snap.docs.map((d) => {
+        const p = d.data() as { email?: string; name?: string; lastAdded?: number };
+        return [String(p.email ?? '').toLowerCase(), { name: String(p.name ?? ''), lastAdded: Number(p.lastAdded) || 0 }] as const;
       }));
+      names = new Map([...profiles].map(([e, p]) => [e, p.name]));
+      const first = !gotProfiles;
+      gotProfiles = true;
       paintRows();
+      if (first) sweep();
     }, () => {});
+    const timer = setInterval(sweep, 60 * 60_000);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = input.value.trim().toLowerCase();
       if (!email || email === ownerEmail) return;
       input.value = '';
-      void fs.setDoc(fs.doc(db, 'allow', email), { email, invited: Date.now(), by: ownerEmail });
+      invite(email);
     });
+    // invited (again): a fresh start, and off the expired list
+    function invite(email: string): void {
+      const entry = { email, invited: Date.now(), by: ownerEmail };
+      const batch = fs.writeBatch(db);
+      batch.set(fs.doc(db, 'allow', email), entry);
+      batch.delete(fs.doc(db, 'expired', email));
+      // the rules for `expired` not published yet: the invitation alone
+      void batch.commit().catch(() => fs.setDoc(fs.doc(db, 'allow', email), entry));
+    }
     const unsub = fs.onSnapshot(fs.collection(db, 'allow'), (snap) => {
       rows = snap.docs.map((d) => d.id).sort();
+      invitedAt = new Map(snap.docs.map((d) => [d.id, Number((d.data() as { invited?: number }).invited) || 0]));
+      const first = !gotAllow;
+      gotAllow = true;
       paintRows();
+      if (first) sweep();
     });
+    const unsubExpired = ownerEmail === EXPIRED_VIEWER ? mountExpired() : () => {};
     function paintRows(): void {
       count.textContent = String(rows.length);
       if (!rows.length) {
@@ -310,12 +342,68 @@ export function mountAccount(refs: AccountRefs): void {
         return li;
       }));
     }
+    /** The members taken off for being idle, newest first; one can be invited again. */
+    function mountExpired(): () => void {
+      const box = document.createElement('details');
+      box.className = 'acct-more';
+      const head = document.createElement('summary');
+      const n = document.createElement('span');
+      n.className = 'meta';
+      head.append(icon('chevron-right'), 'Expired', n);
+      const note = document.createElement('p');
+      note.className = 'set-note';
+      note.textContent = `Taken off after ${IDLE_DAYS} days without adding a task to Today`;
+      const ul = document.createElement('ul');
+      ul.className = 'acct-list';
+      box.append(head, note, ul);
+      invites.append(box);
+      const day = (t: number) => (t ? new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—');
+      return fs.onSnapshot(fs.collection(db, 'expired'), (snap) => {
+        const gone = snap.docs.map((d) => d.data() as Expired).sort((a, b) => b.expiredAt - a.expiredAt);
+        n.textContent = String(gone.length);
+        if (!gone.length) {
+          const li = document.createElement('li');
+          li.className = 'tpl-empty';
+          li.textContent = 'No one has expired';
+          ul.replaceChildren(li);
+          return;
+        }
+        ul.replaceChildren(...gone.map((x) => {
+          const li = document.createElement('li');
+          li.className = 'acct-member';
+          const who = document.createElement('span');
+          who.className = 'acct-member-who';
+          who.append(
+            Object.assign(document.createElement('strong'), { textContent: x.name || x.email }),
+            Object.assign(document.createElement('span'), { className: 'meta', textContent: `${x.email} · last task ${day(x.lastAdded)} · expired ${day(x.expiredAt)}` }),
+          );
+          const again = document.createElement('button');
+          again.type = 'button';
+          again.className = 'btn-sm';
+          again.textContent = 'Invite again';
+          again.setAttribute('aria-label', `Invite ${x.email} again`);
+          again.addEventListener('click', () => invite(x.email));
+          li.append(who, again);
+          return li;
+        }));
+      }, () => {
+        // the rules for `expired` aren't published yet
+        n.textContent = '';
+        const li = document.createElement('li');
+        li.className = 'tpl-empty';
+        li.textContent = 'Expired list isn’t allowed yet: the Firestore rules need publishing again';
+        ul.replaceChildren(li);
+      });
+    }
+
     // stop listening when this account signs out
     const { authMod, auth } = fbRef!;
     const off = authMod.onAuthStateChanged(auth, (u) => {
       if (u?.email?.toLowerCase() === ownerEmail) return;
       unsub();
       unsubNames();
+      unsubExpired();
+      clearInterval(timer);
       off();
     });
   }

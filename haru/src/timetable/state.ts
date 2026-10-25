@@ -44,6 +44,7 @@ const drawerListeners = new Set<Listener>();
 const savedListeners = new Set<(b: Block) => void>();
 
 const removedListeners = new Set<(blocks: Block[]) => void>();
+const addedListeners = new Set<() => void>();
 const cancelledListeners = new Set<(draft: Draft) => void>();
 let committing = false;
 
@@ -101,6 +102,12 @@ export function onCancelled(fn: (draft: Draft) => void): void {
 export function onRemoved(fn: (blocks: Block[]) => void): void {
   removedListeners.add(fn);
 }
+
+/** Fires when tasks are added to Today by hand (a new task, a memo line, a template), not by the school's lessons or a sync. */
+export function onAdded(fn: () => void): void {
+  addedListeners.add(fn);
+}
+export const announceAdded = (): void => addedListeners.forEach((fn) => fn());
 
 /** Fires after a task is saved from the editor (created or changed). */
 export function onSaved(fn: (b: Block) => void): void {
@@ -183,6 +190,7 @@ export function addBlock(d: Draft): string | null {
   const block = toBlock(d, newId());
   setState({ blocks: [...state.blocks, block], lastCat: block.cat });
   savedListeners.forEach((fn) => fn(block));
+  announceAdded();
   return null;
 }
 
@@ -197,6 +205,7 @@ export function commitDraft(): string | null {
   setState({ blocks: [...state.blocks.filter((b) => b.id !== block.id), block], draft: null });
   committing = false;
   savedListeners.forEach((fn) => fn(block));
+  if (d.id === null) announceAdded();
   return null;
 }
 

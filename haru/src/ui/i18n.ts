@@ -145,6 +145,8 @@ const KO: Record<string, string> = {
   'Nothing to undo': '되돌릴 것이 없어요', 'Nothing to redo': '다시 할 것이 없어요',
   'Message everyone · @ to name someone': '모두에게 메시지 · @로 사람 부르기',
   Members: '멤버', Kick: '내보내기', 'Not signed in yet': '아직 로그인 안 함',
+  Expired: '만료됨', 'Invite again': '다시 초대', 'No one has expired': '만료된 사람이 없어요', 'Taken off after 5 days without adding a task to Today': 'Today에 5일 동안 작업을 추가하지 않아 자동으로 내보낸 사람',
+  'Expired list isn’t allowed yet: the Firestore rules need publishing again': '아직 만료 목록을 볼 수 없어요: Firestore 규칙을 다시 게시해야 해요',
   'Every day': '매일', 'School meals': '학교 급식', 'Put today’s meals on Today?': '오늘 급식을 Today에 넣을까요?', 'No school meals today': '오늘은 급식이 없어요', 'School meals aren’t available right now': '지금은 급식 정보를 가져올 수 없어요', 'On: every day, around your own tasks': '켜짐: 매일, 내 할 일은 그대로 두고 넣어요',
   Motion: '움직임', Full: '전부', Reduced: '줄이기',
   'Reduced keeps short fades and drops the decoration (also when the system asks for less)': '줄이기는 짧은 페이드만 남기고 꾸밈 애니메이션을 꺼요 (시스템에서 동작 줄이기를 켜도 같아요)',

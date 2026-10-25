@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.63',
+    date: '2026-10-25',
+    items: [
+      'Today에 5일 동안 작업을 직접 추가하지 않은 멤버는 초대 목록에서 자동으로 빠짐 (학교 시간표·급식 자동 넣기는 추가로 치지 않음, 10월 25일부터 셈)',
+      '만료된 멤버는 관리자 설정 → Expired에서 보고 다시 초대할 수 있음',
+    ],
+  },
+  {
     version: '1.62',
     date: '2026-10-25',
     items: [

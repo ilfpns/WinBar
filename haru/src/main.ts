@@ -22,6 +22,7 @@ import { trackHistory } from './timetable/history';
 import { mountSchoolAuto } from './timetable/school-auto';
 import { mountTodayViews } from './timetable/today-views';
 import { mountAccount } from './cloud/account';
+import { mountActivity } from './cloud/activity';
 import { mountWords } from './words/words';
 import { mountJournal } from './journal/journal';
 import { mountSettings } from './ui/settings';
@@ -216,3 +217,4 @@ document.addEventListener('keydown', (e) => {
 
 // sign-in and cloud sync start once the local stores exist (memos and images are created by the calendar)
 mountAccount({ section: byId('account') });
+mountActivity();

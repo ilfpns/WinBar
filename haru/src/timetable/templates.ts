@@ -1,6 +1,6 @@
 import { kvGet, kvSet } from '../storage/db';
 import { CATEGORIES, type Block, type Category, newId } from './model';
-import { setState, state } from './state';
+import { announceAdded, setState, state } from './state';
 
 /**
  * Day templates: a named copy of a whole day's timetable ("Weekday", "Exam day"…). Applying one
@@ -104,6 +104,7 @@ export function applyTemplate(id: string): Block[] | null {
   if (!t) return null;
   const before = state.blocks;
   setState({ blocks: t.blocks.map((b) => ({ ...b, id: newId(), done: false })), draft: null, selected: [] });
+  if (t.blocks.length) announceAdded();
   return before;
 }
 
