@@ -33,10 +33,22 @@ npm run deploy   # publish to https://ilfpns.github.io/WinBar/
 - GitHub Actions: `haru-news.yml` (headlines + school timetable) publishes into `gh-pages`. GitHub runs scheduled jobs late, sometimes by hours.
 - An NEIS API key, if any, goes in Firestore `config/neis` (`{ key }`), never in the site.
 
+### Claude (MCP)
+
+`mcp/haru-mcp.mjs` is an MCP server that lets Claude (Claude Code, Claude Desktop) read and arrange your Haru: Today's tasks (add, change, check off, remove), days planned ahead, the calendar (holidays, school calendar, memos), past days, Journal pages, and the others' Today (read only). It signs in as your own invited account, so `firestore.rules` apply as in the app; what it writes shows up in every open Haru through the sync. Node 18+, no dependencies; needs `haru/.env.local` (the same `VITE_FIREBASE_*` the build reads).
+
+```sh
+node mcp/haru-mcp.mjs login    # once: sign in with Google in the browser (token kept in ~/.config/haru-mcp, mode 600)
+claude mcp add haru -s user -- node "$(pwd)/mcp/haru-mcp.mjs"    # Claude Code
+```
+
+Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command": "node", "args": ["/absolute/path/to/haru/mcp/haru-mcp.mjs"] }` under `mcpServers`. `node mcp/haru-mcp.mjs whoami` / `logout` show or forget the account.
+
 ## Changes
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.64** (2026-10-26) — Claude 연동(MCP 서버): Claude Code에서 Today·계획·캘린더·저널 읽고 정리
 - **v1.63** (2026-10-25) — 5일 동안 Today에 작업 추가가 없으면 자동 내보내기, 설정 → Expired 목록
 - **v1.62** (2026-10-25) — Chat 기능 삭제(메뉴·설정·규칙 페이지 포함)
 - **v1.61** (2026-10-25) — Today 인사말과 다이얼 겹침 수정(창 크기에 맞춤)

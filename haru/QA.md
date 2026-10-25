@@ -3,6 +3,14 @@
 Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호를 붙이고, 처리 결과(고침 / 보류 / 사양대로)를 함께 적는다.
 점검은 사용자의 브라우저가 아니라 별도의 헤드리스 브라우저(gstack browse, `http://localhost:5288`)에서 한다.
 
+## 2026-10-26 — Claude 연동(MCP 서버, `mcp/haru-mcp.mjs`)
+
+요청: Claude가 앱 안의 일정을 정리하고 캘린더에 접근할 수 있게 API식 연동점.
+
+**처리** — 의존성 없는 Node MCP 서버(stdio). 내 Google 계정으로 로그인(localhost 팝업 → refresh token을 `~/.config/haru-mcp`에 600 권한으로 저장)하고 Firestore REST로 읽고 쓴다. 규칙(`firestore.rules`)이 앱과 똑같이 적용된다. 쓸 때는 `updateTime` 조건을 걸어, 다른 기기가 먼저 바꿨으면 다시 읽어서 적용한다. `updated`를 지금 시각으로 찍어서 열린 앱의 동기화가 새 값으로 받는다. 사이트 코드는 바뀌지 않아 배포 없음.
+
+**확인한 것** — `node --check` 통과. stdio로 initialize, tools/list(14개), 없는 메서드(-32601), 로그인 전 오류 메시지 확인. 로그인 후 실제 계정으로 haru_today, haru_calendar(공휴일·학사일정·메모), haru_plans, haru_members, haru_journal, haru_past_day가 모두 정상. `claude mcp add haru -s user` 등록 후 Connected 확인.
+
 ## 2026-10-25 (v1.61) — 인사말과 다이얼 겹침
 
 요청: 창이 낮을 때 Today 인사말("One more thing, …?")이 슬라이스 보기의 작업 이름(작업·이동·저녁)과 겹침. 반응형이 아님.

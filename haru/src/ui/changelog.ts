@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.64',
+    date: '2026-10-26',
+    items: [
+      'Claude 연동(MCP): Claude Code에서 Today 할 일·앞날 계획·캘린더 메모·저널을 읽고 정리할 수 있음 (내 계정으로 로그인, 남의 Today는 보기만)',
+    ],
+  },
+  {
     version: '1.63',
     date: '2026-10-25',
     items: [

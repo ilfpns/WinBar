@@ -42,6 +42,23 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 - 테스트할 때 사용자가 쓰는 브라우저의 저장소를 지우지 않는다. 테스트는 별도 브라우저 컨텍스트에서 한다.
 - API 키·토큰은 코드나 데이터 파일에 넣지 않는다(공개 사이트다).
 
+## Claude 연동(MCP)
+
+- 구성: `mcp/haru-mcp.mjs` 한 파일짜리 stdio MCP 서버(Node 18+, 의존성 없음). Claude Code(CLI)에서만 쓴다. 원격 서버(claude.ai 채팅 커넥터)는 만들지 않는다.
+- 등록: `node mcp/haru-mcp.mjs login`으로 한 번 로그인 → `claude mcp add haru -s user -- node <haru 절대경로>/mcp/haru-mcp.mjs`. 확인은 `claude mcp get haru`, 계정은 `whoami`, 끊기는 `logout`.
+- 인증: 사용자 본인의 초대된 Google 계정으로만 접근해 `firestore.rules`가 앱과 똑같이 적용되게 한다. 서비스 계정·Admin SDK로 규칙을 우회하지 않는다.
+- 비밀값: refresh token은 `~/.config/haru-mcp/credentials.json`(권한 600)에만 둔다. 저장소·로그·출력·커밋에 남기지 않는다. Firebase 웹 설정은 `haru/.env.local`(git 제외)에서 읽고 코드에 넣지 않는다.
+- 데이터 구조: 앱의 Firestore 구조(`src/cloud/sync.ts` 맨 위 표, `model.ts`, `plans.ts`, `journal-store.ts`)를 그대로 따른다. 앱 쪽 구조를 바꾸면 `haru-mcp.mjs`도 같은 커밋에서 같이 고친다.
+- 쓰기: 문서를 읽고 → 고치고 → `updateTime` 조건을 걸어 통째로 쓴다. 다른 기기가 먼저 바꿨으면 다시 읽어서 적용하고 덮어쓰지 않는다.
+- 쓰기: 시각 필드(`updated`, 계획은 `saved`)를 지금 시각으로 찍어 열린 앱이 새 값으로 받게 한다. `undefined` 필드는 넣지 않고, `doing`·`note`는 값이 있을 때만 넣는다.
+- 할 일 규칙은 앱과 같다: 같은 날 할 일은 겹치지 않고, 시간은 `HH:MM`(현지 시각), 기본 15분 단위. 하루 시작 시각 설정(Settings → Today)은 MCP가 모르니, 날짜가 애매하면 사용자에게 묻는다.
+- 다른 멤버의 데이터(Today·지난 날)는 읽기만 한다. 바꾸는 도구는 내 계정 데이터만 다룬다.
+- 사용: 바꾸기 전에 먼저 읽고(`haru_today`, `haru_plans`, `haru_calendar`), 바꾼 뒤에는 무엇을 바꿨는지 짧게 보고한다.
+- 사용: 할 일 삭제, 여러 개 한꺼번에 바꾸기, 이미 있는 계획·메모를 덮어쓰거나 지우기, 저널 고치기는 먼저 사용자에게 확인받는다.
+- 사용: 저널은 사용자가 요청할 때만 읽는다. 안의 내용(비밀번호·개인 정보)을 다른 곳에 옮기거나 그대로 출력하지 않는다.
+- 테스트: 실제 데이터에 쓰는 테스트는 사용자 허락을 받고 하고, 테스트로 넣은 것은 바로 지운다. 읽기 테스트와 stdio 프로토콜 테스트(initialize, tools/list)는 자유롭게 한다.
+- 기록: 도구를 추가하거나 바꾸면 README의 `Claude (MCP)`와 `QA.md`에 남긴다. MCP만 바뀐 경우 배포는 필요 없고, 배포할 때 패치노트에 같이 적는다.
+
 ## 빌드·배포
 
 - 타입 검사: `npx tsc --noEmit -p .` / 개발 서버: `npm run dev`
