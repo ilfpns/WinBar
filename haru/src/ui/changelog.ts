@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.65',
+    date: '2026-10-26',
+    items: [
+      '캘린더 Timetable에서 할 일 아래에 세부 일정(메모)이 보임: 한 줄이면 그대로, 길거나 여러 줄이면 > 를 눌러 펼침',
+    ],
+  },
+  {
     version: '1.64',
     date: '2026-10-26',
     items: [

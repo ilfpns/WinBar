@@ -284,6 +284,15 @@ export function mountCalendar(refs: CalendarRefs): void {
       li.querySelector('.n')!.textContent = labelOf(b);
       li.querySelector('.n')!.setAttribute('title', CATEGORIES[b.cat]);
       li.querySelector('.d')!.textContent = formatDuration(b.dur);
+      // the task's note on a line of its own under the name; one that doesn't fit folds (see foldNotes)
+      const text = b.note?.trim();
+      if (text) {
+        const sub = document.createElement('div');
+        sub.className = 'sub';
+        sub.innerHTML = '<span class="mark"></span><span class="sub-text"></span>';
+        sub.querySelector('.sub-text')!.textContent = text;
+        li.append(sub);
+      }
       list.append(li);
     }
     const foot = document.createElement('div');
@@ -339,6 +348,32 @@ export function mountCalendar(refs: CalendarRefs): void {
     top.append(title, views);
     ttView.replaceChildren(top, svg, list, foot);
     resizeFrom(from);
+    foldNotes(list);
+  }
+  /** A note longer than its one line (or of several lines) shows its first line behind a chevron that opens it. */
+  function foldNotes(list: HTMLElement): void {
+    for (const sub of list.querySelectorAll<HTMLElement>('.sub')) {
+      const body = sub.querySelector<HTMLElement>('.sub-text')!;
+      if (!body.textContent!.includes('\n') && body.scrollWidth <= body.clientWidth + 1) continue;
+      sub.classList.add('long');
+      sub.querySelector('.mark')!.append(icon('chevron-right'));
+      sub.tabIndex = 0;
+      sub.setAttribute('role', 'button');
+      sub.setAttribute('aria-expanded', 'false');
+      const toggle = () => {
+        const from = body.offsetHeight;
+        const open = sub.classList.toggle('open');
+        sub.setAttribute('aria-expanded', String(open));
+        const to = body.offsetHeight;
+        if (!reduced() && from !== to) body.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 260, easing: ease });
+      };
+      sub.addEventListener('click', toggle);
+      sub.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        toggle();
+      });
+    }
   }
   // Today changes show up live while today's timetable is open (and in the week, on Today's dial)
   subscribe(() => {

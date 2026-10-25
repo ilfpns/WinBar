@@ -516,7 +516,19 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-tt-dial .tt-pct { font: 600 17px var(--font-mono); fill: var(--accent); }
 /* no scroll of its own (the panel scrolls); rows sliding in must not overflow it */
 .cal-tt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; overflow: hidden; }
-.cal-tt-list li { display: grid; grid-template-columns: auto 6px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 2px; font-size: 13px; }
+.cal-tt-list li { display: grid; grid-template-columns: auto 6px minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; padding: 4px 2px; font-size: 13px; }
+/* a task's note under its name: a short dash, or a chevron that opens a long one */
+.cal-tt-list .sub { grid-column: 3 / -1; display: grid; grid-template-columns: 12px minmax(0, 1fr); align-items: start; gap: 4px; font-size: 12px; line-height: 1.5; color: var(--text-muted); border-radius: 4px; }
+.cal-tt-list .sub .mark { display: grid; place-items: center; height: 1.5em; color: var(--text-subtle); }
+.cal-tt-list .sub .mark::before { content: ''; width: 6px; height: 1px; background: currentColor; }
+.cal-tt-list .sub .mark .ic { width: 12px; height: 12px; transition: transform var(--dur-fast) var(--ease-out); }
+.cal-tt-list .sub-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-tt-list .sub.long { cursor: pointer; }
+.cal-tt-list .sub.long .mark::before { display: none; }
+.cal-tt-list .sub.long:hover .sub-text, .cal-tt-list .sub.open .sub-text { color: var(--text); }
+.cal-tt-list .sub.long:focus-visible { outline: 1px solid var(--text-muted); outline-offset: 2px; }
+.cal-tt-list .sub.open .mark .ic { transform: rotate(90deg); }
+.cal-tt-list .sub.open .sub-text { white-space: pre-wrap; word-break: keep-all; overflow-wrap: anywhere; }
 .cal-tt-list .t, .cal-tt-list .d { font: 400 11px var(--font-mono); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
 .cal-tt-list .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .cal-tt-list li.done .n { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-subtle); }
