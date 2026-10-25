@@ -1,5 +1,5 @@
 /**
- * What waits for you, on Haru's own tab: unread chat messages and pages that name you add up to a count in the
+ * What waits for you, on Haru's own tab: pages that name you add up to a count in the
  * title ("(3) Haru") and a green dot on the tab icon, so another tab in front still shows it. Back to plain
  * "Haru" (and the plain icon) once everything is read.
  */
@@ -55,7 +55,7 @@ function paint(): void {
   });
 }
 
-/** How many of one kind wait for you (chat, mentions); the tab shows their sum. */
+/** How many of one kind wait for you (mentions); the tab shows their sum. */
 export function setBadge(kind: string, n: number): void {
   if ((counts.get(kind) ?? 0) === n) return;
   counts.set(kind, n);

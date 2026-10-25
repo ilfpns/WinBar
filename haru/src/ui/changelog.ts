@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.62',
+    date: '2026-10-25',
+    items: [
+      'Chat 페이지를 없앰: 메뉴·레일·설정의 Chat과 아카이브의 Chat 사용 규칙 페이지도 함께 빠짐 (#/chat 주소는 Today로 열림)',
+    ],
+  },
+  {
     version: '1.61',
     date: '2026-10-25',
     items: [

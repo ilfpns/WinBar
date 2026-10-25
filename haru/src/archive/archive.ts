@@ -5,7 +5,6 @@ import { setBadge } from '../ui/badge';
 import { mentions } from '../cloud/viewing';
 import { askConfirm } from '../ui/modal';
 import { type Notice, markUpdatesSeen, updatesItem, updatesPage, updatesUnread, watchNotice } from './updates';
-import { rulesItem, rulesPage } from './chat-rules';
 
 /**
  * Archive: journal pages people chose to share (Share on a page in Journal), from everyone invited, newest
@@ -86,9 +85,7 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   let postError = '';
   // the Updates page pinned on top (its key never matches a shared page's)
   const PIN = '__updates';
-  // the Chat rules page, pinned under it
-  const RULES = '__chat-rules';
-  const pinned = (k: string | null) => k === PIN || k === RULES;
+  const pinned = (k: string | null) => k === PIN;
   let notice: Notice | null = null;
   let stopNotice: (() => void) | null = null;
   let editingNotice = false;
@@ -161,13 +158,6 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   addEventListener('hashchange', () => {
     // turning to Archive reads the page it opens on
     if (!archiveShown()) return;
-    // #/archive/rules (the chat's /규칙): straight to the rules page
-    if (location.hash.startsWith('#/archive/rules')) {
-      openKey = RULES;
-      renderList();
-      renderReader();
-      return;
-    }
     if (openKey === PIN) {
       markUpdatesSeen(session(), notice);
       paintDots();
@@ -197,12 +187,6 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
     sum.textContent = pages.length ? `${pages.length} shared` : '';
     const s0 = session();
     const pin = s0 ? [updatesItem(openKey === PIN, updatesUnread(s0, notice), openUpdates)] : [];
-    // the rules ride in the same pinned group (one sticky block on top of the list)
-    pin[0]?.append(rulesItem(openKey === RULES, () => {
-      openKey = RULES;
-      renderList();
-      renderReader();
-    }));
     if (!pages.length) {
       const li = document.createElement('li');
       li.className = 'j-empty';
@@ -243,11 +227,6 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
     const p = pinned(openKey) ? undefined : pages.find((x) => keyOf(x) === openKey) ?? pages[0];
     if (!s) {
       reader.replaceChildren(note('Pages shared from Journal show here once you sign in.'));
-      return;
-    }
-    if (openKey === RULES) {
-      editingNotice = false;
-      reader.replaceChildren(...rulesPage());
       return;
     }
     if (!p) {

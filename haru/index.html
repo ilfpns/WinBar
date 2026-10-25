@@ -83,10 +83,6 @@
     <div class="pg-body journal-body" id="archive-body"></div>
   </main>
 
-  <main class="chat-view text-page page" id="chat" aria-label="Chat">
-    <header class="pg-head"><h1>Chat</h1><span class="meta" id="chat-sum"></span></header>
-    <div class="pg-body chat-body" id="chat-body"></div>
-  </main>
 
   <!-- installed on a computer, the window's title bar (ui/titlebar.ts): the logo, the pages, how the day is going -->
   <header class="titlebar" id="titlebar">
@@ -101,7 +97,6 @@
       <a class="tb-tab" href="#/words" data-view="words" title="Words"><i data-icon="languages"></i><span>Words</span></a>
       <a class="tb-tab" href="#/journal" data-view="journal" title="Journal"><i data-icon="notebook-pen"></i><span>Journal</span></a>
       <a class="tb-tab" href="#/archive" data-view="archive" title="Archive"><i data-icon="archive"></i><span>Archive</span></a>
-      <a class="tb-tab" href="#/chat" data-view="chat" title="Chat"><i data-icon="messages"></i><span>Chat</span></a>
     </nav>
     <span class="tb-fill"></span>
     <div class="tb-progress" id="tb-progress"></div>
@@ -119,7 +114,6 @@
     <a class="rail-btn" href="#/words" data-view="words" aria-label="Words" data-tip="Words · learn English vocabulary"><i data-icon="languages"></i></a>
     <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
     <a class="rail-btn" href="#/archive" data-view="archive" aria-label="Archive" data-tip="Archive · pages everyone shared"><i data-icon="archive"></i></a>
-    <a class="rail-btn" href="#/chat" data-view="chat" aria-label="Chat" data-tip="Chat · talk with everyone invited"><i data-icon="messages"></i></a>
     <span class="rail-fill"></span>
     <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
   </nav>
@@ -151,9 +145,6 @@
         </a>
         <a class="nav-item" href="#/archive" data-view="archive">
           <i data-icon="archive"></i>Archive
-        </a>
-        <a class="nav-item" href="#/chat" data-view="chat">
-          <i data-icon="messages"></i>Chat
         </a>
       </nav>
 

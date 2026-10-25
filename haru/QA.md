@@ -761,3 +761,13 @@ Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호�
 **아직 못 본 것**
 - 로그인이 필요한 기능(아카이브 공유, 다른 사람 Today 보기, Notion 이름, 초대)은 헤드리스 브라우저에서 Google 로그인이 안 돼 확인하지 못함.
 - Haru에서 출석 체크를 풀었을 때 Notion에서도 빠지는지는 GitHub 예약 실행 뒤 Notion 표에서 확인 필요.
+
+## 2026-10-25 — v1.62 Chat 삭제
+
+**확인한 것**
+- `npx tsc --noEmit -p .` 통과.
+- 개발 서버(별도 Playwright 브라우저): `#/chat`으로 열면 Today로 감, Chat 링크·페이지 요소 0개, Calendar·News·Words·Journal·Archive 전환 정상, 콘솔 오류 0개.
+
+**참고**
+- Firestore의 기존 채팅·변경요청 데이터와 `firestore.rules`는 그대로 둠(규칙 재게시 불필요).
+- 채팅이 없어져 `/변경요청`으로 새 요청을 넣는 입구도 사라짐.

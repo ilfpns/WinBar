@@ -35,7 +35,6 @@ import { mountPageOrder } from './ui/page-order';
 import { makeSortable } from './ui/page-drag';
 import { mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
-import { mountChat } from './chat/chat';
 import { mountInsights } from './journal/insights';
 import { addSplit } from './ui/splitter';
 import { mountPeek } from './timetable/peek';
@@ -46,7 +45,7 @@ import { anyPopOpen } from './ui/popover';
 hydrateIcons();
 // Korean labels (if picked) go on before the pages render, and follow everything they render later
 mountI18n();
-mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal'), archive: byIdEarly('archive'), chat: byIdEarly('chat') });
+mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal'), archive: byIdEarly('archive') });
 mountRouter();
 mountFeatures();
 // the pages in your order (the rail's rule splits off the ones that turn by swipe); drag to rearrange
@@ -92,7 +91,6 @@ mountWords(byId('words-body'), byId('words-sum'));
 mountJournal(byId('journal-body'));
 mountInsights(byId('journal'));
 mountArchive(byId('archive-body'), byId('archive-sum'));
-mountChat(byId('chat-body'), byId('chat-sum'));
 // someone else's Today, read only
 mountViewing();
 mountPeek(byId('stage'));
