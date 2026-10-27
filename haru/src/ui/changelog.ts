@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.68',
+    date: '2026-10-27',
+    items: [
+      '다른 기기에서 추가한 Today 작업이 사라지던 문제를 고침: 오래 꺼져 있던 기기가 새 날로 넘어가거나 학교 시간표·급식을 자동으로 넣을 때, 그사이 다른 기기가 바꾼 Today를 덮어쓰지 않음',
+      '지난 날 기록(달력)도 오래된 복사본이 새 기록을 덮어쓰지 않음',
+      '백업 가져오기(Import)는 지난 날 기록까지 클라우드에 다시 올림 (복구용)',
+    ],
+  },
+  {
     version: '1.67',
     date: '2026-10-26',
     items: [

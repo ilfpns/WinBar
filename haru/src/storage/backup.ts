@@ -162,7 +162,7 @@ export function mountBackup(refs: BackupRefs): void {
       notesStore()?.replace(notes);
       if (Array.isArray(data.templates)) replaceTemplates(data.templates);
       if (Array.isArray(data.plans)) replacePlans(data.plans);
-      if (Array.isArray(data.days)) await restoreDays(data.days);
+      if (Array.isArray(data.days)) await restoreDays(data.days, true);
       // older backups have no words or journal: keep the current ones then (the stores drop malformed entries)
       if (Array.isArray(data.words)) wordsStore.set(data.words.filter((w) => typeof w?.id === 'string' && typeof w.word === 'string' && typeof w.meaning === 'string'));
       if (Array.isArray(data.journal)) journalStore.set(data.journal.filter((e) => typeof e?.id === 'string' && typeof e.date === 'string' && typeof e.body === 'string'));

@@ -2,7 +2,8 @@ import { db } from '../storage/db';
 import { resetAt } from './day-reset';
 import { type Block } from './model';
 import { takePlan } from './plans';
-import { setState, state, subscribe, fromOutside } from './state';
+import { automatically, changingAutomatically, setState, state, subscribe, fromOutside } from './state';
+import { blocksUpdated } from './model';
 
 /**
  * Day history: Today's timetable is snapshotted under the date it was on (kv store, key `day:YYYY-MM-DD`),
@@ -67,12 +68,17 @@ export async function allDays(): Promise<DaySnapshot[]> {
   });
 }
 
-/** Restores snapshots from a backup (existing days are overwritten, others kept). */
-export async function restoreDays(list: unknown[]): Promise<void> {
+/**
+ * Restores snapshots from a backup (existing days are overwritten, others kept). `fresh` (an Import you chose):
+ * the days count as saved now and go up to the cloud too, so they replace whatever copy it holds.
+ */
+export async function restoreDays(list: unknown[], fresh = false): Promise<void> {
   for (const v of list) {
     const s = v as Partial<DaySnapshot>;
     if (typeof s?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s.date) && Array.isArray(s.blocks)) {
-      await put({ date: s.date, blocks: s.blocks as Block[], saved: Number(s.saved) || Date.now() });
+      const snap = { date: s.date, blocks: s.blocks as Block[], saved: fresh ? Date.now() : Number(s.saved) || Date.now() };
+      await put(snap);
+      if (fresh) savedListeners.forEach((fn) => fn(snap));
     }
   }
 }
@@ -110,9 +116,13 @@ export function trackHistory(): void {
       // for this visit only
     }
   };
-  const snap = () => {
+  // when Today last changed by hand on this device (or, for Haru's own changes and a copy not yet changed here, as
+  // of the version it holds): a day is filed as of then, so a device waking up with an old copy never files it
+  // over the newer one another device kept for that day
+  let changedAt = blocksUpdated() || Date.now();
+  const snap = (saved = changedAt) => {
     clearTimeout(timer);
-    const s = { date: today, blocks: state.blocks, saved: Date.now() };
+    const s = { date: today, blocks: state.blocks, saved };
     void put(s).then(() => savedListeners.forEach((fn) => fn(s))).catch(() => {});
   };
   /**
@@ -127,17 +137,18 @@ export function trackHistory(): void {
     own(now);
     // a day planned ahead (Calendar → Week) starts with its plan, whether or not the reset is on
     const planned = takePlan(now);
-    if (planned) fromOutside(() => setState({ blocks: planned, draft: null, selected: [] }));
-    else if (resetAt() !== null && state.blocks.length) fromOutside(() => setState({ blocks: [], draft: null, selected: [] }));
+    if (planned) automatically(() => fromOutside(() => setState({ blocks: planned, draft: null, selected: [] })));
+    else if (resetAt() !== null && state.blocks.length) automatically(() => fromOutside(() => setState({ blocks: [], draft: null, selected: [] })));
     else snap();
   }
   subscribe(() => {
     if (state.blocks === last) return;
     last = state.blocks;
     clearTimeout(timer);
-    timer = window.setTimeout(snap, 400);
+    changedAt = changingAutomatically() ? blocksUpdated() || 1 : Date.now();
+    timer = window.setTimeout(() => snap(), 400);
   });
-  addEventListener('pagehide', snap);
+  addEventListener('pagehide', () => snap());
   // a new day may have begun while Haru was closed
   roll();
   own(today);

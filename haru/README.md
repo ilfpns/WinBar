@@ -48,6 +48,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.68** (2026-10-27) — 다른 기기 Today·지난 날 기록이 덮어써지던 문제 수정, Import가 지난 날 기록도 클라우드에 복구
 - **v1.67** (2026-10-26) — Slices: 새 하루 시작 시각 앞쪽 할 일이 지난 것으로 켜지던 문제 수정
 - **v1.66** (2026-10-26) — 앞날 계획에 할 일 메모 쓰기·Today로 넘기기 / 계획·템플릿 첫 로딩 수정
 - **v1.65** (2026-10-26) — 캘린더 Timetable에 할 일 세부 일정 표시(길면 펼치기)

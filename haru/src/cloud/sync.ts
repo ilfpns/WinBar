@@ -1,5 +1,5 @@
 import type { Fb } from './firebase';
-import { setState, state, subscribe, fromOutside } from '../timetable/state';
+import { announceAutoLost, changingAutomatically, setState, state, subscribe, fromOutside } from '../timetable/state';
 import { type Block, blocksUpdated, newId, stampBlocks } from '../timetable/model';
 import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templatesUpdated } from '../timetable/templates';
 import { allDays, onDaySaved, putFromRemote, type DaySnapshot } from '../timetable/history';
@@ -76,10 +76,35 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     cloudBlocksStamp = updated;
     write(fs.setDoc(ref('state/timetable'), { blocks: state.blocks, updated }));
   };
+  /**
+   * Haru's own change (a new day, the school's lessons) goes up only onto the Today it was made from. If another
+   * device changed Today since (a laptop waking up before the newer Today has reached it), that Today stays: it
+   * arrives and is applied here, and the change is redone on top of it.
+   */
+  const pushIfUnchanged = () => {
+    const base = cloudBlocksStamp;
+    const blocks = state.blocks;
+    const updated = Date.now();
+    write(fs.runTransaction(db, async (tx) => {
+      const cur = await tx.get(ref('state/timetable'));
+      if ((Number(cur.data()?.updated) || 0) > base) return false;
+      tx.set(ref('state/timetable'), { blocks, updated });
+      return true;
+    }).then((ok) => {
+      if (ok && state.blocks === blocks) {
+        stampBlocks(updated);
+        cloudBlocksStamp = updated;
+      } else if (!ok) announceAutoLost();
+    }, () => announceAutoLost()));
+  };
   subscribe(() => {
     if (stopped || state.blocks === lastBlocks) return;
     lastBlocks = state.blocks;
     if (applying) return;
+    if (changingAutomatically()) {
+      pushIfUnchanged();
+      return;
+    }
     stampBlocks(Date.now());
     pushBlocks();
   });
@@ -94,6 +119,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     if (data.updated <= Math.max(blocksUpdated(), cloudBlocksStamp)) {
       // this device is newer (or the same): make sure the cloud has it
       if (blocksUpdated() > data.updated) pushBlocks();
+      else cloudBlocksStamp = Math.max(cloudBlocksStamp, data.updated);
       return;
     }
     // the cloud is newer. A first sync must never silently drop a different local day: keep it as a template.
@@ -201,8 +227,14 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   }
 
   // ---------- day history (per date)
+  // a day goes up only over an older copy of it (offline: the next start sends what the cloud lacks)
   onDaySaved((s) => {
-    if (!stopped) write(fs.setDoc(ref(`days/${s.date}`), s));
+    if (stopped) return;
+    write(fs.runTransaction(db, async (tx) => {
+      const cur = await tx.get(ref(`days/${s.date}`));
+      if ((Number(cur.data()?.saved) || 0) >= s.saved) return;
+      tx.set(ref(`days/${s.date}`), s);
+    }).catch(() => {}));
   });
   void (async () => {
     const remote = await fs.getDocs(col('days')).catch(() => null);

@@ -1,7 +1,7 @@
 import { session } from '../cloud/session';
 import { dayKey } from './history';
 import { type Block, newId, overlaps } from './model';
-import { setState, state } from './state';
+import { automatically, setState, state } from './state';
 
 /**
  * The school timetable: pick your school and class in Settings → Today, and Apply lays today's lessons onto
@@ -261,6 +261,6 @@ export async function mealBlocks(s: School, meals: Meal[], now = new Date()): Pr
  */
 export function addAround(blocks: Block[]): Block[] {
   const added = blocks.filter((b) => !overlaps(state.blocks, { ...b, id: null }));
-  if (added.length) setState({ blocks: [...state.blocks, ...added] });
+  if (added.length) automatically(() => setState({ blocks: [...state.blocks, ...added] }));
   return added;
 }

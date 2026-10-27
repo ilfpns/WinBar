@@ -57,6 +57,26 @@ const future: Block[][] = [];
 let outside = 0;
 let restoring = false;
 
+let auto = 0;
+const autoLostListeners = new Set<() => void>();
+/**
+ * Runs a change Haru makes by itself (a new day, the school's lessons). Sync never lets such a change overwrite
+ * a Today another device changed in the meantime: that Today stays, and `onAutoLost` fires so it can be redone.
+ */
+export function automatically(fn: () => void): void {
+  auto++;
+  try {
+    fn();
+  } finally {
+    auto--;
+  }
+}
+export const changingAutomatically = (): boolean => auto > 0;
+export function onAutoLost(fn: () => void): void {
+  autoLostListeners.add(fn);
+}
+export const announceAutoLost = (): void => autoLostListeners.forEach((fn) => fn());
+
 /** Runs a change that came from elsewhere: not recorded, and the history before it is dropped. */
 export function fromOutside(fn: () => void): void {
   outside++;

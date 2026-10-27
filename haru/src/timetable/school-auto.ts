@@ -1,5 +1,6 @@
 import { dayOf } from './history';
 import { addAround, lessonsToday, mealBlocks, mealsToday, myClass, mySchool } from './school';
+import { onAutoLost } from './state';
 
 /**
  * Every day, by itself (Settings → Today → the "Every day" switches): the class's lessons and the school's meals
@@ -70,6 +71,12 @@ export async function runAuto(): Promise<Partial<Record<Kind, number>>> {
 export function mountSchoolAuto(): void {
   void runAuto();
   setInterval(() => void runAuto(), 5 * 60_000);
+  // another device's newer Today won over today's fill: fill again on top of it
+  onAutoLost(() => {
+    write(DONE_KEY.lessons, null);
+    write(DONE_KEY.meals, null);
+    setTimeout(() => void runAuto(), 1500);
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void runAuto();
   });
