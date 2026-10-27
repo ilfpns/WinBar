@@ -10,6 +10,7 @@ import { checkinStore } from '../calendar/attendance';
 import type { ListStore } from '../storage/list-store';
 import { wordsStore } from '../words/words';
 import { folderStore, journalStore } from '../journal/journal';
+import { logChange, startLog } from './log';
 
 /**
  * Two-way sync of one user's data with Firestore (`users/{uid}/…`). Each piece carries a time stamp and the
@@ -52,6 +53,8 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   const ref = (path: string) => fs.doc(db, `${base}/${path}`);
   const col = (name: string) => fs.collection(db, `${base}/${name}`);
   const unsubs: (() => void)[] = [];
+  // every change is also kept in the change log (see log.ts)
+  unsubs.push(startLog(fb, uid));
   // the store listeners below live as long as the page; after sign-out they must do nothing
   let stopped = false;
   let pending = 0;
@@ -94,13 +97,18 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       if (ok && state.blocks === blocks) {
         stampBlocks(updated);
         cloudBlocksStamp = updated;
-      } else if (!ok) announceAutoLost();
+      } else if (!ok) {
+        logChange('today', '', 'auto-dropped', blocks);
+        announceAutoLost();
+      }
     }, () => announceAutoLost()));
   };
   subscribe(() => {
     if (stopped || state.blocks === lastBlocks) return;
+    const before = lastBlocks;
     lastBlocks = state.blocks;
     if (applying) return;
+    logChange('today', '', changingAutomatically() ? 'auto' : 'edit', state.blocks, before);
     if (changingAutomatically()) {
       pushIfUnchanged();
       return;
@@ -128,6 +136,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     if (local.length && !same && !blocksUpdated()) {
       saveTemplate(`This device ${new Date().toLocaleDateString('en-CA')}`);
     }
+    if (!same) logChange('today', '', 'from-cloud', data.blocks, local);
     applying = true;
     fromOutside(() => setState({ blocks: data.blocks.map((b) => ({ ...b, id: b.id || newId(), done: b.done === true })), draft: null }));
     lastBlocks = state.blocks;
@@ -140,6 +149,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   let cloudTplStamp = 0;
   const pushTemplates = () => {
     cloudTplStamp = templatesUpdated() || Date.now();
+    logChange('templates', '', 'save', allTemplates());
     write(fs.setDoc(ref('meta/templates'), { list: allTemplates(), updated: cloudTplStamp }));
   };
   onTemplates(() => {
@@ -154,6 +164,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     }
     if (data.updated > templatesUpdated()) {
       cloudTplStamp = data.updated;
+      logChange('templates', '', 'from-cloud', data.list, allTemplates());
       templatesFromRemote(data.list, data.updated);
     } else if (templatesUpdated() > data.updated) pushTemplates();
     else cloudTplStamp = data.updated;
@@ -163,6 +174,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   let cloudPlanStamp = 0;
   const pushPlans = () => {
     cloudPlanStamp = plansUpdated() || Date.now();
+    logChange('plans', '', 'save', allPlans());
     write(fs.setDoc(ref('meta/plans'), { list: allPlans(), updated: cloudPlanStamp }));
   };
   onPlans(() => {
@@ -177,6 +189,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     }
     if (data.updated > plansUpdated()) {
       cloudPlanStamp = data.updated;
+      logChange('plans', '', 'from-cloud', data.list, allPlans());
       plansFromRemote(data.list, data.updated);
     } else if (plansUpdated() > data.updated) pushPlans();
     else cloudPlanStamp = data.updated;
@@ -193,11 +206,13 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     for (const r of local.values()) {
       if ((cloudNotes.get(r.date) ?? 0) >= r.updated) continue;
       cloudNotes.set(r.date, r.updated);
+      logChange('memo', r.date, 'save', r.text);
       write(fs.setDoc(ref(`notes/${r.date}`), r));
     }
     for (const date of [...cloudNotes.keys()]) {
       if (local.has(date)) continue;
       cloudNotes.delete(date);
+      logChange('memo', date, 'delete');
       write(fs.deleteDoc(ref(`notes/${date}`)));
     }
   };
@@ -212,11 +227,17 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
           if (ch.type === 'removed') {
             cloudNotes.delete(r.date);
             // deleted elsewhere: drop it here too, unless this device changed it since
-            if (mine && mine.updated <= r.updated) notes.setFromRemote({ date: r.date, text: '', updated: Date.now() });
+            if (mine && mine.updated <= r.updated) {
+              logChange('memo', r.date, 'from-cloud', '', mine.text);
+              notes.setFromRemote({ date: r.date, text: '', updated: Date.now() });
+            }
             continue;
           }
           cloudNotes.set(r.date, r.updated);
-          if (!mine || r.updated > mine.updated) notes.setFromRemote(r);
+          if (!mine || r.updated > mine.updated) {
+            if (mine && mine.text !== r.text) logChange('memo', r.date, 'from-cloud', r.text, mine.text);
+            notes.setFromRemote(r);
+          }
         }
         if (!notesSeeded) {
           notesSeeded = true;
@@ -230,6 +251,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   // a day goes up only over an older copy of it (offline: the next start sends what the cloud lacks)
   onDaySaved((s) => {
     if (stopped) return;
+    logChange('day', s.date, 'save', s.blocks);
     write(fs.runTransaction(db, async (tx) => {
       const cur = await tx.get(ref(`days/${s.date}`));
       if ((Number(cur.data()?.saved) || 0) >= s.saved) return;
@@ -261,11 +283,15 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       if (cloudImages.has(r.id)) continue;
       cloudImages.add(r.id);
       const data = await fitImage(r.blob);
-      if (data) write(fs.setDoc(ref(`images/${r.id}`), { id: r.id, date: r.date, created: r.created, data }));
+      if (data) {
+        logChange('image', r.id, 'add', { date: r.date });
+        write(fs.setDoc(ref(`images/${r.id}`), { id: r.id, date: r.date, created: r.created, data }));
+      }
     }
     for (const id of [...cloudImages]) {
       if (local.has(id)) continue;
       cloudImages.delete(id);
+      logChange('image', id, 'delete');
       write(fs.deleteDoc(ref(`images/${id}`)));
     }
   };
@@ -310,6 +336,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
         return;
       }
       cloudStamp = store.updated() || Date.now();
+      logChange('list', key, 'save', items);
       write(fs.setDoc(ref(`lists/${key}`), { items, updated: cloudStamp }));
     };
     store.onChange(() => {
@@ -334,6 +361,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
         }
         if (data.updated > store.updated()) {
           cloudStamp = data.updated;
+          logChange('list', key, 'from-cloud', data.items, store.all());
           store.fromRemote(data.items, data.updated);
         } else if (store.updated() > data.updated) push();
         else cloudStamp = data.updated;

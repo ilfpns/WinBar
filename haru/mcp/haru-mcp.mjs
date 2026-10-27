@@ -232,6 +232,31 @@ const firestore = {
   },
 };
 
+// ---------- the change log (logs/{uid}/entries, append-only; the app's side is src/cloud/log.ts)
+
+const LOG_MAX = 300_000;
+const logText = (v) => {
+  const s = JSON.stringify(v) ?? 'null';
+  return s.length > LOG_MAX ? `${s.slice(0, LOG_MAX)}…(cut, ${s.length} chars)` : s;
+};
+
+/** Logs what Claude changed, as the app logs its own changes (device "Claude-MCP"); a failed log never fails the change. */
+async function logWrite(path, before, after) {
+  const m = /^users\/([^/]+)\/(.+)$/.exec(path);
+  if (!m) return;
+  const [, uid, rest] = m;
+  const [kind, field, key] = rest === 'state/timetable' ? ['today', 'blocks', '']
+    : rest === 'meta/plans' ? ['plans', 'list', '']
+    : rest.startsWith('notes/') ? ['memo', 'text', rest.slice(6)]
+    : rest.startsWith('lists/') ? ['list', 'items', rest.slice(6)]
+    : [rest, null, ''];
+  const pick = (d) => (d === undefined ? undefined : field ? d?.[field] : d);
+  const entry = { at: Date.now(), device: 'Claude-MCP', kind, key, action: after === undefined ? 'delete' : 'edit' };
+  if (pick(before) !== undefined) entry.before = logText(pick(before));
+  if (pick(after) !== undefined) entry.after = logText(pick(after));
+  await firestore.call('POST', `logs/${uid}/entries`, { body: { fields: encodeFields(entry) } }).catch(() => {});
+}
+
 /** Read, change and write one document, again from the top if another device wrote it meanwhile. */
 async function update(path, change) {
   for (let i = 0; ; i++) {
@@ -239,6 +264,7 @@ async function update(path, change) {
     const { data, result } = change(prev?.data);
     try {
       await firestore.set(path, data, prev);
+      await logWrite(path, prev?.data, data);
       return result;
     } catch (e) {
       if (e.status !== 'FAILED_PRECONDITION' || i >= 4) throw e;
@@ -545,11 +571,16 @@ const tools = [
       const { uid } = await idToken();
       const day = date(a.date);
       const text = String(a.text ?? '');
+      const path = `users/${uid}/notes/${day}`;
+      const prev = await firestore.get(path);
       if (!text.trim()) {
-        await firestore.delete(`users/${uid}/notes/${day}`);
+        await firestore.delete(path);
+        await logWrite(path, prev?.data, undefined);
         return { removed: day };
       }
-      await firestore.set(`users/${uid}/notes/${day}`, { date: day, text, updated: Date.now() });
+      const data = { date: day, text, updated: Date.now() };
+      await firestore.set(path, data);
+      await logWrite(path, prev?.data, data);
       return { saved: day };
     },
   },
@@ -608,6 +639,64 @@ const tools = [
         if (JSON.stringify(items).length > 900_000) fail('The journal is full (one Firestore document holds 1 MB)');
         return { data: { items, updated: t }, result: { saved: { id: page.id, date: page.date, title: page.title } } };
       });
+    },
+  },
+  {
+    name: 'haru_log',
+    description: "The change log, for getting lost data back (the app never shows it): every change to your Haru, newest first, with what it was before and after — made by hand, by Haru itself (a new day, the school's lessons), by Claude, or arriving from another device over what was there. kind: today, day (a past day's record, key = date), memo (key = date), plans, templates, list (key = words, journal, journal-folders, checkins), image, backup. action: edit, auto (Haru's own change), save, delete, add, from-cloud (another device's copy replaced this one: `before` is what was replaced), auto-dropped, import. `device` names the browser (system + id) or Claude-MCP. To restore, put the `before` back with the usual tools (haru_add_tasks, haru_set_memo, haru_set_plan…).",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: DATE_ARG,
+        to: DATE_ARG,
+        kind: { type: 'string' },
+        key: { type: 'string', description: 'A date (day, memo) or a list name' },
+        limit: { type: 'number', description: 'Default 30, at most 300' },
+      },
+    },
+    async run(a) {
+      const { uid } = await idToken();
+      const startOf = (d) => new Date(`${d}T00:00`).getTime();
+      const filters = [];
+      const at = (op, v) => filters.push({ fieldFilter: { field: { fieldPath: 'at' }, op, value: encode(v) } });
+      if (a.from) at('GREATER_THAN_OR_EQUAL', startOf(date(a.from, 'from')));
+      if (a.to) at('LESS_THAN', startOf(date(a.to, 'to')) + 86_400_000);
+      const limit = Math.min(300, Math.max(1, Math.round(Number(a.limit) || 30)));
+      const narrowed = a.kind !== undefined || a.key !== undefined;
+      const res = await firestore.call('POST', `logs/${uid}:runQuery`, {
+        body: {
+          structuredQuery: {
+            from: [{ collectionId: 'entries' }],
+            ...(filters.length && { where: filters.length === 1 ? filters[0] : { compositeFilter: { op: 'AND', filters } } }),
+            orderBy: [{ field: { fieldPath: 'at' }, direction: 'DESCENDING' }],
+            // kind and key are matched here (no composite index needed): look further back for them
+            limit: narrowed ? 2000 : limit,
+          },
+        },
+      });
+      const parse = (s) => {
+        if (s === undefined) return undefined;
+        try {
+          return JSON.parse(s);
+        } catch {
+          return s;
+        }
+      };
+      const entries = (Array.isArray(res) ? res : [])
+        .filter((r) => r.document)
+        .map((r) => decodeFields(r.document.fields ?? {}))
+        .filter((e) => (a.kind === undefined || e.kind === a.kind) && (a.key === undefined || e.key === a.key))
+        .slice(0, limit)
+        .map((e) => ({
+          time: new Date(e.at).toLocaleString('sv-SE'),
+          device: e.device,
+          kind: e.kind,
+          ...(e.key && { key: e.key }),
+          action: e.action,
+          ...(e.before !== undefined && { before: parse(e.before) }),
+          ...(e.after !== undefined && { after: parse(e.after) }),
+        }));
+      return { count: entries.length, entries };
     },
   },
   {

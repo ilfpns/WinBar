@@ -42,12 +42,15 @@ node mcp/haru-mcp.mjs login    # once: sign in with Google in the browser (token
 claude mcp add haru -s user -- node "$(pwd)/mcp/haru-mcp.mjs"    # Claude Code
 ```
 
+Change log: every change to your data — in any browser or by Claude — is appended to `logs/{uid}/entries` (Firestore; append-only, the app never shows it) with what it was before and after, including what another device's copy replaced. Ask Claude for it with the `haru_log` tool to see what happened or get something back.
+
 Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command": "node", "args": ["/absolute/path/to/haru/mcp/haru-mcp.mjs"] }` under `mcpServers`. `node mcp/haru-mcp.mjs whoami` / `logout` show or forget the account.
 
 ## Changes
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.69** (2026-10-27) — 변경 기록(로그): 모든 변경을 전·후 내용과 함께 남김, Claude 연동 haru_log로만 읽음
 - **v1.68** (2026-10-27) — 다른 기기 Today·지난 날 기록이 덮어써지던 문제 수정, Import가 지난 날 기록도 클라우드에 복구
 - **v1.67** (2026-10-26) — Slices: 새 하루 시작 시각 앞쪽 할 일이 지난 것으로 켜지던 문제 수정
 - **v1.66** (2026-10-26) — 앞날 계획에 할 일 메모 쓰기·Today로 넘기기 / 계획·템플릿 첫 로딩 수정

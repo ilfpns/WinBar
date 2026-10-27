@@ -1,3 +1,4 @@
+import { logChange } from '../cloud/log';
 import { kvGet, kvSet, requestPersistence } from './db';
 import { type Block, blocksStored, blocksUpdated, isBlock, stampBlocks } from '../timetable/model';
 import { setState, state, subscribe, fromOutside } from '../timetable/state';
@@ -158,6 +159,7 @@ export function mountBackup(refs: BackupRefs): void {
       // only well-formed entries come in (a hand-edited or older file must not break the app)
       const blocks = data.timetable.filter(isBlock).map((b) => ({ ...b, done: b.done === true }));
       const notes = (Array.isArray(data.notes) ? data.notes : []).filter((n): n is NoteRecord => typeof n?.date === 'string' && typeof n.text === 'string');
+      logChange('backup', f.name, 'import', { today: blocks.length, memos: notes.length, days: Array.isArray(data.days) ? data.days.length : 0 }, { today: state.blocks });
       fromOutside(() => setState({ blocks, draft: null, selected: [] }));
       notesStore()?.replace(notes);
       if (Array.isArray(data.templates)) replaceTemplates(data.templates);

@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.69',
+    date: '2026-10-27',
+    items: [
+      '변경 기록(로그): Today·지난 날·메모·계획·템플릿·저널·단어·사진의 모든 변경을 바꾸기 전·후 내용과 함께 따로 남김 (다른 기기 것이 덮어쓴 경우 덮이기 전 내용까지). 앱에는 안 보이고 Claude 연동(haru_log)으로만 읽음, 지우거나 고칠 수 없음',
+    ],
+  },
+  {
     version: '1.68',
     date: '2026-10-27',
     items: [

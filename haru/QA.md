@@ -833,3 +833,17 @@ Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호�
 
 **아직 못 본 것**
 - 실제 두 기기·로그인 상태의 트랜잭션 동작(헤드리스 브라우저 Google 로그인 불가).
+
+## 2026-10-27 — v1.69 변경 기록(로그)
+
+**추가한 것**
+- `src/cloud/log.ts`: 로그인한 계정의 모든 변경을 Firestore `logs/{uid}/entries`에 추가만 함(규칙상 수정·삭제 불가). 다른 기기 것이 덮어쓸 때(`from-cloud`)는 덮이기 전 내용(`before`)을 바로 남김. 같은 것을 15초 안에 여러 번 고치면 한 건(처음 before, 마지막 after).
+- MCP: Claude가 바꾼 것도 같은 로그에 남김(device `Claude-MCP`), `haru_log` 도구로 날짜·종류·키별로 읽음.
+
+**확인한 것**
+- `npx tsc --noEmit -p .` 통과, `node --check mcp/haru-mcp.mjs` 통과, MCP `tools/list`에 `haru_log` 있음, 콘솔 오류 0개.
+- 로그 모듈(가짜 Firestore): 연속 수정 2번 → 1건(before a, after c), from-cloud는 즉시 1건, 멈춘 뒤에는 기록 안 함.
+
+**아직 못 본 것**
+- `firestore.rules`의 `logs` 규칙을 Firebase 콘솔에 게시해야 실제로 쌓임(게시 전에는 조용히 실패, 동기화에는 영향 없음).
+- 실제 로그인 상태의 기록·`haru_log` 조회(헤드리스 Google 로그인 불가, 이 PC에는 MCP 로그인 없음).

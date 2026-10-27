@@ -63,6 +63,13 @@ service cloud.firestore {
       allow read, write: if isOwner();
     }
 
+    // the change log, for getting lost data back (read by Claude through the MCP; the app never shows it): each
+    // account appends to its own, and no one can change or delete an entry
+    match /logs/{uid}/entries/{id} {
+      allow read: if isInvited() && request.auth.uid == uid;
+      allow create: if isInvited() && request.auth.uid == uid && request.resource.data.at is int;
+    }
+
     // app settings the owners keep out of the public site (the NEIS API key): invited accounts read, owners write
     match /config/{doc} {
       allow read: if isInvited();
