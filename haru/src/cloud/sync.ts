@@ -1,9 +1,9 @@
 import type { Fb } from './firebase';
 import { announceAutoLost, changingAutomatically, setState, state, subscribe, fromOutside } from '../timetable/state';
 import { type Block, blocksUpdated, newId, stampBlocks } from '../timetable/model';
-import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templatesUpdated } from '../timetable/templates';
+import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templatesGone, templatesUpdated } from '../timetable/templates';
 import { allDays, onDaySaved, putFromRemote, type DaySnapshot } from '../timetable/history';
-import { allPlans, onPlans, plansFromRemote, plansUpdated } from '../timetable/plans';
+import { allPlans, onPlans, plansFromRemote, plansGone, plansUpdated } from '../timetable/plans';
 import { type NoteRecord, notesStore, onNotesChanged } from '../calendar/notes';
 import { fromDataUrl, imagesStore, onImagesChanged, toDataUrl } from '../calendar/images';
 import { checkinStore } from '../calendar/attendance';
@@ -11,6 +11,11 @@ import type { ListStore } from '../storage/list-store';
 import { wordsStore } from '../words/words';
 import { folderStore, journalStore } from '../journal/journal';
 import { logChange, startLog } from './log';
+import { mergeLists } from './merge';
+import type { Template } from '../timetable/templates';
+import type { Plan } from '../timetable/plans';
+import type { Entry, Folder } from '../journal/journal-store';
+import { type Gone, cleanGone } from '../storage/gone';
 import { onResetAt, resetAt, resetFromRemote, resetUpdated } from '../timetable/day-reset';
 
 /**
@@ -18,8 +23,8 @@ import { onResetAt, resetAt, resetFromRemote, resetUpdated } from '../timetable/
  * newer side wins; changes that arrive from the cloud are applied without being sent back.
  *
  *   state/timetable   { blocks, updated }          Today
- *   meta/templates    { list, updated }            day templates
- *   meta/plans        { list, updated }            days planned ahead
+ *   meta/templates    { list, updated, gone }      day templates (merged item by item, see merge.ts)
+ *   meta/plans        { list, updated, gone }      days planned ahead (merged day by day)
  *   meta/settings     { dayReset, updated }        New day time (minute of day, null: off)
  *   notes/{date}      { date, text, updated }      memos
  *   days/{date}       { date, blocks, saved }      day history
@@ -147,54 +152,56 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     cloudBlocksStamp = data.updated;
   }, () => onStatus('error')));
 
-  // ---------- templates (one list, last writer wins)
+  // ---------- templates (one list; the copies are merged template by template, so two devices editing
+  // different templates at once keep both)
   let cloudTplStamp = 0;
   const pushTemplates = () => {
     cloudTplStamp = templatesUpdated() || Date.now();
     logChange('templates', '', 'save', allTemplates());
-    write(fs.setDoc(ref('meta/templates'), { list: allTemplates(), updated: cloudTplStamp }));
+    write(fs.setDoc(ref('meta/templates'), { list: allTemplates(), updated: cloudTplStamp, gone: templatesGone() }));
   };
   onTemplates(() => {
     if (!stopped && templatesUpdated() > cloudTplStamp) pushTemplates();
   });
   unsubs.push(fs.onSnapshot(ref('meta/templates'), (snap) => {
     if (snap.metadata.hasPendingWrites) return;
-    const data = snap.data() as { list: unknown[]; updated: number } | undefined;
+    const data = snap.data() as { list: unknown[]; updated: number; gone?: Gone } | undefined;
     if (!data) {
       if (allTemplates().length) pushTemplates();
       return;
     }
-    if (data.updated > templatesUpdated()) {
-      cloudTplStamp = data.updated;
-      logChange('templates', '', 'from-cloud', data.list, allTemplates());
-      templatesFromRemote(data.list, data.updated);
-    } else if (templatesUpdated() > data.updated) pushTemplates();
-    else cloudTplStamp = data.updated;
+    const m = mergeLists({ items: allTemplates(), gone: templatesGone() }, { items: data.list as Template[], gone: cleanGone(data.gone) }, (t) => t.id, (t) => Number(t.updated) || 0);
+    cloudTplStamp = data.updated;
+    if (!m.sameAsLocal) {
+      logChange('templates', '', 'from-cloud', m.list, allTemplates());
+      // taking the cloud's copy as is keeps its stamp; a merge is a change of its own, and goes back up
+      templatesFromRemote(m.list, m.sameAsCloud ? data.updated : Date.now(), m.gone);
+    } else if (!m.sameAsCloud) pushTemplates();
   }, () => onStatus('error')));
 
-  // ---------- plans (one list, last writer wins, like the templates)
+  // ---------- plans (one list, merged day by day like the templates)
   let cloudPlanStamp = 0;
   const pushPlans = () => {
     cloudPlanStamp = plansUpdated() || Date.now();
     logChange('plans', '', 'save', allPlans());
-    write(fs.setDoc(ref('meta/plans'), { list: allPlans(), updated: cloudPlanStamp }));
+    write(fs.setDoc(ref('meta/plans'), { list: allPlans(), updated: cloudPlanStamp, gone: plansGone() }));
   };
   onPlans(() => {
     if (!stopped && plansUpdated() > cloudPlanStamp) pushPlans();
   });
   unsubs.push(fs.onSnapshot(ref('meta/plans'), (snap) => {
     if (snap.metadata.hasPendingWrites) return;
-    const data = snap.data() as { list: unknown[]; updated: number } | undefined;
+    const data = snap.data() as { list: unknown[]; updated: number; gone?: Gone } | undefined;
     if (!data) {
       if (allPlans().length) pushPlans();
       return;
     }
-    if (data.updated > plansUpdated()) {
-      cloudPlanStamp = data.updated;
-      logChange('plans', '', 'from-cloud', data.list, allPlans());
-      plansFromRemote(data.list, data.updated);
-    } else if (plansUpdated() > data.updated) pushPlans();
-    else cloudPlanStamp = data.updated;
+    const m = mergeLists({ items: allPlans(), gone: plansGone() }, { items: data.list as Plan[], gone: cleanGone(data.gone) }, (p) => p.date, (p) => Number(p.saved) || 0);
+    cloudPlanStamp = data.updated;
+    if (!m.sameAsLocal) {
+      logChange('plans', '', 'from-cloud', m.list, allPlans());
+      plansFromRemote(m.list, m.sameAsCloud ? data.updated : Date.now(), m.gone);
+    } else if (!m.sameAsCloud) pushPlans();
   }, () => onStatus('error')));
 
   // ---------- New day time (one value, the newer side wins). A device that never chose one sends the default
@@ -347,14 +354,19 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     });
   }
 
-  // ---------- lists (one document each, the newer side wins; check-ins are only ever added, so they merge)
-  const lists: [string, ListStore<unknown>, boolean][] = [
-    ['words', wordsStore, false],
-    ['journal', journalStore, false],
-    ['journal-folders', folderStore, false],
-    ['checkins', checkinStore, true],
+  // ---------- lists (one document each). Check-ins are only ever added, so the two copies are simply put
+  // together; journal pages and folders are merged item by item (merge.ts); words have no stamps, the newer
+  // copy wins
+  type ItemMerge = { key: (t: unknown) => string; stamp: (t: unknown) => number; prepend?: boolean };
+  const byId = (stampOf: (t: unknown) => number, prepend = false): ItemMerge => ({ key: (t) => String((t as { id: string }).id), stamp: stampOf, prepend });
+  const lists: [string, ListStore<unknown>, boolean, ItemMerge | null][] = [
+    ['words', wordsStore, false, null],
+    ['journal', journalStore, false, byId((t) => Number((t as Entry).updated) || 0, true)],
+    ['journal-folders', folderStore, false, byId((t) => Number((t as Folder).created) || 0)],
+    ['checkins', checkinStore, true, null],
   ];
-  for (const [key, store, merge] of lists) {
+  for (const [key, store, merge, items] of lists) {
+    const items_ = items;
     let cloudStamp = 0;
     const push = () => {
       // Firestore takes no `undefined` fields: a JSON round trip drops them
@@ -366,7 +378,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       }
       cloudStamp = store.updated() || Date.now();
       logChange('list', key, 'save', items);
-      write(fs.setDoc(ref(`lists/${key}`), { items, updated: cloudStamp }));
+      write(fs.setDoc(ref(`lists/${key}`), { items, updated: cloudStamp, ...(items_ && { gone: store.gone() }) }));
     };
     store.onChange(() => {
       if (!stopped && store.updated() > cloudStamp) push();
@@ -375,7 +387,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       if (stopped) return;
       unsubs.push(fs.onSnapshot(ref(`lists/${key}`), (snap) => {
         if (snap.metadata.hasPendingWrites) return;
-        const data = snap.data() as { items: unknown[]; updated: number } | undefined;
+        const data = snap.data() as { items: unknown[]; updated: number; gone?: Gone } | undefined;
         if (!data) {
           // nothing in the cloud yet: this device's list goes up
           if (store.all().length) push();
@@ -386,6 +398,15 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
           if (both.length !== store.all().length) store.fromRemote(both, Math.max(data.updated, store.updated()));
           cloudStamp = data.updated;
           if (both.length !== data.items.length) push();
+          return;
+        }
+        if (items) {
+          const m = mergeLists({ items: store.all(), gone: store.gone() }, { items: data.items, gone: cleanGone(data.gone) }, items.key, items.stamp, items.prepend);
+          cloudStamp = data.updated;
+          if (!m.sameAsLocal) {
+            logChange('list', key, 'from-cloud', m.list, store.all());
+            store.fromRemote(m.list, m.sameAsCloud ? data.updated : Date.now(), m.gone);
+          } else if (!m.sameAsCloud) push();
           return;
         }
         if (data.updated > store.updated()) {

@@ -4,7 +4,7 @@ import { CATEGORIES, type Category, contains } from './model';
 import { select, setStatus, state, subscribe } from './state';
 import { carryOver, dragWeek, focusDial, moveTask, monthDots, shiftDate, undoMove, unfinishedYesterday, weekStrips } from './today-modes';
 import { remindersOn, toggleReminders } from './reminders';
-import { goTo } from '../ui/router';
+import { currentView, goTo, onView } from '../ui/router';
 import { onResetAt, resetAt } from './day-reset';
 import { dayOf } from './history';
 import { onPlans } from './plans';
@@ -302,8 +302,10 @@ export function mountTodayViews(wrap: HTMLElement, stage: HTMLElement, dial: Dia
   });
   // the modes follow the clock (now moves through them), the New day time and the days planned ahead
   setInterval(() => {
-    if (MODES.includes(view) && !document.hidden) void renderMode();
+    if (MODES.includes(view) && !document.hidden && currentView() === 'today') void renderMode();
   }, 60_000);
+  // back on Today after a while away: the clock has moved on
+  onView((v) => v === 'today' && MODES.includes(view) && void renderMode());
   onResetAt(() => MODES.includes(view) && void renderMode());
   onPlans(() => (view === 'week' || view === 'dots') && void renderMode());
   render();

@@ -1,4 +1,5 @@
 import { kvGet, kvSet } from '../storage/db';
+import { type Gone, cleanGone, markGone } from '../storage/gone';
 import { CATEGORIES, type Block, type Category, newId } from './model';
 import type { TemplateBlock } from './templates';
 
@@ -20,6 +21,7 @@ export interface Plan {
 
 const KEY = 'haru:plans:v1';
 const STAMP = 'haru:plans:updated';
+const GONE = 'haru:plans:gone';
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** When the plan list last changed on this device (0 if never). */
 export const plansUpdated = (): number => {
@@ -50,6 +52,15 @@ const clean = (list: unknown[]): Plan[] =>
   });
 // after the helpers above: read any earlier, they aren't defined yet and the saved plans load as none
 let plans: Plan[] = load();
+/** Days whose plan was dropped, and when (by date), for the merge with the cloud's copy. */
+let gone: Gone = (() => {
+  try {
+    return cleanGone(JSON.parse(localStorage.getItem(GONE) ?? '{}'));
+  } catch {
+    return {};
+  }
+})();
+export const plansGone = (): Gone => gone;
 
 function load(): Plan[] {
   try {
@@ -59,10 +70,12 @@ function load(): Plan[] {
     return [];
   }
 }
-function save(stamp = Date.now()): void {
+function save(stamp = Date.now(), before: readonly Plan[] = plans, remoteGone?: Gone): void {
+  gone = remoteGone ?? markGone(gone, before, plans, (p) => p.date);
   try {
     localStorage.setItem(STAMP, String(stamp));
     localStorage.setItem(KEY, JSON.stringify(plans));
+    localStorage.setItem(GONE, JSON.stringify(gone));
   } catch {
     // storage unavailable — the IndexedDB mirror below still has them
   }
@@ -94,14 +107,16 @@ export function setPlan(date: string, blocks: readonly PlanBlock[], from: string
     from,
     saved: Date.now(),
   };
+  const before = plans;
   plans = [...plans.filter((x) => x.date !== date), p].sort((a, b) => a.date.localeCompare(b.date));
-  save();
+  save(Date.now(), before);
 }
 
 export function clearPlan(date: string): void {
   if (!planOn(date)) return;
+  const before = plans;
   plans = plans.filter((p) => p.date !== date);
-  save();
+  save(Date.now(), before);
 }
 
 /**
@@ -112,20 +127,23 @@ export function takePlan(date: string): Block[] | null {
   const p = planOn(date);
   const left = plans.filter((x) => x.date > date);
   if (left.length !== plans.length) {
+    const before = plans;
     plans = left;
-    save();
+    save(Date.now(), before);
   }
   return p ? p.blocks.map((b) => ({ ...b, id: newId(), done: false })) : null;
 }
 
-/** Applies the plan list from the cloud, keeping its time stamp. */
-export function plansFromRemote(list: unknown[], stamp: number): void {
-  plans = clean(list);
-  save(stamp);
+/** Applies the plan list (and its tombstones) from the cloud, keeping its time stamp. */
+export function plansFromRemote(list: unknown[], stamp: number, remoteGone?: Gone): void {
+  const before = plans;
+  plans = clean(list).sort((a, b) => a.date.localeCompare(b.date));
+  save(stamp, before, remoteGone);
 }
 
 /** Replaces all plans (restoring a backup). */
 export function replacePlans(list: unknown[]): void {
+  const before = plans;
   plans = clean(list);
-  save();
+  save(Date.now(), before);
 }

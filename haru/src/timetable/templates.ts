@@ -1,4 +1,5 @@
 import { kvGet, kvSet } from '../storage/db';
+import { type Gone, cleanGone, markGone } from '../storage/gone';
 import { CATEGORIES, type Block, type Category, newId } from './model';
 import { announceAdded, setState, state } from './state';
 
@@ -15,6 +16,7 @@ export interface Template { id: string; name: string; blocks: TemplateBlock[]; u
 
 const KEY = 'haru:templates:v1';
 const STAMP = 'haru:templates:updated';
+const GONE = 'haru:templates:gone';
 /** When the template list last changed on this device (0 if never). */
 export const templatesUpdated = (): number => Number(localStorage.getItem(STAMP) ?? 0) || 0;
 const listeners = new Set<() => void>();
@@ -35,6 +37,15 @@ const clean = (list: unknown[]): Template[] =>
   list.filter(isTemplate).map((t) => ({ id: t.id, name: t.name, blocks: cleanBlocks(t.blocks), updated: Number(t.updated) || 0 }));
 // after the helpers above: read any earlier, they aren't defined yet and the saved templates load as none
 let templates: Template[] = load();
+/** Templates deleted, and when (by id), for the merge with the cloud's copy. */
+let gone: Gone = (() => {
+  try {
+    return cleanGone(JSON.parse(localStorage.getItem(GONE) ?? '{}'));
+  } catch {
+    return {};
+  }
+})();
+export const templatesGone = (): Gone => gone;
 
 function load(): Template[] {
   try {
@@ -44,10 +55,12 @@ function load(): Template[] {
     return [];
   }
 }
-function save(stamp = Date.now()): void {
+function save(stamp = Date.now(), before: readonly Template[] = templates, remoteGone?: Gone): void {
+  gone = remoteGone ?? markGone(gone, before, templates, (t) => t.id);
   try {
     localStorage.setItem(STAMP, String(stamp));
     localStorage.setItem(KEY, JSON.stringify(templates));
+    localStorage.setItem(GONE, JSON.stringify(gone));
   } catch {
     // storage unavailable — the IndexedDB mirror below still has them
   }
@@ -99,8 +112,9 @@ export function updateTemplate(id: string, patch: Partial<Pick<Template, 'name' 
 }
 
 export function removeTemplate(id: string): void {
+  const before = templates;
   templates = templates.filter((t) => t.id !== id);
-  save();
+  save(Date.now(), before);
 }
 
 /** Replaces Today's tasks with the template's (all not done). Returns the tasks it replaced, for undo. */
@@ -114,13 +128,15 @@ export function applyTemplate(id: string): Block[] | null {
 }
 
 /** Applies the template list from the cloud, keeping its time stamp. */
-export function templatesFromRemote(list: unknown[], stamp: number): void {
+export function templatesFromRemote(list: unknown[], stamp: number, remoteGone?: Gone): void {
+  const before = templates;
   templates = clean(list);
-  save(stamp);
+  save(stamp, before, remoteGone);
 }
 
 /** Replaces all templates (restoring a backup). */
 export function replaceTemplates(list: unknown[]): void {
+  const before = templates;
   templates = clean(list);
-  save();
+  save(Date.now(), before);
 }

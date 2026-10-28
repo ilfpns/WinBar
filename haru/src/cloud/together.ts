@@ -1,7 +1,7 @@
 import { avatar, onSession, session, type Session } from './session';
 import { memberList } from './viewing';
 import { CATEGORIES, type Category, labelOf } from '../timetable/model';
-import { addBlock } from '../timetable/state';
+import { addBlock, state } from '../timetable/state';
 import { dayOf } from '../timetable/history';
 import { planOn, setPlan } from '../timetable/plans';
 import { templateBlock } from '../timetable/templates';
@@ -80,11 +80,15 @@ function watch(s: Session): () => void {
 /** Puts an accepted task on your own Today or plan; an error message when it overlaps something there. */
 function place(t: Together): string | null {
   const today = dayOf();
+  const same = (x: { title: string; start: number; dur: number }) => x.title === t.title && x.start === t.start && x.dur === t.dur;
+  // already there (an earlier Accept whose answer didn't get through): nothing more to place
   if (t.date === today) {
+    if (state.blocks.some(same)) return null;
     return addBlock({ id: null, title: t.title, cat: t.cat, start: t.start, dur: t.dur, done: false, ...(t.note && { note: t.note }) });
   }
   const plan = planOn(t.date);
   const blocks = plan?.blocks ?? [];
+  if (blocks.some(same)) return null;
   const hit = blocks.find((x) => mod(t.start - x.start) < x.dur || mod(x.start - t.start) < t.dur);
   if (hit) return `Overlaps ${labelOf(hit)} ${hhmm(hit.start)}–${hhmm(hit.start + hit.dur)} on that day`;
   setPlan(t.date, [...blocks, templateBlock(t)], plan?.from || 'Together');

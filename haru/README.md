@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.74** (2026-10-28) — 전체 QA: 기기 간 항목별 합치기(삭제 기록), Together 수락 재시도, 낮은 창 막대 겹침, 모드 재그리기 절약
 - **v1.73** (2026-10-28) — 주간 리뷰 카드 / 카테고리 연속 기록 / Together(멤버와 같이 할 일, 수락하면 내 Today·계획에)
 - **v1.72** (2026-10-28) — Dot board 페이지: 카테고리 9개가 하루마다 한 칸씩 자라는 육각형 판, 시간만큼 진하게
 - **v1.71** (2026-10-28) — Today 모드 3개(Next 3 hours · This week · Dots): 끌어서 옮기기, 못 끝낸 일 넘기기, Start/Done, 5분 전 알림, 반응형

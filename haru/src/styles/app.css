@@ -74,7 +74,7 @@ img, svg, a { -webkit-user-drag: none; }
   position: relative;
   width: min(100%, calc(100svh - 60px), 860px); aspect-ratio: 1;
   /* kept clear of Today's greeting at every size: centred, a dial this big starts below it (--greet-room, from ui/greeting) */
-  max-width: calc(100svh - var(--tb, 0px) - 2 * var(--greet-room, 0px));
+  max-width: calc(100svh - var(--tb, 0px) - 2 * var(--greet-room, 0px) - 2 * var(--bar-room, 0px));
   transform: translate3d(var(--dial-x, 0px), 0, 0) scale(var(--dial-s, 1));
   transition: transform var(--drawer-dur) var(--drawer-ease);
   will-change: transform;
@@ -230,6 +230,8 @@ img, svg, a { -webkit-user-drag: none; }
 .today-flash.on .btn-text { pointer-events: auto; }
 .today-flash .btn-text { height: 26px; padding: 0 8px; font-size: 12px; color: var(--accent); }
 /* a mode's own bar (the week's carry-over, focus's reminders) sits just above its box, never over it */
+/* a mode's bar above the box takes its room from the dial's size, so on a low window it never sits on the greeting */
+.dial-wrap:has(.today-remind, .today-carry) { --bar-room: 48px; }
 .today-carry, .today-remind { position: absolute; left: 50%; bottom: calc(100% + 8px); translate: -50% 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px;
   width: max-content; max-width: 100%; box-sizing: border-box; padding: 6px 8px 6px 12px; border-radius: 12px; background: var(--surface-solid); border: 1px solid var(--line);
   pointer-events: auto; animation: tm-in .35s var(--ease-out) both; }

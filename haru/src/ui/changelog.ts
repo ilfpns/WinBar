@@ -17,6 +17,16 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.74',
+    date: '2026-10-28',
+    items: [
+      '기기 간 동기화: 템플릿·앞날 계획·저널 페이지와 폴더를 항목별로 합침. 두 기기에서 동시에 다른 것을 고쳐도 둘 다 남고, 한쪽에서 지운 것은 다른 쪽에도 지워짐(삭제 기록을 60일 보관)',
+      'Together: 수락이 중간에 끊겨도 다시 눌렀을 때 같은 할 일이 두 번 들어가지 않음',
+      'Next 3 hours·This week의 위 막대(알림·못 끝낸 일)가 낮은 창에서 인사말과 겹치던 문제를 고침',
+      'Today 모드가 다른 페이지에 있는 동안에는 1분마다 다시 그리지 않음, Today로 돌아오면 바로 지금 시각으로',
+    ],
+  },
+  {
     version: '1.73',
     date: '2026-10-28',
     items: [

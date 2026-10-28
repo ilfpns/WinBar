@@ -551,7 +551,8 @@ const tools = [
         const list = (cur?.list ?? []).filter((p) => p.date !== day);
         list.push({ date: day, blocks, from: a.from ? String(a.from) : 'Claude', saved: Date.now() });
         list.sort((x, y) => x.date.localeCompare(y.date));
-        return { data: { list, updated: Date.now() }, result: { planned: day, tasks: blocks.map(shown) } };
+        // `gone`: what the list deleted and when (the app merges copies with it); a document write keeps it
+        return { data: { list, updated: Date.now(), gone: cur?.gone ?? {} }, result: { planned: day, tasks: blocks.map(shown) } };
       });
     },
   },
@@ -565,7 +566,8 @@ const tools = [
       return update(`users/${uid}/meta/plans`, (cur) => {
         const list = cur?.list ?? [];
         if (!list.some((p) => p.date === day)) fail(`No plan on ${day}`);
-        return { data: { list: list.filter((p) => p.date !== day), updated: Date.now() }, result: { cleared: day } };
+        const now = Date.now();
+        return { data: { list: list.filter((p) => p.date !== day), updated: now, gone: { ...(cur?.gone ?? {}), [day]: now } }, result: { cleared: day } };
       });
     },
   },
@@ -667,7 +669,7 @@ const tools = [
         }
         // the app keeps the whole journal in one document (at most 1 MB)
         if (JSON.stringify(items).length > 900_000) fail('The journal is full (one Firestore document holds 1 MB)');
-        return { data: { items, updated: t }, result: { saved: { id: page.id, date: page.date, title: page.title } } };
+        return { data: { items, updated: t, gone: cur?.gone ?? {} }, result: { saved: { id: page.id, date: page.date, title: page.title } } };
       });
     },
   },
