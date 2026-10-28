@@ -127,6 +127,120 @@ img, svg, a { -webkit-user-drag: none; }
 :is(#dial, .peek-dial) .hover-label.drag-time { font-size: 20px; fill: var(--accent); }
 .today-chart .cal-tt-dial { width: 100%; height: 100%; }
 .today-chart-empty { margin: 0; font-size: 15px; color: var(--text-subtle); }
+/* Today's modes (timetable/today-modes.ts): one SVG each in the dial's box; Today's tasks in them select on click */
+.today-chart .today-mode { width: 100%; height: 100%; overflow: visible; }
+.today-mode.enter { animation: tm-in .45s var(--ease-out) both; }
+@keyframes tm-in { from { opacity: 0; transform: scale(.97); } }
+@media (prefers-reduced-motion: reduce) { .today-mode.enter { animation: none; } }
+.today-mode [data-id] { pointer-events: visiblePainted; cursor: pointer; transition: opacity var(--dur-fast) var(--ease-out); }
+.today-mode [data-id]:hover { opacity: .8; }
+.today-mode text { font-family: var(--font-sans); }
+/* focus */
+.tm-focus .tm-track { fill: none; stroke: var(--surface-solid); stroke-width: 30; }
+.tm-focus .tm-task path { stroke: var(--bg); stroke-width: 2; }
+.tm-focus .tm-name { font-size: 22px; font-weight: 500; fill: var(--text); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.tm-focus .tm-name.lit { fill: #fff; }
+.tm-focus .tm-hour { font: 400 15px var(--font-mono); fill: var(--text-subtle); text-anchor: middle; dominant-baseline: central; }
+.tm-focus .tm-hour.wide { font-size: 18px; fill: var(--text-muted); }
+.tm-focus .tm-now { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.tm-focus .tm-now-dot { fill: var(--accent); }
+.tm-focus .tm-kicker { font: 500 16px var(--font-mono); letter-spacing: .16em; fill: var(--accent); }
+.tm-focus .tm-title { font-size: 60px; font-weight: 500; letter-spacing: -.02em; fill: var(--text-strong); }
+.tm-focus .tm-sub { font: 400 22px var(--font-mono); fill: var(--text-muted); }
+.tm-focus .tm-next { font-size: 22px; fill: var(--text-subtle); }
+.tm-focus .tm-bar { fill: var(--surface-3); }
+/* week */
+.tm-week .tm-grid { stroke: rgb(var(--ink) / .05); stroke-width: 1; }
+.tm-week .tm-tick { font: 400 15px var(--font-mono); fill: var(--text-subtle); text-anchor: middle; }
+.tm-week .tm-dow { font: 500 15px var(--font-mono); letter-spacing: .1em; fill: var(--text-subtle); }
+.tm-week .tm-dow.sun { fill: #e26d5c; }
+.tm-week .tm-dow.sat { fill: var(--cat-study); }
+.tm-week .tm-dow.today { fill: var(--accent); }
+.tm-week .tm-date { font-size: 34px; font-weight: 500; fill: var(--text); }
+.tm-week .tm-date.past { fill: var(--text-muted); }
+.tm-week .tm-date.today { fill: var(--text-strong); }
+.tm-week .tm-lane { fill: rgb(var(--ink) / .03); stroke: var(--line); stroke-width: 1; }
+.tm-week .tm-lane.today { fill: color-mix(in srgb, var(--accent) 6%, transparent); stroke: color-mix(in srgb, var(--accent) 35%, transparent); }
+.tm-week .tm-empty { font-size: 18px; fill: var(--text-subtle); text-anchor: middle; }
+.tm-week .tm-seg rect { fill: var(--f); stroke: color-mix(in srgb, var(--c) 45%, transparent); stroke-width: 1.5; }
+.tm-week .tm-seg.done rect { fill: color-mix(in srgb, var(--c) 72%, var(--bg)); stroke: none; }
+.tm-week .tm-seg.missed rect { fill: color-mix(in srgb, var(--c) 8%, transparent); stroke: color-mix(in srgb, var(--c) 60%, transparent); stroke-dasharray: 5 4; }
+.tm-week .tm-seg text { font-size: 19px; fill: var(--text); pointer-events: none; }
+.tm-week .tm-seg.done text { fill: #fff; }
+.tm-week .tm-seg.missed text { fill: var(--text-muted); }
+.tm-week .tm-now { stroke: var(--accent); stroke-width: 3; }
+.tm-week .tm-now-chip { fill: var(--accent); }
+.tm-week .tm-now-text { font: 500 16px var(--font-mono); fill: #04120a; text-anchor: middle; }
+/* dots */
+.tm-dots .tm-month { font-size: 30px; font-weight: 500; fill: var(--text-strong); }
+.tm-dots .tm-month.small { font: 400 17px var(--font-mono); fill: var(--text-muted); }
+.tm-dots .tm-wd { font: 500 14px var(--font-mono); letter-spacing: .1em; fill: var(--text-subtle); text-anchor: middle; }
+.tm-dots .tm-wd.sun { fill: #e26d5c; }
+.tm-dots .tm-wd.sat { fill: var(--cat-study); }
+.tm-dots .tm-cell { fill: rgb(var(--ink) / .03); stroke: var(--line); stroke-width: 1; }
+.tm-dots .tm-cell.today { fill: color-mix(in srgb, var(--accent) 7%, transparent); stroke: color-mix(in srgb, var(--accent) 45%, transparent); }
+.tm-dots .tm-num { font-size: 20px; font-weight: 500; fill: var(--text); }
+.tm-dots .tm-num.today { fill: var(--accent); }
+.tm-dots .tm-dot.free { fill: rgb(var(--ink) / .06); }
+.tm-dots .tm-dot.ahead { opacity: .6; }
+.today-mode :is([data-action], [data-date], .movable) { pointer-events: visiblePainted; cursor: pointer; }
+.today-mode .tm-day { pointer-events: bounding-box; }
+.today-mode :is([data-action], [data-date]):focus-visible { outline: none; }
+.today-mode :is([data-action], .tm-day):focus-visible rect { stroke: var(--text-muted); stroke-width: 2; }
+.today-mode .tm-day:hover .tm-cell { fill: rgb(var(--ink) / .07); }
+.today-mode .tm-lane[data-date]:hover { fill: rgb(var(--ink) / .06); }
+/* buttons drawn in the modes */
+.tm-btn rect { fill: var(--surface-3); stroke: var(--line); stroke-width: 1; transition: fill var(--dur-fast) var(--ease-out); }
+.tm-btn:hover rect { fill: rgb(var(--ink) / .2); }
+.tm-btn text { font-size: 22px; font-weight: 500; fill: var(--text-strong); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.tm-btn.on rect { fill: color-mix(in srgb, var(--accent) 22%, transparent); stroke: color-mix(in srgb, var(--accent) 55%, transparent); }
+.tm-btn.on text { fill: var(--accent); }
+/* week: a task being dragged, and where it would go */
+.tm-week .movable { cursor: grab; }
+.tm-week .tm-seg.lifted { opacity: .35; }
+.tm-week .tm-seg.ghost { pointer-events: none; filter: drop-shadow(0 8px 18px rgb(0 0 0 / .55)); }
+.tm-week .tm-seg.ghost rect { stroke: #fff; stroke-width: 2; stroke-dasharray: none; }
+.tm-week .tm-seg.ghost.bad { opacity: .45; }
+.tm-week .tm-drag-label { pointer-events: none; }
+.tm-week .tm-drag-label rect { fill: #fff; }
+.tm-week .tm-drag-label text { font: 500 18px var(--font-mono); fill: #0b0b0d; transform: translateX(12px); }
+/* on a narrow screen the box is drawn smaller: the type comes out larger, a little lighter set */
+.today-mode.compact .tm-name { font-size: 33px; }
+.today-mode.compact .tm-hour { font-size: 22px; }
+.today-mode.compact .tm-hour.wide { font-size: 26px; }
+.today-mode.compact .tm-kicker { font-size: 22px; }
+.today-mode.compact .tm-title { font-size: 84px; }
+.today-mode.compact .tm-sub, .today-mode.compact .tm-next { font-size: 30px; }
+.today-mode.compact .tm-btn text { font-size: 31px; }
+.tm-week.compact .tm-tick { font-size: 15px; }
+.tm-week.compact .tm-dow { font-size: 13px; }
+.tm-week.compact .tm-date { font-size: 26px; }
+.tm-week.compact .tm-seg text { font-size: 17px; }
+.tm-week.compact .tm-empty { font-size: 16px; }
+.tm-dots.compact .tm-wd { font-size: 18px; }
+.tm-dots.compact .tm-num { font-size: 22px; }
+.tm-dots.compact .tm-month { font-size: 34px; }
+.tm-dots.compact .tm-month.small { font-size: 20px; }
+/* under the mode: what just happened (Undo), and yesterday's unfinished tasks over the week */
+.today-flash { position: absolute; left: 50%; bottom: 2%; z-index: 3; translate: -50% 0; display: flex; align-items: center; gap: 8px; max-width: 92%; padding: 8px 10px 8px 14px; border-radius: 12px;
+  background: var(--surface-solid); border: 1px solid var(--line); box-shadow: 0 10px 30px rgb(0 0 0 / .4); font-size: 13px; color: var(--text);
+  opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+/* it lies over the mode's bottom: only its Undo takes clicks */
+.today-flash.on { opacity: 1; transform: none; }
+.today-flash.on .btn-text { pointer-events: auto; }
+.today-flash .btn-text { height: 26px; padding: 0 8px; font-size: 12px; color: var(--accent); }
+/* a mode's own bar (the week's carry-over, focus's reminders) sits just above its box, never over it */
+.today-carry, .today-remind { position: absolute; left: 50%; bottom: calc(100% + 8px); translate: -50% 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px;
+  width: max-content; max-width: 100%; box-sizing: border-box; padding: 6px 8px 6px 12px; border-radius: 12px; background: var(--surface-solid); border: 1px solid var(--line);
+  pointer-events: auto; animation: tm-in .35s var(--ease-out) both; }
+.today-remind { gap: 8px; padding: 0 12px; height: 34px; border-radius: 17px; color: var(--text-muted); font: inherit; font-size: 13px; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+.today-remind:hover { color: var(--text-strong); }
+.today-remind[aria-pressed="true"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.today-remind .ic { width: 15px; height: 15px; }
+.today-carry > .ic { width: 15px; height: 15px; color: var(--accent); }
+.today-carry-text { font-size: 13px; font-weight: 500; color: var(--text-strong); }
+.today-carry .btn-text, .today-carry .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
 .today-views {
   position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 5; display: flex; gap: 2px; padding: 3px;
   border: 1px solid var(--glass-edge); border-radius: 12px; background: var(--noise), var(--glass-fill);

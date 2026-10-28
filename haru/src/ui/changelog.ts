@@ -17,6 +17,18 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.71',
+    date: '2026-10-28',
+    items: [
+      'Today 보기에 모드 3개 추가: Next 3 hours(앞 3시간을 크게 보여 주는 다이얼), This week(이번 주 7일 띠), This month in dots(이번 달을 점으로)',
+      'Next 3 hours: 가운데에서 지금 할 일을 Start / Done, 위의 버튼으로 할 일 5분 전 알림 켜기',
+      'This week: Today와 앞날의 할 일을 끌어서 다른 시간·요일로 옮기기(Alt는 복사, Undo), 앞날·빈 날을 누르면 캘린더에서 그날이 열림',
+      'This week: 어제 못 끝낸 일을 Today나 내일 계획으로 넘기기(겹치는 것은 빼고), 또는 Let go',
+      'This month in dots: 날짜를 누르면 캘린더에서 그날이 열리고, 아래 Today 점을 누르면 그 할 일이 선택됨',
+      '휴대폰 같은 좁은 화면에서는 세 모드의 글자와 눈금이 크게 다시 그려짐',
+    ],
+  },
+  {
     version: '1.70',
     date: '2026-10-28',
     items: [

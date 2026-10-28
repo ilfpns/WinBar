@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.71** (2026-10-28) — Today 모드 3개(Next 3 hours · This week · Dots): 끌어서 옮기기, 못 끝낸 일 넘기기, Start/Done, 5분 전 알림, 반응형
 - **v1.70** (2026-10-28) — 새 하루 시작 시각 동기화 / Plan에서 할 일 고치기·추가 / 템플릿 메모 / 저널 폴더 Claude에게 숨기기 / 세부 일정 접힘 다시 재기 / 새 버전 안내 카드
 - **v1.69** (2026-10-27) — 변경 기록(로그): 모든 변경을 전·후 내용과 함께 남김, Claude 연동 haru_log로만 읽음
 - **v1.68** (2026-10-27) — 다른 기기 Today·지난 날 기록이 덮어써지던 문제 수정, Import가 지난 날 기록도 클라우드에 복구

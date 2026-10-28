@@ -809,6 +809,13 @@ export function mountCalendar(refs: CalendarRefs): void {
     if (cell?.dataset.date) pickDate(cell.dataset.date);
   });
 
+  // Today's week and month modes open a day here (today-views.ts): that day picked, its timetable or plan open
+  addEventListener('haru:open-day', (e) => {
+    const date = (e as CustomEvent<string>).detail;
+    if (typeof date !== 'string') return;
+    if (!ttOpen) ttBtn.click();
+    pickDate(date);
+  });
   function pickDate(date: string): void {
     selected = date;
     const d = new Date(`${selected}T00:00`);

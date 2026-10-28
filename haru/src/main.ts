@@ -21,6 +21,7 @@ import { mountTemplates } from './timetable/templates-ui';
 import { trackHistory } from './timetable/history';
 import { mountSchoolAuto } from './timetable/school-auto';
 import { mountTodayViews } from './timetable/today-views';
+import { mountReminders } from './timetable/reminders';
 import { mountAccount } from './cloud/account';
 import { mountActivity } from './cloud/activity';
 import { mountWords } from './words/words';
@@ -81,6 +82,7 @@ trackHistory();
 // the school's lessons and meals, every day by themselves when switched on (Settings → Today)
 mountSchoolAuto();
 mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'), dial);
+mountReminders();
 mountGreeting(byId('stage'));
 mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountTitlebar();
