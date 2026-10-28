@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from './db';
-import { type Gone, cleanGone, markGone } from './gone';
+import { type Gone, cleanGone, markGone, nextStamp } from './gone';
 
 /**
  * A list of records kept twice — localStorage (read at once on start) and IndexedDB `kv` (survives
@@ -61,7 +61,7 @@ export function listStore<T>(key: string, valid: (v: unknown) => v is T): ListSt
   return {
     all: () => current.items,
     set(items) {
-      current = { items, updated: Date.now(), gone: markGone(current.gone ?? {}, current.items, items, idOf) };
+      current = { items, updated: nextStamp(current.updated), gone: markGone(current.gone ?? {}, current.items, items, idOf) };
       writeLocal();
       void kvSet(key, current).catch(() => {});
       listeners.forEach((fn) => fn());

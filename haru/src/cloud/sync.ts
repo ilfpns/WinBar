@@ -15,7 +15,7 @@ import { mergeLists } from './merge';
 import type { Template } from '../timetable/templates';
 import type { Plan } from '../timetable/plans';
 import type { Entry, Folder } from '../journal/journal-store';
-import { type Gone, cleanGone } from '../storage/gone';
+import { type Gone, cleanGone, nextStamp } from '../storage/gone';
 import { onResetAt, resetAt, resetFromRemote, resetUpdated } from '../timetable/day-reset';
 
 /**
@@ -125,7 +125,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       pushIfUnchanged();
       return;
     }
-    stampBlocks(Date.now());
+    stampBlocks(nextStamp(blocksUpdated()));
     pushBlocks();
   });
   const take = (blocks: Block[], gone: Gone, stamp: number) => {

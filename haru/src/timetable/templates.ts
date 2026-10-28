@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from '../storage/db';
-import { type Gone, cleanGone, markGone } from '../storage/gone';
+import { type Gone, cleanGone, markGone, nextStamp } from '../storage/gone';
 import { CATEGORIES, type Block, type Category, newId } from './model';
 import { announceAdded, setState, state } from './state';
 
@@ -55,7 +55,7 @@ function load(): Template[] {
     return [];
   }
 }
-function save(stamp = Date.now(), before: readonly Template[] = templates, remoteGone?: Gone): void {
+function save(stamp = nextStamp(templatesUpdated()), before: readonly Template[] = templates, remoteGone?: Gone): void {
   gone = remoteGone ?? markGone(gone, before, templates, (t) => t.id);
   try {
     localStorage.setItem(STAMP, String(stamp));
@@ -114,7 +114,7 @@ export function updateTemplate(id: string, patch: Partial<Pick<Template, 'name' 
 export function removeTemplate(id: string): void {
   const before = templates;
   templates = templates.filter((t) => t.id !== id);
-  save(Date.now(), before);
+  save(nextStamp(templatesUpdated()), before);
 }
 
 /** Replaces Today's tasks with the template's (all not done). Returns the tasks it replaced, for undo. */
@@ -138,5 +138,5 @@ export function templatesFromRemote(list: unknown[], stamp: number, remoteGone?:
 export function replaceTemplates(list: unknown[]): void {
   const before = templates;
   templates = clean(list);
-  save(Date.now(), before);
+  save(nextStamp(templatesUpdated()), before);
 }

@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.76',
+    date: '2026-10-28',
+    items: [
+      '같은 순간에 일어난 두 변경(예: 할 일을 다른 날로 끌어 옮기기, 여러 개 한꺼번에 지우기) 중 뒤의 것이 클라우드에 안 올라가던 문제를 고침',
+    ],
+  },
+  {
     version: '1.75',
     date: '2026-10-28',
     items: [

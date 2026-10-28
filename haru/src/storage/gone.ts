@@ -6,6 +6,10 @@
  */
 export type Gone = Record<string, number>;
 
+/** Now, or one past `last` when the clock hasn't moved: a stamp that always moves on, so two changes in one
+ *  millisecond never look like one to the sync (which pushes only what is stamped later than its last push). */
+export const nextStamp = (last: number): number => Math.max(Date.now(), (Number(last) || 0) + 1);
+
 const KEEP_DAYS = 60;
 
 /** `gone` with the keys that `before` had and `after` lacks marked as deleted now, old marks dropped. */

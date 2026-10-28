@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from '../storage/db';
-import { type Gone, cleanGone, markGone } from '../storage/gone';
+import { type Gone, cleanGone, markGone, nextStamp } from '../storage/gone';
 import { CATEGORIES, type Block, type Category, newId } from './model';
 import type { TemplateBlock } from './templates';
 
@@ -70,7 +70,7 @@ function load(): Plan[] {
     return [];
   }
 }
-function save(stamp = Date.now(), before: readonly Plan[] = plans, remoteGone?: Gone): void {
+function save(stamp = nextStamp(plansUpdated()), before: readonly Plan[] = plans, remoteGone?: Gone): void {
   gone = remoteGone ?? markGone(gone, before, plans, (p) => p.date);
   try {
     localStorage.setItem(STAMP, String(stamp));
@@ -109,14 +109,14 @@ export function setPlan(date: string, blocks: readonly PlanBlock[], from: string
   };
   const before = plans;
   plans = [...plans.filter((x) => x.date !== date), p].sort((a, b) => a.date.localeCompare(b.date));
-  save(Date.now(), before);
+  save(nextStamp(plansUpdated()), before);
 }
 
 export function clearPlan(date: string): void {
   if (!planOn(date)) return;
   const before = plans;
   plans = plans.filter((p) => p.date !== date);
-  save(Date.now(), before);
+  save(nextStamp(plansUpdated()), before);
 }
 
 /**
@@ -129,7 +129,7 @@ export function takePlan(date: string): Block[] | null {
   if (left.length !== plans.length) {
     const before = plans;
     plans = left;
-    save(Date.now(), before);
+    save(nextStamp(plansUpdated()), before);
   }
   return p ? p.blocks.map((b) => ({ ...b, id: newId(), done: false })) : null;
 }
@@ -145,5 +145,5 @@ export function plansFromRemote(list: unknown[], stamp: number, remoteGone?: Gon
 export function replacePlans(list: unknown[]): void {
   const before = plans;
   plans = clean(list);
-  save(Date.now(), before);
+  save(nextStamp(plansUpdated()), before);
 }
