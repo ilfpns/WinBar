@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.78',
+    date: '2026-10-29',
+    items: [
+      'Today 인사말 아래 "Tomorrow" 칩: 눌러서 내일 계획을 바로 작성(할 일 추가·수정, 템플릿·Today 복사), 화살표로 N일 뒤까지 넘겨서 작성. 그날이 시작되면 Today가 됨',
+    ],
+  },
+  {
     version: '1.77',
     date: '2026-10-28',
     items: [

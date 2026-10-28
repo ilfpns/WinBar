@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.78** (2026-10-29) — Today에서 내일·N일 뒤 계획 작성(Tomorrow 칩)
 - **v1.77** (2026-10-28) — 인사말 아래 칩을 Today 연속 기록 하나로
 - **v1.76** (2026-10-28) — 같은 순간의 두 변경 중 뒤의 것이 동기화되지 않던 문제 (실서버 두 기기 검사에서 발견)
 - **v1.75** (2026-10-28) — Today도 할 일별 합치기 / 출석 달력 월 이름 폭

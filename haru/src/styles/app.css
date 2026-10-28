@@ -3061,6 +3061,38 @@ body.gated .titlebar > * { visibility: hidden; }
 .greet-streak { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 13px; background: color-mix(in srgb, var(--c) 14%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent); font: 400 12px var(--font-sans); letter-spacing: 0; color: var(--text); }
 .greet-streak .ic { width: 13px; height: 13px; color: var(--c); }
+.greet-streak[hidden] { display: none; }
+/* the chip that plans tomorrow, and its picker (timetable/plan-ahead.ts) */
+.greet-ahead { border: 0; cursor: pointer; background: rgb(var(--shade) / .3); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-muted);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.greet-ahead:is(:hover, :focus-visible, [aria-expanded="true"]) { background: rgb(var(--shade) / .55); color: var(--text-strong); outline: none; }
+.ahead-pop {
+  position: fixed; inset: auto; margin: 0; width: min(320px, calc(100vw - 16px)); max-height: calc(100svh - 16px); overflow-y: auto; padding: 8px;
+  border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--noise), var(--sheet); color: var(--text); box-shadow: var(--glass-shine), var(--glass-drop);
+}
+.ahead-pop:popover-open, .ahead-pop.pop-fb:not([hidden]) { display: grid; gap: 4px; animation: class-pop-in .18s var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .ahead-pop:popover-open { animation: none; } }
+.ahead-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px; }
+.ahead-pop :is(.ahead-head, .ahead-tools) button {
+  display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border: 0; border-radius: 9px; background: none; cursor: pointer;
+  font: 400 13px/1.2 var(--font-sans); color: var(--text); text-align: left;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.ahead-pop :is(.ahead-head, .ahead-tools) button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ahead-pop :is(.ahead-head, .ahead-tools) button:is(:hover, :focus-visible) { background: var(--surface-2); color: var(--text-strong); outline: none; }
+.ahead-pop .ahead-tools button.danger:is(:hover, :focus-visible) { color: var(--danger); }
+.ahead-pop :is(.ahead-head, .ahead-tools) .ic { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.ahead-pop .ahead-head .ahead-step { justify-content: center; width: 32px; min-height: 32px; padding: 0; }
+.ahead-pop .ahead-head .ahead-step:disabled { opacity: .3; cursor: default; background: none; }
+.ahead-title { display: grid; justify-items: center; margin: 0; font: 500 14px/1.3 var(--font-sans); color: var(--text-strong); }
+.ahead-title .meta { font-size: 11px; text-transform: none; }
+.ahead-from { margin: 0 0 2px; text-align: center; font-size: 11px; text-transform: none; color: var(--text-subtle); }
+.ahead-list:empty { display: none; }
+.ahead-list li { padding: 4px 8px; animation: none; }
+.ahead-tools { display: grid; gap: 2px; padding-top: 4px; border-top: 1px solid var(--line); }
+.ahead-status { margin: 0 10px; font-size: 11px; text-transform: none; }
+.ahead-status:empty { display: none; }
+.ahead-status.bad { color: var(--danger); }
 .bd-run { display: inline-flex; align-items: center; gap: 2px; margin-left: 8px; font: 500 11px var(--font-mono); color: var(--c); vertical-align: 1px; }
 .bd-run .ic { width: 12px; height: 12px; }
 

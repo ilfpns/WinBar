@@ -1,5 +1,5 @@
 import {
-  ArrowRight, BookOpen, Briefcase, Calendar, CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight,
+  ArrowRight, BookOpen, Briefcase, Calendar, CalendarClock, CalendarPlus, Check, ChevronDown, ChevronLeft, ChevronRight,
   CircleCheck, CircleDot, Clock, Coffee, Dumbbell, House, Moon, Newspaper, Plus, Search, Sparkles, X, ImagePlus, Image, Flame, ChartColumn, LogOut, ChartPie, Target, TrendingUp, TrendingDown,
   Languages, NotebookPen, Settings, RotateCcw, Shuffle, Volume2, FileDown, Sun, Monitor, PanelLeft,
   Palette, HardDrive, Eraser, Keyboard, Info, User, ChevronUp, Ellipsis, Pencil, Trash2, Share2, Archive, Users, Eye, GraduationCap, Utensils, Copy, Pin, Link, Folder, FolderOpen, FolderPlus, FolderTree, MessageSquare, MessagesSquare, Smile, ArrowUp, Brush, Lightbulb, TriangleAlert, Quote, Bell, BellOff, FileText, List, Heart, RefreshCw, Download, Asterisk, CircleDashed, Hourglass, EyeOff, Focus, ChartGantt, Grip, Hexagon,
@@ -9,7 +9,7 @@ import {
 /** Every UI icon comes from Lucide; one size and stroke across the app. */
 const ICONS: Record<string, IconNode> = {
   'arrow-right': ArrowRight, 'book-open': BookOpen, briefcase: Briefcase, calendar: Calendar,
-  'calendar-clock': CalendarClock, check: Check, 'chevron-down': ChevronDown, 'chevron-left': ChevronLeft,
+  'calendar-clock': CalendarClock, 'calendar-plus': CalendarPlus, check: Check, 'chevron-down': ChevronDown, 'chevron-left': ChevronLeft,
   'chevron-right': ChevronRight, 'circle-check': CircleCheck, 'circle-dot': CircleDot, clock: Clock,
   coffee: Coffee, dumbbell: Dumbbell, house: House, moon: Moon, newspaper: Newspaper, plus: Plus,
   search: Search, sparkles: Sparkles, x: X, 'image-plus': ImagePlus, image: Image, flame: Flame, 'chart-column': ChartColumn, 'log-out': LogOut, 'chart-pie': ChartPie, target: Target, 'trending-up': TrendingUp, 'trending-down': TrendingDown,

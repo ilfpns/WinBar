@@ -1,12 +1,14 @@
 import { onSession, session } from '../cloud/session';
 import { icon } from './icons';
 import { onStreaks, todayRun } from '../timetable/streaks';
+import { mountPlanAhead } from '../timetable/plan-ahead';
 
 /**
  * Today's greeting, top left: one line for the time of day with your name in it ("Good morning, Public"),
  * picked at random from twenty per part of the day (a new one when the part of the day changes). The name is the one set in
  * Settings → Account, or your account's first name; without either the line simply has none. Under it, how many
- * days running Today has been kept (timetable/streaks.ts), from two on.
+ * days running Today has been kept (timetable/streaks.ts), from two on, and the chip that plans tomorrow and the
+ * days after (timetable/plan-ahead.ts).
  */
 const NAME_KEY = 'haru:greet-name';
 type Part = 'owl' | 'morning' | 'afternoon' | 'evening' | 'night';
@@ -85,15 +87,16 @@ export function mountGreeting(stage: HTMLElement): void {
   el.append(icon('asterisk', 'ic greeting-mark'), text, runs);
   stage.append(el);
   // one chip: how many days running Today has been kept
+  const chip = document.createElement('span');
+  chip.className = 'greet-streak';
+  chip.style.setProperty('--c', 'var(--accent)');
+  runs.append(chip);
+  mountPlanAhead(runs);
   const paintRuns = () => {
     const { days, best } = todayRun();
-    runs.hidden = days < 2;
-    const chip = document.createElement('span');
-    chip.className = 'greet-streak';
-    chip.style.setProperty('--c', 'var(--accent)');
+    chip.hidden = days < 2;
     chip.title = `Today kept ${days} days in a row (longest ${best})`;
-    chip.append(icon('flame'), `Today · ${days} days in a row`);
-    runs.replaceChildren(chip);
+    chip.replaceChildren(icon('flame'), `Today · ${days} days in a row`);
   };
   paintRuns();
   onStreaks(paintRuns);
