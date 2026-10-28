@@ -83,6 +83,11 @@
     <div class="pg-body journal-body" id="archive-body"></div>
   </main>
 
+  <main class="board-view text-page page" id="board" aria-label="Dot board">
+    <header class="pg-head"><h1>Dot board</h1><span class="meta" id="board-sum"></span></header>
+    <div class="pg-body board-body" id="board-body"></div>
+  </main>
+
 
   <!-- installed on a computer, the window's title bar (ui/titlebar.ts): the logo, the pages, how the day is going -->
   <header class="titlebar" id="titlebar">
@@ -97,6 +102,7 @@
       <a class="tb-tab" href="#/words" data-view="words" title="Words"><i data-icon="languages"></i><span>Words</span></a>
       <a class="tb-tab" href="#/journal" data-view="journal" title="Journal"><i data-icon="notebook-pen"></i><span>Journal</span></a>
       <a class="tb-tab" href="#/archive" data-view="archive" title="Archive"><i data-icon="archive"></i><span>Archive</span></a>
+      <a class="tb-tab" href="#/board" data-view="board" title="Dot board"><i data-icon="hexagon"></i><span>Dot board</span></a>
     </nav>
     <span class="tb-fill"></span>
     <div class="tb-progress" id="tb-progress"></div>
@@ -114,6 +120,7 @@
     <a class="rail-btn" href="#/words" data-view="words" aria-label="Words" data-tip="Words · learn English vocabulary"><i data-icon="languages"></i></a>
     <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
     <a class="rail-btn" href="#/archive" data-view="archive" aria-label="Archive" data-tip="Archive · pages everyone shared"><i data-icon="archive"></i></a>
+    <a class="rail-btn" href="#/board" data-view="board" aria-label="Dot board" data-tip="Dot board · every day, a cell for each category"><i data-icon="hexagon"></i></a>
     <span class="rail-fill"></span>
     <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
   </nav>
@@ -145,6 +152,9 @@
         </a>
         <a class="nav-item" href="#/archive" data-view="archive">
           <i data-icon="archive"></i>Archive
+        </a>
+        <a class="nav-item" href="#/board" data-view="board">
+          <i data-icon="hexagon"></i>Dot board
         </a>
       </nav>
 
