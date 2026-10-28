@@ -103,7 +103,8 @@ export function createAttendance(): Attendance {
       mon.setDate(d.getDate() + w * 7);
       if (mon.getDate() <= 7) {
         const l = document.createElement('span');
-        l.style.gridColumn = String(w + 1);
+        // over four weeks (one cell is too narrow for the name), fewer at the right edge
+        l.style.gridColumn = `${w + 1} / span ${Math.min(4, WEEKS - w)}`;
         l.textContent = mon.toLocaleDateString('en-US', { month: 'short' });
         labels.push(l);
       }

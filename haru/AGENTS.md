@@ -36,7 +36,7 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 ## 데이터 규칙
 
 - 사용자 데이터는 어떤 상황에서도 사라지면 안 된다.
-  - 기기 간 동기화: 템플릿·계획·저널(페이지·폴더)은 항목별 시각과 삭제 기록(`gone`, `storage/gone.ts`)으로 합친다(`cloud/merge.ts`). 목록을 통째로 덮어쓰는 코드를 만들지 않는다. Today는 하루 문서 하나라 늦게 쓴 쪽이 이기고, 잃은 쪽은 변경 기록(`logs`)에 남는다.
+  - 기기 간 동기화: Today(할 일마다 `u` 시각)·템플릿·계획·저널(페이지·폴더)은 항목별 시각과 삭제 기록(`gone`, `storage/gone.ts`)으로 합친다(`cloud/merge.ts`). 목록을 통째로 덮어쓰는 코드를 만들지 않는다. Haru 자신의 변경(새 하루·학교 시간표)은 다른 기기가 그 사이 바꿨으면 버려지고 클라우드 쪽을 그대로 받는다(`pushIfUnchanged`).
   - 시간표: localStorage + IndexedDB 미러(`haru` DB의 `kv`), 메모: IndexedDB `notes`
   - 저장 방식을 바꿀 때는 기존 데이터를 옮기는(마이그레이션) 코드를 같이 넣는다.
   - 백업(Export/Import, Auto-backup)으로 복원할 때 잘못된 항목은 걸러낸다.
@@ -52,7 +52,7 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 - 데이터 구조: 앱의 Firestore 구조(`src/cloud/sync.ts` 맨 위 표, `model.ts`, `plans.ts`, `journal-store.ts`)를 그대로 따른다. 앱 쪽 구조를 바꾸면 `haru-mcp.mjs`도 같은 커밋에서 같이 고친다.
 - 쓰기: 문서를 읽고 → 고치고 → `updateTime` 조건을 걸어 통째로 쓴다. 다른 기기가 먼저 바꿨으면 다시 읽어서 적용하고 덮어쓰지 않는다.
 - 쓰기: 시각 필드(`updated`, 계획은 `saved`)를 지금 시각으로 찍어 열린 앱이 새 값으로 받게 한다. `undefined` 필드는 넣지 않고, `doing`·`note`는 값이 있을 때만 넣는다.
-- 목록 문서(`meta/templates`, `meta/plans`, `lists/journal`, `lists/journal-folders`)의 `gone`(삭제 기록: 키 → 시각)은 그대로 두고, 항목을 지우면 거기에 적는다. 앱이 기기 간 합치기(`cloud/merge.ts`)에 쓴다.
+- 목록 문서(`state/timetable`, `meta/templates`, `meta/plans`, `lists/journal`, `lists/journal-folders`)의 `gone`(삭제 기록: 키 → 시각)은 그대로 두고, 항목을 지우면 거기에 적는다. Today의 할 일은 바꿀 때 `u`를 지금 시각으로 찍는다. 앱이 기기 간 합치기(`cloud/merge.ts`)에 쓴다.
 - 할 일 규칙은 앱과 같다: 같은 날 할 일은 겹치지 않고, 시간은 `HH:MM`(현지 시각), 기본 15분 단위. 오늘 날짜는 계정의 새 하루 시작 시각(`meta/settings.dayReset`, v1.70부터 동기화)으로 센다 — `haru_today`의 `today`·`newDayAt`.
 - 저널 폴더에 `private: true`(앱의 Hide from Claude)가 있으면 그 폴더 페이지는 MCP 목록·읽기·쓰기·`haru_log` 어디에도 내보내지 않는다.
 - 다른 멤버의 데이터(Today·지난 날)는 읽기만 한다. 바꾸는 도구는 내 계정 데이터만 다룬다.
@@ -68,7 +68,7 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 - 배포: `npm run deploy` (달력·뉴스·학교 시간표 데이터를 받고, `/WinBar/` 경로로 빌드해 `gh-pages` 브랜치에 올린다)
 - 배포 후 `git checkout -- public/data/calendar.json public/data/news.json public/data/school-timetable.json` (시각만 바뀐 파일 되돌리기)
 - 뉴스·학교 시간표는 `.github/workflows/haru-news.yml`, Notion 출석은 `.github/workflows/haru-attendance.yml`이 `gh-pages`의 `data/`만 갱신한다 (GitHub 예약 실행은 몇 시간씩 늦을 수 있다).
-- `firestore.rules`가 바뀌면 Firebase 콘솔에 다시 게시해야 한다 (사용자에게 알린다).
+- `firestore.rules`가 바뀌면 Firebase 콘솔에 다시 게시해야 한다 (사용자에게 알린다). 또는 `npx firebase-tools login` 뒤 `npx firebase-tools deploy --only firestore:rules`(`firebase.json`·`.firebaserc` 있음). 로그인은 사용자가 직접 한다.
 - Together(`together/{id}`)는 받는 사람이 수락할 때 자기 데이터에만 쓴다. 다른 사람의 `users/{uid}`에 쓰는 기능은 만들지 않는다.
 
 ## 작업 규칙

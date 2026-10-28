@@ -1,5 +1,6 @@
 import { DAY, SNAP, hhmm, mod } from './time';
-import { type Block, type Category, type Draft, labelOf, loadBlocks, newId, overlaps, saveBlocks, type Status, STATUSES, statusOf, withStatus } from './model';
+import { type Block, type Category, type Draft, blocksGone, labelOf, loadBlocks, newId, overlaps, sameTask, saveBlocks, setBlocksGone, type Status, STATUSES, statusOf, withStatus } from './model';
+import { markGone } from '../storage/gone';
 
 export interface DragState {
   /** Snapped minute where the drag began. */
@@ -77,6 +78,17 @@ export function onAutoLost(fn: () => void): void {
 }
 export const announceAutoLost = (): void => autoLostListeners.forEach((fn) => fn());
 
+let remote = 0;
+/** Runs a change that arrived from the cloud (sync): as fromOutside, and the tasks keep the stamps they came with. */
+export function applyRemote(fn: () => void): void {
+  remote++;
+  try {
+    fromOutside(fn);
+  } finally {
+    remote--;
+  }
+}
+
 /** Runs a change that came from elsewhere: not recorded, and the history before it is dropped. */
 export function fromOutside(fn: () => void): void {
   outside++;
@@ -151,6 +163,17 @@ export function setState(patch: Partial<AppState>): void {
   // a new task's draft went away (or was replaced) without being saved: it was cancelled
   if (prevDraft && prevDraft.id === null && !committing && (!state.draft || state.draftKey !== prevKey)) {
     cancelledListeners.forEach((fn) => fn(prevDraft));
+  }
+  if (before && before !== state.blocks && !remote) {
+    // a change made here (by hand, or by Haru itself): each task that differs is stamped now, and what went is
+    // marked deleted, so the cloud's copy and this one merge task by task
+    const now = Date.now();
+    const prev = new Map(before.map((b) => [b.id, b]));
+    state.blocks = state.blocks.map((b) => {
+      const p = prev.get(b.id);
+      return p && sameTask(p, b) ? b : { ...b, u: now };
+    });
+    setBlocksGone(markGone(blocksGone(), before, state.blocks, (b) => b.id, now));
   }
   if (before) {
     const ids = new Set(state.blocks.map((b) => b.id));

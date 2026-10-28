@@ -1,4 +1,5 @@
 import { DAY, SNAP, mod } from './time';
+import { type Gone, cleanGone } from '../storage/gone';
 
 export const CATEGORIES = {
   work: 'Work',
@@ -29,6 +30,8 @@ export interface Block {
   doing?: boolean;
   /** More about the task, written in the editor (a dot by its name says there is some). */
   note?: string;
+  /** When the task last changed on any device (stamped by setState), for merging Today between devices. */
+  u?: number;
 }
 
 /** A block being created (id null) or edited. */
@@ -153,6 +156,29 @@ export function blocksStored(): boolean {
     return false;
   }
 }
+
+const GONE_KEY = 'haru:timetable:gone';
+/** Tasks deleted from Today and when (by id): with the stamps, how two devices' copies of Today are merged. */
+export function blocksGone(): Gone {
+  try {
+    return cleanGone(JSON.parse(localStorage.getItem(GONE_KEY) ?? '{}'));
+  } catch {
+    return {};
+  }
+}
+export function setBlocksGone(g: Gone): void {
+  try {
+    localStorage.setItem(GONE_KEY, JSON.stringify(g));
+  } catch {
+    // for this visit only
+  }
+}
+/** Whether two tasks are the same apart from their stamp. */
+export const sameTask = (a: Block, b: Block): boolean => {
+  const { u: _a, ...x } = a;
+  const { u: _b, ...y } = b;
+  return JSON.stringify(x) === JSON.stringify(y);
+};
 
 const STAMP_KEY = 'haru:timetable:updated';
 /** When Today's timetable last changed on this device (0 if never recorded). */

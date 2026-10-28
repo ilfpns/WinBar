@@ -325,6 +325,8 @@ function stored(b) {
   const out = { id: b.id, title: b.title, cat: b.cat, start: b.start, dur: b.dur, done: b.done === true };
   if (b.doing && !b.done) out.doing = true;
   if (b.note) out.note = b.note;
+  // `u`: when the task last changed (the app merges two devices' copies of Today by it)
+  if (b.u) out.u = b.u;
   return out;
 }
 const shown = (b) => ({
@@ -365,8 +367,16 @@ const cleanBlocks = (list) => (Array.isArray(list) ? list : []).filter((b) => b 
 async function editToday(change) {
   const { uid } = await idToken();
   return update(todayPath(uid), (cur) => {
-    const { blocks, result } = change(cleanBlocks(cur?.blocks));
-    return { data: { blocks: blocks.sort(byStart).map(stored), updated: Date.now() }, result };
+    const before = cleanBlocks(cur?.blocks);
+    const { blocks, result } = change(before);
+    const now = Date.now();
+    // changed and new tasks are stamped now; what went is marked deleted (`gone`), as the app does
+    const prev = new Map(before.map((b) => [b.id, JSON.stringify(stored({ ...b, u: 0 }))]));
+    const out = blocks.sort(byStart).map((b) => (prev.get(b.id) === JSON.stringify(stored({ ...b, u: 0 })) ? b : { ...b, u: now })).map(stored);
+    const ids = new Set(out.map((b) => b.id));
+    const gone = { ...(cur?.gone ?? {}) };
+    for (const b of before) if (!ids.has(b.id)) gone[b.id] = now;
+    return { data: { blocks: out, updated: now, gone }, result };
   });
 }
 

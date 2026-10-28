@@ -1,6 +1,6 @@
 import type { Fb } from './firebase';
-import { announceAutoLost, changingAutomatically, setState, state, subscribe, fromOutside } from '../timetable/state';
-import { type Block, blocksUpdated, newId, stampBlocks } from '../timetable/model';
+import { announceAutoLost, applyRemote, changingAutomatically, setState, state, subscribe } from '../timetable/state';
+import { type Block, blocksGone, blocksUpdated, newId, setBlocksGone, stampBlocks } from '../timetable/model';
 import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templatesGone, templatesUpdated } from '../timetable/templates';
 import { allDays, onDaySaved, putFromRemote, type DaySnapshot } from '../timetable/history';
 import { allPlans, onPlans, plansFromRemote, plansGone, plansUpdated } from '../timetable/plans';
@@ -22,7 +22,7 @@ import { onResetAt, resetAt, resetFromRemote, resetUpdated } from '../timetable/
  * Two-way sync of one user's data with Firestore (`users/{uid}/…`). Each piece carries a time stamp and the
  * newer side wins; changes that arrive from the cloud are applied without being sent back.
  *
- *   state/timetable   { blocks, updated }          Today
+ *   state/timetable   { blocks, updated, gone }    Today (merged task by task: each task's `u`, the tombstones)
  *   meta/templates    { list, updated, gone }      day templates (merged item by item, see merge.ts)
  *   meta/plans        { list, updated, gone }      days planned ahead (merged day by day)
  *   meta/settings     { dayReset, updated }        New day time (minute of day, null: off)
@@ -77,14 +77,17 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     });
   };
 
-  // ---------- Today
+  // ---------- Today (one document; the two copies are merged task by task — each task's stamp `u` and the
+  // tombstones `gone`, like the lists — so a task checked off here and one added there both stay)
   let applying = false;
   let lastBlocks = state.blocks;
   let cloudBlocksStamp = 0;
+  /** After one of Haru's own changes was dropped: the cloud's next copy is taken as is, not merged. */
+  let takeCloud = false;
   const pushBlocks = () => {
     const updated = blocksUpdated() || Date.now();
     cloudBlocksStamp = updated;
-    write(fs.setDoc(ref('state/timetable'), { blocks: state.blocks, updated }));
+    write(fs.setDoc(ref('state/timetable'), { blocks: state.blocks, updated, gone: blocksGone() }));
   };
   /**
    * Haru's own change (a new day, the school's lessons) goes up only onto the Today it was made from. If another
@@ -94,17 +97,19 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   const pushIfUnchanged = () => {
     const base = cloudBlocksStamp;
     const blocks = state.blocks;
+    const gone = blocksGone();
     const updated = Date.now();
     write(fs.runTransaction(db, async (tx) => {
       const cur = await tx.get(ref('state/timetable'));
       if ((Number(cur.data()?.updated) || 0) > base) return false;
-      tx.set(ref('state/timetable'), { blocks, updated });
+      tx.set(ref('state/timetable'), { blocks, updated, gone });
       return true;
     }).then((ok) => {
       if (ok && state.blocks === blocks) {
         stampBlocks(updated);
         cloudBlocksStamp = updated;
       } else if (!ok) {
+        takeCloud = true;
         logChange('today', '', 'auto-dropped', blocks);
         announceAutoLost();
       }
@@ -123,33 +128,43 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     stampBlocks(Date.now());
     pushBlocks();
   });
+  const take = (blocks: Block[], gone: Gone, stamp: number) => {
+    applying = true;
+    applyRemote(() => setState({ blocks: blocks.map((b) => ({ ...b, id: b.id || newId(), done: b.done === true })), draft: null }));
+    setBlocksGone(gone);
+    lastBlocks = state.blocks;
+    applying = false;
+    stampBlocks(stamp);
+  };
   unsubs.push(fs.onSnapshot(ref('state/timetable'), (snap) => {
     if (snap.metadata.hasPendingWrites) return;
-    const data = snap.data() as { blocks: Block[]; updated: number } | undefined;
+    const data = snap.data() as { blocks: Block[]; updated: number; gone?: Gone } | undefined;
     if (!data) {
       // nothing in the cloud yet: this device's day goes up
       if (state.blocks.length) pushBlocks();
       return;
     }
-    if (data.updated <= Math.max(blocksUpdated(), cloudBlocksStamp)) {
-      // this device is newer (or the same): make sure the cloud has it
-      if (blocksUpdated() > data.updated) pushBlocks();
-      else cloudBlocksStamp = Math.max(cloudBlocksStamp, data.updated);
+    const local = state.blocks;
+    if (takeCloud && data.updated > cloudBlocksStamp) {
+      takeCloud = false;
+      logChange('today', '', 'from-cloud', data.blocks, local);
+      take(data.blocks, cleanGone(data.gone), data.updated);
+      cloudBlocksStamp = data.updated;
       return;
     }
-    // the cloud is newer. A first sync must never silently drop a different local day: keep it as a template.
-    const local = state.blocks;
-    const same = JSON.stringify(local.map(({ id: _, ...b }) => b)) === JSON.stringify(data.blocks.map(({ id: _, ...b }) => b));
-    if (local.length && !same && !blocksUpdated()) {
-      saveTemplate(`This device ${new Date().toLocaleDateString('en-CA')}`);
-    }
-    if (!same) logChange('today', '', 'from-cloud', data.blocks, local);
-    applying = true;
-    fromOutside(() => setState({ blocks: data.blocks.map((b) => ({ ...b, id: b.id || newId(), done: b.done === true })), draft: null }));
-    lastBlocks = state.blocks;
-    applying = false;
-    stampBlocks(data.updated);
+    const m = mergeLists({ items: local, gone: blocksGone() }, { items: data.blocks, gone: cleanGone(data.gone) }, (b) => b.id, (b) => Number(b.u) || 0);
+    // a first sync must never silently lose a different local day: it is kept as a template as well
+    if (local.length && !m.sameAsLocal && !blocksUpdated()) saveTemplate(`This device ${new Date().toLocaleDateString('en-CA')}`);
     cloudBlocksStamp = data.updated;
+    if (!m.sameAsLocal) {
+      logChange('today', '', 'from-cloud', m.list, local);
+      // the cloud's copy as is keeps its stamp; a merge is a change of its own, and goes back up
+      take(m.list, m.gone, m.sameAsCloud ? data.updated : Date.now());
+      if (!m.sameAsCloud) pushBlocks();
+    } else if (!m.sameAsCloud) {
+      setBlocksGone(m.gone);
+      pushBlocks();
+    } else stampBlocks(Math.max(blocksUpdated(), data.updated));
   }, () => onStatus('error')));
 
   // ---------- templates (one list; the copies are merged template by template, so two devices editing

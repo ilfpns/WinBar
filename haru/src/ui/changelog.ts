@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.75',
+    date: '2026-10-28',
+    items: [
+      'Today도 기기 간에 할 일별로 합침: 한 기기에서 체크하는 사이 다른 기기에서 할 일을 더해도 둘 다 남고, 한쪽에서 지운 할 일은 다른 쪽에서도 지워짐',
+      'News 출석 달력의 월 이름이 칸 밖으로 삐져나오던 것을 고침',
+    ],
+  },
+  {
     version: '1.74',
     date: '2026-10-28',
     items: [
