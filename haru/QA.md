@@ -18,7 +18,9 @@ Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호�
 
 6. [다중] Today는 하루 문서 하나라 두 기기가 동시에 고치면 늦게 쓴 쪽이 이김(1차에서 "기록만"으로 두었던 것) → 할 일마다 바꿀 때 `u` 시각을 찍고(`state.setState`), 지운 할 일은 삭제 기록으로 두어(`haru:timetable:gone`) 목록처럼 합침. Haru 자신의 변경이 버려진(`auto-dropped`) 뒤에는 클라우드 쪽을 통째로 받아 그때 생긴 삭제 기록을 되돌림. MCP도 `u`·`gone`을 유지.
 7. [반응형] News 출석 달력의 월 이름(Nov, Dec…)이 11px 칸 하나에 놓여 칸 밖으로 삐져나옴(스윕에서 83건) → 네 주 폭에 걸치게 두고 넘치면 자름. 13개 모두 칸 안.
-8. [미결] Firebase 규칙(`together`, `logs`) 게시는 콘솔 로그인이 필요해 이 세션에서 할 수 없음. `firebase.json`·`.firebaserc`를 두어 `npx firebase-tools login` 뒤 `npx firebase-tools deploy --only firestore:rules`로 올릴 수 있게 함. 게시 전에는 Together 초대가 저장되지 않고(초대함은 숨어 있음) 변경 기록이 쌓이지 않음 — 앱의 다른 기능에는 영향 없음.
+8. [다중] Firebase 규칙이 v1.69(`logs`)까지만 게시되어 있어 Together(`together`)는 실제 서버에서 거부됨(테스트 초대 → PERMISSION_DENIED). 규칙 게시는 로그인이 필요해 사용자가 콘솔에서 게시함; `firebase.json`·`.firebaserc`를 두어 다음부터는 `npx firebase-tools deploy --only firestore:rules`로도 올릴 수 있게 함.
+
+**실제 서버 확인(규칙 게시 뒤)** — 내 계정 토큰으로 Firestore REST에 직접: `logs` 읽기(haru_log) 정상. `together`: 나에게 보내는 테스트 초대 만들기 → `to` array-contains 조회와 `from ==` 조회에 둘 다 나옴 → 답 쓰기 → 거두기(삭제) 모두 허용, 남의 이름(`from`)으로 만들기는 거부, 테스트 문서는 지움. 받는 사람 전용 경로(다른 계정이 자기 답만 쓰기)는 계정이 하나뿐이라 실서버에서는 못 봤고, 규칙 본문과 가짜 서버 테스트(C가 수락 → `answers.u2`만 바뀜)로 확인.
 
 **확인한 것**
 - Today 합치기: A가 체크 ∥ B가 추가 → 둘 다 `k:done, m`; B가 지운 할 일이 A에서도 사라짐; 오래된 B가 새 하루로 Today를 비우는 자동 변경 ∥ A의 체크 → B의 변경은 버려지고 양쪽 모두 A의 Today, B의 삭제 기록도 되돌아감. 새 할 일에 `u`, 안 바뀐 것은 `u` 유지, 바뀐 것만 새 `u`, 지우면 삭제 기록, 클라우드에서 온 것은 받은 `u` 유지.
