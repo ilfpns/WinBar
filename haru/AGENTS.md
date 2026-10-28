@@ -73,6 +73,7 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 - 사용자는 한국어로 소통한다. 보고와 질문은 한국어로 한다.
 - 변경 후에는 테스트 빌드로 실제 동작(클릭·전환·콘솔 오류)을 확인하고 나서 완료라고 말한다.
 - 커밋은 `main`에 바로 하고 푸시한다.
+- 커밋 작성자는 `ilfpns <yeomsh09@gmail.com>`(GitHub 잔디에 잡히는 이메일). 새로 클론하면 `git config user.name ilfpns && git config user.email yeomsh09@gmail.com`부터 한다.
 - 사용자 요구 사항 반영/수정이 3번 반복될 동안 한번도 배포하지 않으면 최신화를 위하여 자동으로 배포한다.
 - 배포할 때마다 `src/ui/changelog.ts` 맨 위에 새 버전(v1.x)을 추가하고, 바뀐 점을 한국어로 패치노트처럼 한 줄씩 짧게 적는다(설정 → What's new에 보인다). README의 Changes도 같은 형식으로 적는다.
 - QA를 하면 `QA.md`에 날짜, 확인한 것, 찾은 문제와 처리 결과를 남긴다.
