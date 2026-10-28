@@ -10,11 +10,12 @@ import { icon } from '../ui/icons';
 import { QUICK_ADD_HINT, describe, parseQuickAdd } from './quick-add';
 import { addBlock, setState, state, subscribe } from '../timetable/state';
 import { dayOf, timetableOn } from '../timetable/history';
-import { CATEGORIES, type Block, labelOf } from '../timetable/model';
+import { CATEGORIES, CATEGORY_KEYS, type Block, type Category, labelOf } from '../timetable/model';
 import { allTemplates } from '../timetable/templates';
-import { clearPlan, onPlans, planOn, setPlan, setPlanNote } from '../timetable/plans';
+import { type PlanBlock, clearPlan, onPlans, planOn, setPlan } from '../timetable/plans';
+import { templateBlock } from '../timetable/templates';
 import { type MenuItem, dayLine, isAhead, loadDay, miniDial, openPlanMenu, weekDates, weekStart } from './week';
-import { formatDuration, hhmm } from '../timetable/time';
+import { formatDuration, hhmm, minutesOf, mod } from '../timetable/time';
 import { lessMotion } from '../ui/motion';
 
 /** One entry from public/data/calendar.json (built by scripts/fetch-calendar.mjs). */
@@ -238,8 +239,14 @@ export function mountCalendar(refs: CalendarRefs): void {
       if (ahead) {
         const row = document.createElement('div');
         row.className = 'cal-tt-plan';
-        row.append(empty, planBtn('Plan this day'));
-        ttView.replaceChildren(row);
+        // or lay it out by hand, one task at a time
+        const list = document.createElement('ul');
+        list.className = 'cal-tt-list';
+        const tools = document.createElement('div');
+        tools.className = 'cal-tt-foot-tools';
+        tools.append(addTaskBtn(list, date), planBtn('Plan this day'));
+        row.append(empty, tools);
+        ttView.replaceChildren(row, list);
       } else {
         ttView.replaceChildren(empty);
       }
@@ -293,7 +300,7 @@ export function mountCalendar(refs: CalendarRefs): void {
         sub.querySelector('.sub-text')!.textContent = text;
         li.append(sub);
       }
-      if (plan) noteEditable(li, date, b.start, b.note ?? '', labelOf(b));
+      if (plan) planEditable(li, list, date, plan.blocks.find((x) => x.start === b.start) ?? null);
       list.append(li);
     }
     const foot = document.createElement('div');
@@ -316,7 +323,7 @@ export function mountCalendar(refs: CalendarRefs): void {
       });
       const tools = document.createElement('div');
       tools.className = 'cal-tt-foot-tools';
-      tools.append(planBtn('Change'), clear);
+      tools.append(addTaskBtn(list, date), planBtn('Change'), clear);
       foot.append(tools);
     } else if (!isToday) {
       // bring that day back as Today (done marks start over); undo from the memo status line
@@ -351,83 +358,187 @@ export function mountCalendar(refs: CalendarRefs): void {
     resizeFrom(from);
     foldNotes(list);
   }
-  /** A planned task takes a note: its row opens a box under it, saved on leaving it (Esc: as it was). */
-  function noteEditable(li: HTMLElement, date: string, start: number, note: string, label: string): void {
+  /** "Add task": a new task for a day ahead, in a form at the end of the list (its plan is made if there is none). */
+  function addTaskBtn(list: HTMLElement, date: string): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-text';
+    b.textContent = 'Add task';
+    b.addEventListener('click', () => planForm(list, null, date, null));
+    return b;
+  }
+  /** A planned task's row opens the form to change it. */
+  function planEditable(li: HTMLElement, list: HTMLElement, date: string, task: PlanBlock | null): void {
+    if (!task) return;
     li.classList.add('editable');
     li.tabIndex = 0;
     li.setAttribute('role', 'button');
-    li.setAttribute('aria-label', `Note for ${label}`);
-    const open = () => {
-      if (li.querySelector('.sub-edit')) return;
-      const box = document.createElement('textarea');
-      box.className = 'sub-edit';
-      box.rows = 1;
-      box.placeholder = 'Note';
-      box.value = note;
-      const fit = () => {
-        box.style.height = 'auto';
-        box.style.height = `${box.scrollHeight}px`;
-      };
-      li.querySelector<HTMLElement>('.sub')?.setAttribute('hidden', '');
-      li.append(box);
-      fit();
-      box.focus();
-      box.setSelectionRange(box.value.length, box.value.length);
-      let cancelled = false;
-      box.addEventListener('input', fit);
-      box.addEventListener('keydown', (e) => {
-        e.stopPropagation();
-        if (e.key === 'Escape') {
-          cancelled = true;
-          box.blur();
-        } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) box.blur();
-      });
-      box.addEventListener('blur', () => {
-        const value = box.value.trim() ? box.value.replace(/\s+$/, '') : '';
-        if (!cancelled && value !== note) {
-          // the plan list changes and the panel draws again with the note in place
-          setPlanNote(date, start, value);
-          say(value ? 'Note saved' : 'Note removed');
-          return;
-        }
-        box.remove();
-        li.querySelector<HTMLElement>('.sub')?.removeAttribute('hidden');
-        li.focus();
-      });
-    };
+    li.setAttribute('aria-label', `Edit ${labelOf(task)}`);
     li.addEventListener('click', (e) => {
-      if (!(e.target as Element).closest('.sub.long, .sub-edit')) open();
+      if (!(e.target as Element).closest('.sub.long')) planForm(list, li, date, task);
     });
     li.addEventListener('keydown', (e) => {
       if (e.target !== li || (e.key !== 'Enter' && e.key !== ' ')) return;
       e.preventDefault();
-      open();
+      planForm(list, li, date, task);
     });
   }
-  /** A note longer than its one line (or of several lines) shows its first line behind a chevron that opens it. */
+  const catOptions = (sel: Category) =>
+    CATEGORY_KEYS.map((c) => `<option value="${c}"${c === sel ? ' selected' : ''}>${CATEGORIES[c]}</option>`).join('');
+  /**
+   * The form for one task of a day ahead — name, category, start and end, note — under its row (`row`), or at the
+   * end of the list for a new one (`task` null). Save writes the plan (tasks never overlap), Remove takes the task
+   * out (the last one: the plan goes), Esc or Cancel leaves it as it was.
+   */
+  function planForm(list: HTMLElement, row: HTMLElement | null, date: string, task: PlanBlock | null): void {
+    list.querySelector('.plan-form')?.remove();
+    list.querySelectorAll<HTMLElement>('li.editing').forEach((x) => x.classList.remove('editing'));
+    const plan = planOn(date);
+    // the task as it is in the plan now (it may have been redrawn from another device meanwhile)
+    const others = (plan?.blocks ?? []).filter((x) => !task || x.start !== task.start || x.dur !== task.dur);
+    // a new task starts where the day's last one ends, for an hour
+    const last = [...others].sort((a, b) => a.start - b.start).at(-1);
+    const base: PlanBlock = task ?? { title: '', cat: 'work', start: last ? mod(last.start + last.dur) : 9 * 60, dur: 60 };
+    const li = document.createElement('li');
+    li.className = 'plan-form';
+    li.innerHTML = `
+      <form autocomplete="off">
+        <div class="pf-row">
+          <input name="title" maxlength="40" placeholder="Task" aria-label="Task name">
+          <select name="cat" aria-label="Category">${catOptions(base.cat)}</select>
+        </div>
+        <div class="pf-row pf-times">
+          <input name="start" inputmode="numeric" maxlength="5" placeholder="HH:MM" aria-label="Start time">
+          <span class="meta">to</span>
+          <input name="end" inputmode="numeric" maxlength="5" placeholder="HH:MM" aria-label="End time">
+        </div>
+        <textarea name="note" rows="1" placeholder="Note" aria-label="Note"></textarea>
+        <p class="err pf-err" role="alert"></p>
+        <div class="pf-foot">
+          ${task ? '<button type="button" class="btn-text danger pf-remove">Remove</button>' : '<span></span>'}
+          <span class="pf-end">
+            <button type="button" class="btn-text pf-cancel">Cancel</button>
+            <button type="submit" class="btn-sm">Save</button>
+          </span>
+        </div>
+      </form>`;
+    const form = li.querySelector('form')!;
+    const f = <T extends HTMLElement = HTMLInputElement>(n: string) => form.elements.namedItem(n) as unknown as T;
+    const title = f('title');
+    const note = f<HTMLTextAreaElement>('note');
+    const err = li.querySelector<HTMLElement>('.pf-err')!;
+    title.value = base.title;
+    title.placeholder = CATEGORIES[base.cat];
+    f('start').value = hhmm(base.start);
+    f('end').value = hhmm(base.start + base.dur);
+    note.value = base.note ?? '';
+    const fit = () => {
+      note.style.height = 'auto';
+      note.style.height = `${note.scrollHeight}px`;
+    };
+    note.addEventListener('input', fit);
+    f<HTMLSelectElement>('cat').addEventListener('change', (e) => {
+      title.placeholder = CATEGORIES[(e.target as HTMLSelectElement).value as Category];
+    });
+    const close = () => {
+      li.remove();
+      row?.classList.remove('editing');
+      (row ?? list).focus?.();
+    };
+    form.addEventListener('keydown', (e) => {
+      // the calendar's own keys (arrows, t) stay out of the form
+      e.stopPropagation();
+      if (e.key === 'Escape') close();
+      else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) form.requestSubmit();
+    });
+    li.querySelector('.pf-cancel')!.addEventListener('click', close);
+    const write = (blocks: PlanBlock[], msg: string) => {
+      if (blocks.length) setPlan(date, blocks, plan?.from || 'By hand');
+      else clearPlan(date);
+      say(msg);
+    };
+    li.querySelector('.pf-remove')?.addEventListener('click', () => write(others, `Removed ${labelOf(base)}`));
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const s = minutesOf(f('start').value);
+      const en = minutesOf(f('end').value);
+      if (s === null || en === null) {
+        err.textContent = 'Times look like 09:00';
+        return;
+      }
+      const next = templateBlock({ title: title.value.trim(), cat: f<HTMLSelectElement>('cat').value as Category, start: s, dur: mod(en - s), note: note.value.replace(/\s+$/, '') });
+      if (!next.dur) {
+        err.textContent = 'Start and end can’t be the same';
+        return;
+      }
+      const hit = others.find((x) => mod(next.start - x.start) < x.dur || mod(x.start - next.start) < next.dur);
+      if (hit) {
+        err.textContent = `Overlaps ${labelOf(hit)} (${hhmm(hit.start)}–${hhmm(hit.start + hit.dur)})`;
+        return;
+      }
+      // the plan list changes and the panel draws again with the task in place
+      write([...others, next], task ? 'Plan saved' : `Added ${labelOf(next)}`);
+    });
+    if (row) {
+      row.classList.add('editing');
+      row.after(li);
+    } else list.append(li);
+    fit();
+    title.focus();
+  }
+  /**
+   * A note longer than its one line (or of several lines) shows its first line behind a chevron that opens it.
+   * Measured again whenever the list's width changes (a resized window, the drawer), so it folds or unfolds to fit.
+   */
+  let foldWatch: ResizeObserver | null = null;
   function foldNotes(list: HTMLElement): void {
+    const measure = () => {
+      for (const sub of list.querySelectorAll<HTMLElement>('.sub')) {
+        // one opened stays as it is until it is closed
+        if (sub.classList.contains('open')) continue;
+        const body = sub.querySelector<HTMLElement>('.sub-text')!;
+        const long = body.textContent!.includes('\n') || body.scrollWidth > body.clientWidth + 1;
+        if (long === sub.classList.contains('long')) continue;
+        sub.classList.toggle('long', long);
+        sub.querySelector('.mark')!.replaceChildren(...(long ? [icon('chevron-right')] : []));
+        if (long) {
+          sub.tabIndex = 0;
+          sub.setAttribute('role', 'button');
+          sub.setAttribute('aria-expanded', 'false');
+        } else {
+          sub.removeAttribute('tabindex');
+          sub.removeAttribute('role');
+          sub.removeAttribute('aria-expanded');
+        }
+      }
+    };
     for (const sub of list.querySelectorAll<HTMLElement>('.sub')) {
       const body = sub.querySelector<HTMLElement>('.sub-text')!;
-      if (!body.textContent!.includes('\n') && body.scrollWidth <= body.clientWidth + 1) continue;
-      sub.classList.add('long');
-      sub.querySelector('.mark')!.append(icon('chevron-right'));
-      sub.tabIndex = 0;
-      sub.setAttribute('role', 'button');
-      sub.setAttribute('aria-expanded', 'false');
       const toggle = () => {
+        if (!sub.classList.contains('long')) return;
         const from = body.offsetHeight;
         const open = sub.classList.toggle('open');
         sub.setAttribute('aria-expanded', String(open));
         const to = body.offsetHeight;
         if (!reduced() && from !== to) body.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: 260, easing: ease });
+        if (!open) measure();
       };
       sub.addEventListener('click', toggle);
       sub.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (!sub.classList.contains('long') || (e.key !== 'Enter' && e.key !== ' ')) return;
         e.preventDefault();
         toggle();
       });
     }
+    measure();
+    foldWatch?.disconnect();
+    let width = list.clientWidth;
+    foldWatch = new ResizeObserver(() => {
+      if (list.clientWidth === width) return;
+      width = list.clientWidth;
+      measure();
+    });
+    foldWatch.observe(list);
   }
   // Today changes show up live while today's timetable is open (and in the week, on Today's dial)
   subscribe(() => {

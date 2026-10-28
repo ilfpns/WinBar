@@ -470,7 +470,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-tt-btn .ic { width: 15px; height: 15px; }
 .cal-tt-btn[aria-pressed="true"] { color: var(--bg); background: var(--accent); }
 /* that day's timetable: a small dial and its tasks */
-.cal-tt { display: grid; gap: 10px; padding: 10px; overflow: hidden; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: rgb(var(--shade) / .25); }
+.cal-tt { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 10px; overflow: hidden; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: rgb(var(--shade) / .25); }
 .cal-tt[hidden] { display: none; }
 .cal-day > * { flex-shrink: 0; }
 .cal-day > .cal-pad { flex: 1 1 auto; flex-shrink: 1; min-height: 180px; }
@@ -515,7 +515,7 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-tt-dial .tt-block.done { fill: color-mix(in srgb, var(--c) 70%, var(--cf)); }
 .cal-tt-dial .tt-pct { font: 600 17px var(--font-mono); fill: var(--accent); }
 /* no scroll of its own (the panel scrolls); rows sliding in must not overflow it */
-.cal-tt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; overflow: hidden; }
+.cal-tt-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; overflow: hidden; }
 .cal-tt-list li { display: grid; grid-template-columns: auto 6px minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; padding: 4px 2px; font-size: 13px; }
 /* a task's note under its name: a short dash, or a chevron that opens a long one */
 .cal-tt-list .sub { grid-column: 3 / -1; display: grid; grid-template-columns: 12px minmax(0, 1fr); align-items: start; gap: 4px; font-size: 12px; line-height: 1.5; color: var(--text-muted); border-radius: 4px; }
@@ -534,14 +534,29 @@ body.switching .calendar-view, .calendar-view:not(.current) { transition: none; 
 .cal-tt-list li.editable { border-radius: 6px; cursor: pointer; transition: background-color var(--dur-fast) var(--ease-out); }
 .cal-tt-list li.editable:hover { background: rgb(var(--shade) / .25); }
 .cal-tt-list li.editable:focus-visible { outline: 1px solid var(--text-muted); outline-offset: -1px; }
-.cal-tt-list .sub-edit { grid-column: 3 / -1; width: 100%; min-height: 0; margin: 2px 0; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px;
-  background: rgb(var(--shade) / .35); color: var(--text); font: 12px/1.5 var(--font-sans); word-break: keep-all; overflow-wrap: anywhere; resize: none; overflow: hidden; cursor: text; }
-.cal-tt-list .sub-edit:focus { outline: none; border-color: var(--text-subtle); }
-.cal-tt-list .sub-edit::placeholder { color: var(--text-subtle); }
+.cal-tt-list li.editing { background: rgb(var(--shade) / .25); }
+/* a planned task being changed (or added): name and category, times, note */
+.cal-tt-list li.plan-form { display: block; min-width: 0; padding: 8px; margin: 2px 0 6px; border: 1px solid var(--line); border-radius: 10px; background: rgb(var(--shade) / .3); animation: tt-open .25s var(--ease-out) both; }
+.plan-form form { display: grid; gap: 6px; }
+.plan-form .pf-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.plan-form .pf-times { grid-template-columns: minmax(0, 64px) auto minmax(0, 64px); justify-content: start; }
+.plan-form :is(input, select, textarea) { width: 100%; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: rgb(var(--shade) / .35); color: var(--text); font: 12px var(--font-sans); }
+.plan-form :is(input[name="start"], input[name="end"]) { font: 12px var(--font-mono); font-variant-numeric: tabular-nums; text-align: center; }
+.plan-form textarea { height: auto; padding: 5px 8px; line-height: 1.5; resize: none; overflow: hidden; word-break: keep-all; overflow-wrap: anywhere; }
+.plan-form :is(input, select, textarea):focus { outline: none; border-color: var(--text-subtle); }
+.plan-form :is(input, textarea)::placeholder { color: var(--text-subtle); }
+.plan-form .pf-err { margin: 0; font-size: 11px; }
+.plan-form .pf-err:empty { display: none; }
+.plan-form select { width: auto; max-width: 96px; padding: 0 4px; }
+.plan-form .pf-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; }
+.plan-form .pf-foot .btn-text { height: 26px; padding: 0 6px; font-size: 12px; }
+.plan-form .pf-foot .btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
+.plan-form .pf-end { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.cal-tt-plan + .cal-tt-list:not(:empty) { margin-top: 8px; }
 .cal-tt-list .t, .cal-tt-list .d { font: 400 11px var(--font-mono); color: var(--text-subtle); font-variant-numeric: tabular-nums; }
 .cal-tt-list .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .cal-tt-list li.done .n { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-subtle); }
-.cal-tt-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal-tt-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
 .cal-tt-foot .meta { text-transform: none; }
 .cal-tt-empty { margin: 0; font-size: 12px; color: var(--text-subtle); }
 .cal-undo { margin-left: 6px; padding: 0 4px; font-size: 11px; color: var(--accent); }
@@ -669,7 +684,7 @@ body.wco .greeting { top: calc(var(--tb, 0px) + 22px); }
 }
 /* the day panel's plan: the empty line with its button, the plan's tools */
 .cal-tt-plan { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.cal-tt-foot-tools { display: flex; flex: none; gap: 2px; }
+.cal-tt-foot-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; margin-left: auto; }
 .cal-tt-foot-tools .btn-text { white-space: nowrap; }
 .cal-tt-foot-tools .btn-text, .cal-tt-plan .btn-text { height: 26px; padding: 0 8px; font-size: 12px; }
 /* the plan picker (templates, copy a day, clear) */
@@ -1831,6 +1846,8 @@ body.splitting-y { cursor: row-resize; }
 .jt-dir.drop { background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
 .jt-count { padding: 1px 7px; border-radius: 999px; background: rgb(var(--ink) / 0.06); font: 400 11px var(--font-mono); color: var(--text-muted); }
 .jt-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jt-dir.private { grid-template-columns: 12px 16px minmax(0, 1fr) auto auto; }
+.jt-row .jt-private { width: 13px; height: 13px; color: var(--text-subtle); }
 /* a folder's ⋯ (rename, delete) shows on hover, over the end of its row where the count was */
 .jt-folder { position: relative; }
 .jt-more {

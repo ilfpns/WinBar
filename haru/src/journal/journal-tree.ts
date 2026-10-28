@@ -114,7 +114,17 @@ export function mountTree({ list, entries, folders, openId, validTab, folderOf, 
       const name = document.createElement('span');
       name.className = 'jt-name';
       name.textContent = f.name;
-      row.append(icon('chevron-right', 'ic jt-caret'), icon(isOpen ? 'folder-open' : 'folder', 'ic jt-ic'), name, count);
+      row.append(icon('chevron-right', 'ic jt-caret'), icon(isOpen ? 'folder-open' : 'folder', 'ic jt-ic'), name);
+      if (f.private) {
+        // hidden from Claude: a quiet mark by the name
+        row.classList.add('private');
+        const mark = icon('eye-off', 'ic jt-private');
+        mark.setAttribute('aria-label', 'Hidden from Claude');
+        mark.setAttribute('aria-hidden', 'false');
+        mark.setAttribute('role', 'img');
+        row.append(mark);
+      }
+      row.append(count);
       row.addEventListener('click', () => {
         if (treeOpen.has(f.id)) treeOpen.delete(f.id);
         else treeOpen.add(f.id);
@@ -130,7 +140,7 @@ export function mountTree({ list, entries, folders, openId, validTab, folderOf, 
       more.type = 'button';
       more.className = 'jt-more';
       more.setAttribute('aria-label', `${f.name} options`);
-      more.title = 'Rename or delete this folder';
+      more.title = 'Rename, hide from Claude or delete this folder';
       more.append(icon('ellipsis'));
       more.addEventListener('click', () => folderMenu(f, more));
       // drop a page on a folder to move it there

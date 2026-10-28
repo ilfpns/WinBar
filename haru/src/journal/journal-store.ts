@@ -15,7 +15,13 @@ export interface Entry {
   /** Kept at the top of its folder's list. */
   pinned?: boolean;
 }
-export interface Folder { id: string; name: string; created: number }
+export interface Folder {
+  id: string;
+  name: string;
+  created: number;
+  /** Hidden from Claude: the MCP neither lists, reads, changes nor logs its pages (the key only when set). */
+  private?: boolean;
+}
 
 const isEntry = (v: unknown): v is Entry => {
   const e = v as Partial<Entry> | null;

@@ -370,7 +370,23 @@ async function editToday(change) {
   });
 }
 
-const now = () => ({ now: `${localDate()} ${hhmm(new Date().getHours() * 60 + new Date().getMinutes())}` });
+/** The New day time as the app keeps it for the account (`meta/settings`; minute of day, null: off, 04:00 unset). */
+async function dayStart() {
+  const { uid } = await idToken();
+  const doc = await firestore.get(`users/${uid}/meta/settings`).catch(() => null);
+  const m = doc?.data.dayReset;
+  return m === null ? null : Number.isInteger(m) ? m : 240;
+}
+/** The day Haru counts as today: before the New day time it is still the day before (02:00 with 04:00: yesterday). */
+async function haruToday() {
+  const reset = await dayStart();
+  return localDate(new Date(Date.now() - (reset ?? 0) * 60_000));
+}
+async function now() {
+  const reset = await dayStart();
+  const today = localDate(new Date(Date.now() - (reset ?? 0) * 60_000));
+  return { now: `${localDate()} ${hhmm(new Date().getHours() * 60 + new Date().getMinutes())}`, today, newDayAt: reset === null ? 'off' : hhmm(reset) };
+}
 
 let calendarCache = null;
 async function calendarEvents() {
@@ -382,10 +398,18 @@ async function calendarEvents() {
   return events;
 }
 
-function range(a) {
-  const from = date(a.from ?? localDate(), 'from');
+async function range(a) {
+  const from = date(a.from ?? (await haruToday()), 'from');
   const to = date(a.to ?? from, 'to');
   return to < from ? fail('to is before from') : { from, to };
+}
+
+/** Journal folders the user hid from Claude (`private` on the folder): their pages are neither listed, read nor changed. */
+const HIDDEN = 'That page is in a Journal folder hidden from Claude';
+const hiddenOf = (folders) => new Set((folders ?? []).filter((f) => f?.private).map((f) => f.id));
+async function hiddenFolders(uid) {
+  const doc = await firestore.get(`users/${uid}/lists/journal-folders`);
+  return hiddenOf(doc?.data.items);
 }
 
 // ---------- tools
@@ -414,7 +438,7 @@ const tools = [
       const uid = await memberUid(a.member);
       const doc = await firestore.get(todayPath(uid));
       const blocks = cleanBlocks(doc?.data.blocks).sort(byStart);
-      return { ...now(), tasks: blocks.map(shown), progress: progress(blocks) };
+      return { ...(await now()), tasks: blocks.map(shown), progress: progress(blocks) };
     },
   },
   {
@@ -496,7 +520,7 @@ const tools = [
     inputSchema: { type: 'object', properties: { from: DATE_ARG, to: DATE_ARG } },
     async run(a) {
       const { uid } = await idToken();
-      const from = a.from ? date(a.from, 'from') : localDate();
+      const from = a.from ? date(a.from, 'from') : await haruToday();
       const to = a.to ? date(a.to, 'to') : '9999-12-31';
       const doc = await firestore.get(`users/${uid}/meta/plans`);
       const list = (doc?.data.list ?? []).filter((p) => p.date >= from && p.date <= to);
@@ -514,7 +538,7 @@ const tools = [
     async run(a) {
       const { uid } = await idToken();
       const day = date(a.date);
-      if (day <= localDate()) fail('Plans are for days ahead; change Today with the task tools instead');
+      if (day <= (await haruToday())) fail('Plans are for days ahead; change Today with the task tools instead');
       const blocks = [];
       for (const t of a.tasks ?? []) {
         const b = { title: String(t.title ?? '').trim(), cat: category(t.cat), ...span(t) };
@@ -551,7 +575,7 @@ const tools = [
     inputSchema: { type: 'object', properties: { from: DATE_ARG, to: DATE_ARG } },
     async run(a) {
       const { uid } = await idToken();
-      const { from, to } = range(a);
+      const { from, to } = await range(a);
       const [events, notes] = await Promise.all([
         calendarEvents().catch(() => []),
         firestore.list(`users/${uid}/notes`),
@@ -586,14 +610,16 @@ const tools = [
   },
   {
     name: 'haru_journal',
-    description: 'My Journal pages, newest first: id, date, title, folder and the start of the text. `query` searches titles and text.',
+    description: 'My Journal pages, newest first: id, date, title, folder and the start of the text. `query` searches titles and text. Pages in folders the user hid from Claude (Journal → folder menu) are left out.',
     inputSchema: { type: 'object', properties: { query: { type: 'string' }, limit: { type: 'number', description: 'Default 30' } } },
     async run(a) {
       const { uid } = await idToken();
       const [pages, folders] = await Promise.all([firestore.get(`users/${uid}/lists/journal`), firestore.get(`users/${uid}/lists/journal-folders`)]);
       const names = new Map((folders?.data.items ?? []).map((f) => [f.id, f.name]));
+      const hidden = hiddenOf(folders?.data.items);
       const q = String(a.query ?? '').toLowerCase();
       const list = (pages?.data.items ?? [])
+        .filter((e) => !hidden.has(e.folder))
         .filter((e) => !q || `${e.title}\n${e.body}`.toLowerCase().includes(q))
         .sort((x, y) => y.date.localeCompare(x.date) || y.updated - x.updated)
         .slice(0, Number(a.limit) || 30);
@@ -608,8 +634,9 @@ const tools = [
     inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
     async run(a) {
       const { uid } = await idToken();
-      const doc = await firestore.get(`users/${uid}/lists/journal`);
+      const [doc, hidden] = await Promise.all([firestore.get(`users/${uid}/lists/journal`), hiddenFolders(uid)]);
       const e = (doc?.data.items ?? []).find((x) => x.id === a.id) ?? fail(`No Journal page with id ${a.id}`);
+      if (hidden.has(e.folder)) fail(HIDDEN);
       return { id: e.id, date: e.date, title: e.title, body: e.body };
     },
   },
@@ -622,6 +649,8 @@ const tools = [
     },
     async run(a) {
       const { uid } = await idToken();
+      const hidden = await hiddenFolders(uid);
+      const today = await haruToday();
       return update(`users/${uid}/lists/journal`, (cur) => {
         const items = [...(cur?.items ?? [])];
         const t = Date.now();
@@ -629,10 +658,11 @@ const tools = [
         if (a.id) {
           const i = items.findIndex((x) => x.id === a.id);
           if (i < 0) fail(`No Journal page with id ${a.id}`);
+          if (hidden.has(items[i].folder)) fail(HIDDEN);
           page = { ...items[i], ...(a.date !== undefined && { date: date(a.date) }), ...(a.title !== undefined && { title: String(a.title) }), ...(a.body !== undefined && { body: String(a.body) }), updated: t };
           items[i] = page;
         } else {
-          page = { id: newId(), date: a.date ? date(a.date) : localDate(), title: String(a.title ?? ''), body: String(a.body ?? ''), created: t, updated: t };
+          page = { id: newId(), date: a.date ? date(a.date) : today, title: String(a.title ?? ''), body: String(a.body ?? ''), created: t, updated: t };
           items.unshift(page);
         }
         // the app keeps the whole journal in one document (at most 1 MB)
@@ -682,6 +712,9 @@ const tools = [
           return s;
         }
       };
+      const hidden = await hiddenFolders(uid);
+      // pages in folders hidden from Claude never come out of the log either
+      const unhide = (e, v) => (e.kind === 'list' && e.key === 'journal' && Array.isArray(v) ? v.filter((p) => !hidden.has(p?.folder)) : v);
       const entries = (Array.isArray(res) ? res : [])
         .filter((r) => r.document)
         .map((r) => decodeFields(r.document.fields ?? {}))
@@ -693,8 +726,8 @@ const tools = [
           kind: e.kind,
           ...(e.key && { key: e.key }),
           action: e.action,
-          ...(e.before !== undefined && { before: parse(e.before) }),
-          ...(e.after !== undefined && { after: parse(e.after) }),
+          ...(e.before !== undefined && { before: unhide(e, parse(e.before)) }),
+          ...(e.after !== undefined && { after: unhide(e, parse(e.after)) }),
         }));
       return { count: entries.length, entries };
     },

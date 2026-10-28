@@ -7,8 +7,8 @@ import type { TemplateBlock } from './templates';
  * day begins (see history's roll) its plan becomes Today and is used up. Kept in localStorage — read at once
  * when the day rolls over — and mirrored to IndexedDB like the templates.
  */
-/** A planned task: a template's, plus the note it carries into Today (the key only when there is one). */
-export type PlanBlock = TemplateBlock & { note?: string };
+/** A planned task: a template's, with the note it carries into Today. */
+export type PlanBlock = TemplateBlock;
 
 export interface Plan {
   date: string;
@@ -95,15 +95,6 @@ export function setPlan(date: string, blocks: readonly PlanBlock[], from: string
     saved: Date.now(),
   };
   plans = [...plans.filter((x) => x.date !== date), p].sort((a, b) => a.date.localeCompare(b.date));
-  save();
-}
-
-/** Writes (or, blank, removes) the note of the task planned at `start` on `date`. */
-export function setPlanNote(date: string, start: number, note: string): void {
-  const p = planOn(date);
-  if (!p || !p.blocks.some((b) => b.start === start)) return;
-  const blocks = p.blocks.map((b) => (b.start === start ? planBlock({ ...b, note }) : b));
-  plans = plans.map((x) => (x.date === date ? { ...x, blocks, saved: Date.now() } : x));
   save();
 }
 

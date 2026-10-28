@@ -51,7 +51,8 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 - 데이터 구조: 앱의 Firestore 구조(`src/cloud/sync.ts` 맨 위 표, `model.ts`, `plans.ts`, `journal-store.ts`)를 그대로 따른다. 앱 쪽 구조를 바꾸면 `haru-mcp.mjs`도 같은 커밋에서 같이 고친다.
 - 쓰기: 문서를 읽고 → 고치고 → `updateTime` 조건을 걸어 통째로 쓴다. 다른 기기가 먼저 바꿨으면 다시 읽어서 적용하고 덮어쓰지 않는다.
 - 쓰기: 시각 필드(`updated`, 계획은 `saved`)를 지금 시각으로 찍어 열린 앱이 새 값으로 받게 한다. `undefined` 필드는 넣지 않고, `doing`·`note`는 값이 있을 때만 넣는다.
-- 할 일 규칙은 앱과 같다: 같은 날 할 일은 겹치지 않고, 시간은 `HH:MM`(현지 시각), 기본 15분 단위. 하루 시작 시각 설정(Settings → Today)은 MCP가 모르니, 날짜가 애매하면 사용자에게 묻는다.
+- 할 일 규칙은 앱과 같다: 같은 날 할 일은 겹치지 않고, 시간은 `HH:MM`(현지 시각), 기본 15분 단위. 오늘 날짜는 계정의 새 하루 시작 시각(`meta/settings.dayReset`, v1.70부터 동기화)으로 센다 — `haru_today`의 `today`·`newDayAt`.
+- 저널 폴더에 `private: true`(앱의 Hide from Claude)가 있으면 그 폴더 페이지는 MCP 목록·읽기·쓰기·`haru_log` 어디에도 내보내지 않는다.
 - 다른 멤버의 데이터(Today·지난 날)는 읽기만 한다. 바꾸는 도구는 내 계정 데이터만 다룬다.
 - 사용: 바꾸기 전에 먼저 읽고(`haru_today`, `haru_plans`, `haru_calendar`), 바꾼 뒤에는 무엇을 바꿨는지 짧게 보고한다.
 - 사용: 할 일 삭제, 여러 개 한꺼번에 바꾸기, 이미 있는 계획·메모를 덮어쓰거나 지우기, 저널 고치기는 먼저 사용자에게 확인받는다.

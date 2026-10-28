@@ -1,7 +1,7 @@
 import { allTemplates, applyTemplate, createTemplate, onTemplates, removeTemplate, saveTemplate, updateTemplate, type Template, type TemplateBlock } from './templates';
 import { CATEGORIES, CATEGORY_KEYS, labelOf, type Category } from './model';
 import { setState, state, subscribe } from './state';
-import { DAY, formatDuration, hhmm, mod } from './time';
+import { DAY, formatDuration, hhmm, minutesOf, mod } from './time';
 import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
 
@@ -11,15 +11,6 @@ export interface TemplateRefs {
   status: HTMLElement;
 }
 
-/** A typed time → minutes, or null: "9", "930", "0930", "9:30" and "24:00" all work. */
-const minutesOf = (v: string): number | null => {
-  const t = v.trim();
-  const m = /^(\d{1,2})(?::?(\d{2}))?$/.exec(t.includes(':') || t.length > 2 ? t.replace(/^(\d{1,2})(\d{2})$/, '$1:$2') : t);
-  if (!m) return null;
-  const h = Number(m[1]);
-  const min = Number(m[2] ?? 0);
-  return h > 24 || min > 59 || (h === 24 && min) ? null : (h * 60 + min) % DAY;
-};
 /** A time box: typed as HH:MM in the app's mono digits (the native picker shows 오전/오후 and doesn't fit). */
 const timeBox = (cls: string, label: string, name = '') =>
   `<input class="${cls}"${name ? ` name="${name}"` : ''} inputmode="numeric" maxlength="5" placeholder="HH:MM" aria-label="${label}" autocomplete="off">`;
@@ -280,7 +271,8 @@ export function mountTemplates(refs: TemplateRefs): void {
           end.value = hhmm(b.start + b.dur);
           return;
         }
-        const next = { title: title.value.trim(), cat: cat.value as Category, start: s, dur: mod(e - s) };
+        // the note isn't edited here: it stays with the task
+        const next = { ...b, title: title.value.trim(), cat: cat.value as Category, start: s, dur: mod(e - s) };
         const blocks = t.blocks.map((x, k) => (k === i ? next : x));
         if (fits(blocks, next)) updateTemplate(t.id, { blocks });
         else {

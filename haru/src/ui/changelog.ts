@@ -17,6 +17,18 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.70',
+    date: '2026-10-28',
+    items: [
+      '새 하루 시작 시각(설정 → Today)을 계정에 저장해 모든 기기가 같은 날짜로 셈 (전에 고른 값은 그대로 유지, Claude도 이 값으로 오늘을 셈)',
+      '캘린더 Plan에서 할 일을 눌러 이름·카테고리·시간·메모를 고치거나 지우기, Add task로 하나씩 추가 (계획이 없는 날도)',
+      '템플릿이 할 일 메모를 유지: Today에서 저장하면 메모도 같이, 템플릿으로 Today·계획을 만들면 메모도 같이',
+      '저널 폴더 메뉴의 Hide from Claude: 그 폴더 페이지는 Claude가 목록·읽기·고치기·변경 기록 어디서도 못 봄',
+      '세부 일정 접힘을 창 너비가 바뀔 때마다 다시 판정',
+      '새 버전으로 열면 위에 Haru v1.xx 카드가 한 번 뜨고, 누르면 What’s new가 열림',
+    ],
+  },
+  {
     version: '1.69',
     date: '2026-10-27',
     items: [
@@ -639,6 +651,58 @@ const markSeen = (): void => {
   } catch { /* storage may be off */ }
 };
 
+const RAN_KEY = 'haru:ran-version';
+/**
+ * Opened on a newer version than last time (a reload after a deploy, the installed app's next open — the reload
+ * card in pwa.ts only shows while an old page is still open): a card says so once and opens What's new.
+ */
+function announceUpdate(nav: HTMLElement): void {
+  const now = CHANGELOG[0]?.version;
+  if (!now) return;
+  let last: string | null = null;
+  try {
+    // before this card existed: the version last read in What's new
+    last = localStorage.getItem(RAN_KEY) ?? (seen() || null);
+    localStorage.setItem(RAN_KEY, now);
+  } catch {
+    return;
+  }
+  // the first visit has nothing to compare with
+  if (!last || last === now) return;
+  const card = document.createElement('div');
+  card.className = 'toast toast-update';
+  card.setAttribute('role', 'status');
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'toast-go';
+  const text = document.createElement('span');
+  text.className = 'toast-text';
+  text.append(
+    Object.assign(document.createElement('strong'), { textContent: `Haru v${now}` }),
+    Object.assign(document.createElement('span'), { className: 'toast-body', textContent: 'See what’s new' }),
+  );
+  go.append(icon('sparkles'), text);
+  const later = document.createElement('button');
+  later.type = 'button';
+  later.className = 'icon-btn toast-x';
+  later.setAttribute('aria-label', 'Close');
+  later.append(icon('x'));
+  card.append(go, later);
+  const dismiss = () => {
+    clearTimeout(timer);
+    card.classList.add('out');
+    setTimeout(() => card.remove(), 260);
+  };
+  const timer = setTimeout(dismiss, 12_000);
+  go.addEventListener('click', () => {
+    dismiss();
+    document.getElementById('settings-open')?.click();
+    nav.click();
+  });
+  later.addEventListener('click', dismiss);
+  document.body.append(card);
+}
+
 const fmtDate = (d: string) => {
   const dt = new Date(`${d}T00:00`);
   return `${dt.getFullYear()}.${dt.getMonth() + 1}.${dt.getDate()}`;
@@ -683,6 +747,7 @@ export function mountChangelog(): void {
     art.append(head, ul);
     return art;
   }));
+  announceUpdate(nav);
   nav.classList.toggle('has-new', unread > 0);
   if (unread) nav.setAttribute('aria-label', `What’s new · ${unread} unread`);
   // once the page is opened, everything on it counts as read (the marks stay until next time)

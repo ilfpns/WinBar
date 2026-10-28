@@ -243,9 +243,21 @@ export function mountJournal(body: HTMLElement): void {
       setTab(f.id);
     });
   }
+  /** Hides a folder's pages from Claude (the MCP), or shows them again. */
+  function setPrivate(f: Folder, hide: boolean): void {
+    folderStore.set(folders().map((x) => {
+      if (x.id !== f.id) return x;
+      const { private: _, ...rest } = x;
+      return hide ? { ...rest, private: true } : rest;
+    }));
+    tell(hide ? `${f.name} is hidden from Claude` : `${f.name} is shown to Claude`);
+  }
   const folderMenu = (f: Folder, at: HTMLElement | { x: number; y: number }) =>
     showMenu(at, [
       { label: 'Rename', icon: 'pencil', run: () => void renameFolder(f) },
+      f.private
+        ? { label: 'Show to Claude', icon: 'eye', run: () => setPrivate(f, false) }
+        : { label: 'Hide from Claude', icon: 'eye-off', run: () => setPrivate(f, true) },
       { label: 'Delete folder', icon: 'trash', danger: true, run: () => void deleteFolder(f) },
     ]);
 

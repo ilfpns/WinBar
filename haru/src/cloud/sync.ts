@@ -11,6 +11,7 @@ import type { ListStore } from '../storage/list-store';
 import { wordsStore } from '../words/words';
 import { folderStore, journalStore } from '../journal/journal';
 import { logChange, startLog } from './log';
+import { onResetAt, resetAt, resetFromRemote, resetUpdated } from '../timetable/day-reset';
 
 /**
  * Two-way sync of one user's data with Firestore (`users/{uid}/…`). Each piece carries a time stamp and the
@@ -19,6 +20,7 @@ import { logChange, startLog } from './log';
  *   state/timetable   { blocks, updated }          Today
  *   meta/templates    { list, updated }            day templates
  *   meta/plans        { list, updated }            days planned ahead
+ *   meta/settings     { dayReset, updated }        New day time (minute of day, null: off)
  *   notes/{date}      { date, text, updated }      memos
  *   days/{date}       { date, blocks, saved }      day history
  *   images/{id}       { id, date, created, data }  memo images (data URL, kept under Firestore's 1 MB limit)
@@ -193,6 +195,33 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       plansFromRemote(data.list, data.updated);
     } else if (plansUpdated() > data.updated) pushPlans();
     else cloudPlanStamp = data.updated;
+  }, () => onStatus('error')));
+
+  // ---------- New day time (one value, the newer side wins). A device that never chose one sends the default
+  // stamped 0, so any device's actual choice wins over it.
+  let cloudResetStamp = 0;
+  const pushReset = () => {
+    cloudResetStamp = resetUpdated();
+    logChange('settings', 'dayReset', 'save', resetAt());
+    write(fs.setDoc(ref('meta/settings'), { dayReset: resetAt(), updated: cloudResetStamp }));
+  };
+  onResetAt(() => {
+    if (!stopped && resetUpdated() > cloudResetStamp) pushReset();
+  });
+  unsubs.push(fs.onSnapshot(ref('meta/settings'), (snap) => {
+    if (snap.metadata.hasPendingWrites) return;
+    const data = snap.data() as { dayReset?: number | null; updated: number } | undefined;
+    if (!data || data.dayReset === undefined) {
+      // nothing in the cloud yet: this device's choice (or the default) goes up
+      pushReset();
+      return;
+    }
+    if (data.updated > resetUpdated()) {
+      cloudResetStamp = data.updated;
+      if (data.dayReset !== resetAt()) logChange('settings', 'dayReset', 'from-cloud', data.dayReset, resetAt());
+      resetFromRemote(data.dayReset, data.updated);
+    } else if (resetUpdated() > data.updated) pushReset();
+    else cloudResetStamp = data.updated;
   }, () => onStatus('error')));
 
   // ---------- memos (per date)

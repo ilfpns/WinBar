@@ -6,7 +6,11 @@ import { announceAdded, setState, state } from './state';
  * Day templates: a named copy of a whole day's timetable ("Weekday", "Exam day"…). Applying one
  * replaces Today's tasks with it (undoable). Kept in localStorage and mirrored to IndexedDB like the timetable.
  */
-export interface TemplateBlock { title: string; cat: Category; start: number; dur: number }
+/** A template's task; `note` (what to keep in mind) goes along onto Today and plans, the key only when there is one. */
+export interface TemplateBlock { title: string; cat: Category; start: number; dur: number; note?: string }
+/** The task as kept: no blank note (the cloud copy takes no undefined fields). */
+export const templateBlock = ({ title, cat, start, dur, note }: TemplateBlock): TemplateBlock =>
+  note?.trim() ? { title, cat, start, dur, note } : { title, cat, start, dur };
 export interface Template { id: string; name: string; blocks: TemplateBlock[]; updated: number }
 
 const KEY = 'haru:templates:v1';
@@ -24,7 +28,7 @@ const cleanBlocks = (blocks: unknown[]): TemplateBlock[] =>
   blocks.flatMap((b) => {
     const x = b as Record<string, unknown>;
     return typeof x?.start === 'number' && typeof x.dur === 'number' && typeof x.cat === 'string' && x.cat in CATEGORIES
-      ? [{ title: typeof x.title === 'string' ? x.title : '', cat: x.cat as Category, start: x.start, dur: x.dur }]
+      ? [templateBlock({ title: typeof x.title === 'string' ? x.title : '', cat: x.cat as Category, start: x.start, dur: x.dur, note: typeof x.note === 'string' ? x.note : undefined })]
       : [];
   });
 const clean = (list: unknown[]): Template[] =>
@@ -68,7 +72,7 @@ export function onTemplates(fn: () => void): void {
 
 /** Saves Today's tasks under `name` (a template with the same name is updated). */
 export function saveTemplate(name: string): Template {
-  const blocks = state.blocks.map(({ title, cat, start, dur }) => ({ title, cat, start, dur })).sort((a, b) => a.start - b.start);
+  const blocks = state.blocks.map(templateBlock).sort((a, b) => a.start - b.start);
   const same = templates.find((t) => t.name.toLowerCase() === name.toLowerCase());
   const t: Template = { id: same?.id ?? newId(), name, blocks, updated: Date.now() };
   templates = same ? templates.map((x) => (x.id === t.id ? t : x)) : [...templates, t];
@@ -89,7 +93,7 @@ export function createTemplate(name: string): Template {
 /** Renames a template or replaces its tasks (kept in start order). */
 export function updateTemplate(id: string, patch: Partial<Pick<Template, 'name' | 'blocks'>>): void {
   templates = templates.map((t) => (t.id === id
-    ? { ...t, ...patch, blocks: [...(patch.blocks ?? t.blocks)].sort((a, b) => a.start - b.start), updated: Date.now() }
+    ? { ...t, ...patch, blocks: (patch.blocks ?? t.blocks).map(templateBlock).sort((a, b) => a.start - b.start), updated: Date.now() }
     : t));
   save();
 }
