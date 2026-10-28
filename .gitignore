@@ -8,3 +8,4 @@ haru/node_modules/
 haru/dist/
 .gstack/
 haru/public/data/attendance.json
+haru/firestore-debug.log
