@@ -61,8 +61,30 @@ export function streaksOf(days: readonly DayTotals[], today = dayOf()): Streak[]
   }).sort((a, b) => b.days - a.days || b.best - a.best);
 }
 
+/** Days in a row with Today kept (any task on it): from today back, or from yesterday while today has none yet. */
+export function keptRunOf(days: readonly DayTotals[], today = dayOf()): { days: number; best: number } {
+  const kept = new Set(days.filter((d) => Object.values(d.planned).some((m) => m > 0)).map((d) => d.date));
+  let best = 0;
+  let run = 0;
+  let last = '';
+  for (const d of [...kept].sort()) {
+    run = last && prevDate(d) === last ? run + 1 : 1;
+    last = d;
+    best = Math.max(best, run);
+  }
+  let at = kept.has(today) ? today : prevDate(today);
+  let n = 0;
+  while (kept.has(at)) {
+    n++;
+    at = prevDate(at);
+  }
+  return { days: n, best };
+}
+
 /** The streaks, kept up to date as days are saved and Today changes. */
 let current: Streak[] = [];
+let keptRun = { days: 0, best: 0 };
+export const todayRun = (): { days: number; best: number } => keptRun;
 const listeners = new Set<(s: Streak[]) => void>();
 export const streaks = (): Streak[] => current;
 export function onStreaks(fn: (s: Streak[]) => void): void {
@@ -73,9 +95,12 @@ export function mountStreaks(): void {
   const refresh = () => {
     clearTimeout(timer);
     timer = window.setTimeout(async () => {
-      const next = streaksOf(await keptDays());
-      if (JSON.stringify(next) === JSON.stringify(current)) return;
+      const all = await keptDays();
+      const next = streaksOf(all);
+      const run = keptRunOf(all);
+      if (JSON.stringify(next) === JSON.stringify(current) && run.days === keptRun.days && run.best === keptRun.best) return;
       current = next;
+      keptRun = run;
       listeners.forEach((fn) => fn(current));
     }, 300);
   };

@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.77',
+    date: '2026-10-28',
+    items: [
+      'Today 인사말 아래 칩을 하나로: 카테고리별 연속 대신 "Today · N days in a row"(Today에 할 일을 적은 날이 며칠째 이어지는지, 2일부터 표시)',
+    ],
+  },
+  {
     version: '1.76',
     date: '2026-10-28',
     items: [
