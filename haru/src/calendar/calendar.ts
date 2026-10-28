@@ -14,6 +14,7 @@ import { CATEGORIES, CATEGORY_KEYS, type Block, type Category, labelOf } from '.
 import { allTemplates } from '../timetable/templates';
 import { type PlanBlock, clearPlan, onPlans, planOn, setPlan } from '../timetable/plans';
 import { templateBlock } from '../timetable/templates';
+import { invite, withPicker } from '../cloud/together';
 import { type MenuItem, dayLine, isAhead, loadDay, miniDial, openPlanMenu, weekDates, weekStart } from './week';
 import { formatDuration, hhmm, minutesOf, mod } from '../timetable/time';
 import { lessMotion } from '../ui/motion';
@@ -432,6 +433,9 @@ export function mountCalendar(refs: CalendarRefs): void {
     f('start').value = hhmm(base.start);
     f('end').value = hhmm(base.start + base.dur);
     note.value = base.note ?? '';
+    // who to ask along (Together)
+    const company = withPicker();
+    note.before(company.el);
     const fit = () => {
       note.style.height = 'auto';
       note.style.height = `${note.scrollHeight}px`;
@@ -477,7 +481,9 @@ export function mountCalendar(refs: CalendarRefs): void {
         return;
       }
       // the plan list changes and the panel draws again with the task in place
+      const who = company.selected();
       write([...others, next], task ? 'Plan saved' : `Added ${labelOf(next)}`);
+      if (who.length) void invite(next, date, who).then((ok) => say(ok ? `Asked ${who.length} to join` : 'Couldn’t ask them: try again', !ok));
     });
     if (row) {
       row.classList.add('editing');

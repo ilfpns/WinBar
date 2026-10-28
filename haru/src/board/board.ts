@@ -6,6 +6,8 @@ import { formatDuration } from '../timetable/time';
 import { currentView, onView } from '../ui/router';
 import { icon } from '../ui/icons';
 import { lessMotion } from '../ui/motion';
+import { onStreaks, streaks } from '../timetable/streaks';
+import { openReview } from '../timetable/review';
 
 /**
  * Dot board: every day you keep, as hexagon cells. Each of the nine categories starts as one seed on a ring
@@ -149,7 +151,10 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
     <section class="bd-map glass-card" aria-label="Board">
       <div class="bd-bar">
         <span class="meta bd-range"></span>
-        <button type="button" class="btn-text bd-replay"></button>
+        <span class="bd-tools">
+          <button type="button" class="btn-text bd-review"></button>
+          <button type="button" class="btn-text bd-replay"></button>
+        </span>
       </div>
       <div class="bd-stage"></div>
       <div class="bd-tip" role="status" hidden></div>
@@ -166,6 +171,9 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
   const legend = body.querySelector<HTMLElement>('.bd-legend')!;
   const replay = body.querySelector<HTMLButtonElement>('.bd-replay')!;
   replay.append(icon('rotate-ccw'), 'Replay');
+  const review = body.querySelector<HTMLButtonElement>('.bd-review')!;
+  review.append(icon('chart-column'), 'Week review');
+  review.addEventListener('click', () => void openReview());
   const swatches = body.querySelector<HTMLElement>('.bd-swatches')!;
   for (let l = 0; l <= 5; l++) swatches.append(Object.assign(document.createElement('span'), { className: `bd-sw l${l}` }));
 
@@ -222,6 +230,13 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
       b.innerHTML = '<span class="dot"></span><span class="n"></span><span class="meta"></span>';
       b.querySelector('.n')!.textContent = CATEGORIES[cat];
       b.querySelector('.meta')!.textContent = used ? `${used}d · ${formatDuration(total)}` : '–';
+      // days running, when it is going
+      const run = streaks().find((s) => s.cat === cat);
+      if (run && run.days >= 2) {
+        const f = Object.assign(document.createElement('span'), { className: 'bd-run', title: `${run.days} days in a row (longest ${run.best})` });
+        f.append(icon('flame'), String(run.days));
+        b.querySelector('.n')!.append(f);
+      }
       b.addEventListener('click', () => {
         focus = focus === cat ? null : cat;
         paintFocus();
@@ -253,6 +268,7 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
   });
   stage.addEventListener('pointerleave', () => (tip.hidden = true));
   replay.addEventListener('click', () => draw(true));
+  onStreaks(() => currentView() === 'board' && days.length && draw(false));
 
   // built when the page is opened, and again when the days change while it is open
   async function refresh(animate: boolean): Promise<void> {

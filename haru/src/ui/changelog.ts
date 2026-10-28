@@ -17,6 +17,16 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.73',
+    date: '2026-10-28',
+    items: [
+      '주간 리뷰: 새 주에 처음 열면 지난주 요약 카드가 한 번 뜸(완료·계획 시간, 완료율, 가장 많이 한 날, 못 끝낸 일, 카테고리별 지난주 대비), Dot board의 Week review로 언제든 열고 주를 넘겨 보기',
+      '연속 기록: 카테고리마다 완료한 날이 며칠째 이어지는지 Today 인사말 아래(가장 긴 2개)와 Dot board 목록에 불꽃으로 표시, 오늘 아직 안 했어도 어제까지 이어졌으면 유지',
+      'Together: 할 일 편집기와 캘린더 Plan 폼의 With에서 멤버를 고르면 같이 하자고 물어봄. 받은 사람은 Today 오른쪽 위 카드에서 Accept(자기 Today·그날 계획에 들어감, 겹치면 안내) 또는 Decline',
+      'Together: 내가 물어본 것은 누가 수락했는지 아바타로 보이고, X로 거둘 수 있음 (Firebase 규칙을 새로 게시해야 동작)',
+    ],
+  },
+  {
     version: '1.72',
     date: '2026-10-28',
     items: [

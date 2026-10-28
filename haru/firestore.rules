@@ -86,6 +86,23 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Together: a task made with other members. The maker writes it (as themselves, to at most 20 people) and may
+    // change or take it back; each person asked reads it and sets only their own answer
+    match /together/{id} {
+      allow read: if isInvited() && (resource.data.from == request.auth.uid || request.auth.uid in resource.data.to);
+      allow create: if isInvited() && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is list && request.resource.data.to.size() > 0 && request.resource.data.to.size() <= 20
+        && request.resource.data.title is string && request.resource.data.title.size() <= 80
+        && request.resource.data.answers == {};
+      allow update: if isInvited() && (
+        (resource.data.from == request.auth.uid && request.resource.data.from == request.auth.uid)
+        || (request.auth.uid in resource.data.to
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers'])
+          && request.resource.data.answers.diff(resource.data.answers).affectedKeys().hasOnly([request.auth.uid])
+          && request.resource.data.answers[request.auth.uid] in ['yes', 'no']));
+      allow delete: if isInvited() && resource.data.from == request.auth.uid;
+    }
+
     // the Updates notice pinned on top of the Archive: everyone invited reads it, only the admin writes it
     match /notices/{doc} {
       allow read: if isInvited();

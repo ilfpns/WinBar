@@ -2,6 +2,8 @@ import { mod } from './time';
 import { CATEGORIES, CATEGORY_KEYS, type Category, type Status, statusOf } from './model';
 import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, setDraftStatus, setStatus, state, subscribe } from './state';
 import { timeField } from '../ui/time-field';
+import { invite, withPicker } from '../cloud/together';
+import { dayOf } from './history';
 
 interface EditorFields extends HTMLFormControlsCollection {
   title: HTMLInputElement;
@@ -20,6 +22,9 @@ export function mountEditor(form: HTMLFormElement): void {
   const err = req<HTMLElement>(form, '#err');
   const del = req<HTMLButtonElement>(form, '#del');
   const chips = req<HTMLElement>(form, '#chips');
+  // who to ask along (Together): asked once the task is saved
+  const company = withPicker();
+  f.note.before(company.el);
 
   // custom 24h pickers: native <select>/<input type=time> follow OS styling and the 12h locale
   const setTimes = (start: number, end: number) => {
@@ -77,6 +82,7 @@ export function mountEditor(form: HTMLFormElement): void {
       f.title.value = d.title;
       f.note.value = d.note ?? '';
       err.textContent = '';
+      company.reset();
       // at the next frame, where the layout is worked out anyway (focusing now would force it mid-click)
       requestAnimationFrame(() => f.title.focus({ preventScroll: true }));
     }
@@ -108,7 +114,11 @@ export function mountEditor(form: HTMLFormElement): void {
     // one Enter can arrive twice with a Korean IME (once committing the syllable, once as a plain Enter)
     if (performance.now() - lastSave < 300) return;
     lastSave = performance.now();
-    err.textContent = commitDraft() ?? '';
+    const d = state.draft;
+    const who = company.selected();
+    const failed = commitDraft();
+    err.textContent = failed ?? '';
+    if (!failed && d && who.length) void invite({ title: d.title.trim(), cat: d.cat, start: d.start, dur: d.dur, note: d.note }, dayOf(), who);
   };
   form.addEventListener('submit', (e) => {
     e.preventDefault();

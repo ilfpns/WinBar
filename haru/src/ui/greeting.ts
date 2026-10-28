@@ -1,10 +1,13 @@
 import { onSession, session } from '../cloud/session';
 import { icon } from './icons';
+import { CATEGORIES } from '../timetable/model';
+import { onStreaks, type Streak } from '../timetable/streaks';
 
 /**
  * Today's greeting, top left: one line for the time of day with your name in it ("Good morning, Public"),
  * picked at random from twenty per part of the day (a new one when the part of the day changes). The name is the one set in
- * Settings → Account, or your account's first name; without either the line simply has none.
+ * Settings → Account, or your account's first name; without either the line simply has none. Under it, the
+ * categories done several days running (timetable/streaks.ts), the longest two.
  */
 const NAME_KEY = 'haru:greet-name';
 type Part = 'owl' | 'morning' | 'afternoon' | 'evening' | 'night';
@@ -78,8 +81,24 @@ export function mountGreeting(stage: HTMLElement): void {
   el.className = 'greeting';
   el.dataset.noI18n = '';
   const text = document.createElement('span');
-  el.append(icon('asterisk', 'ic greeting-mark'), text);
+  const runs = document.createElement('span');
+  runs.className = 'greet-streaks';
+  el.append(icon('asterisk', 'ic greeting-mark'), text, runs);
   stage.append(el);
+  const paintRuns = (list: Streak[]) => {
+    const going = list.filter((s) => s.days >= 2).slice(0, 2);
+    runs.hidden = !going.length;
+    runs.replaceChildren(...going.map((s) => {
+      const chip = document.createElement('span');
+      chip.className = 'greet-streak';
+      chip.style.setProperty('--c', `var(--cat-${s.cat})`);
+      chip.title = `${CATEGORIES[s.cat]}: ${s.days} days in a row (longest ${s.best})`;
+      chip.append(icon('flame'), `${CATEGORIES[s.cat]} · ${s.days} days in a row`);
+      return chip;
+    }));
+  };
+  paintRuns([]);
+  onStreaks(paintRuns);
 
   let part: Part | null = null;
   let line = '';

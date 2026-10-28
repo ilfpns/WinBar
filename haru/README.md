@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.73** (2026-10-28) — 주간 리뷰 카드 / 카테고리 연속 기록 / Together(멤버와 같이 할 일, 수락하면 내 Today·계획에)
 - **v1.72** (2026-10-28) — Dot board 페이지: 카테고리 9개가 하루마다 한 칸씩 자라는 육각형 판, 시간만큼 진하게
 - **v1.71** (2026-10-28) — Today 모드 3개(Next 3 hours · This week · Dots): 끌어서 옮기기, 못 끝낸 일 넘기기, Start/Done, 5분 전 알림, 반응형
 - **v1.70** (2026-10-28) — 새 하루 시작 시각 동기화 / Plan에서 할 일 고치기·추가 / 템플릿 메모 / 저널 폴더 Claude에게 숨기기 / 세부 일정 접힘 다시 재기 / 새 버전 안내 카드
