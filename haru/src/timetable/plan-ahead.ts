@@ -1,18 +1,22 @@
-import { CATEGORIES, labelOf } from './model';
+import { CATEGORIES, type Block, labelOf } from './model';
 import { allTemplates } from './templates';
-import { clearPlan, onPlans, planOn, setPlan } from './plans';
+import { type PlanBlock, clearPlan, onPlans, planOn, setPlan } from './plans';
 import { planEditable, planForm } from './plan-form';
 import { dayOf, onDaySaved } from './history';
 import { state } from './state';
-import { formatDuration, hhmm } from './time';
+import { DAY, SNAP, formatDuration, hhmm, mod, snap } from './time';
+import { R_IN, R_OUT, polarOf, sectorPath } from './geometry';
+import { drawReadOnlyDial } from './dial';
+import { svgEl } from './svg';
 import { icon } from '../ui/icons';
-import { asPopover, hidePop, isPopOpen, onPopToggle, showPop } from '../ui/popover';
+import { onView } from '../ui/router';
 
 /**
- * Planning a day ahead from Today: a small "Tomorrow" chip under the greeting opens a picker for tomorrow's
- * plan, and its arrows step on to the days after. The plan is the Calendar's (plans.ts): it becomes Today when that
- * day begins. Tasks are added and changed with the Calendar's form (plan-form.ts); an empty day can also start
- * from a template or a copy of Today.
+ * Planning a day ahead from Today: the "Tomorrow" chip under the greeting turns the dial into tomorrow's plan,
+ * with a small panel beside it; the panel's arrows step on to the days after. Drag on the ring to lay out a task
+ * (the panel's form opens with those hours), click a task on the ring or in the list to change it. The plan is
+ * the Calendar's (plans.ts): it becomes Today when that day begins. Today itself is only hidden underneath, never
+ * touched. The chip again, X, Esc or leaving Today comes back to Today.
  */
 const MAX_AHEAD = 90;
 
@@ -22,13 +26,14 @@ const addDays = (date: string, n: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const short = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+const weekday = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short' });
 
-export function mountPlanAhead(row: HTMLElement): void {
+export function mountPlanAhead(row: HTMLElement, stage: HTMLElement): void {
   const chip = document.createElement('button');
   chip.type = 'button';
   chip.className = 'greet-streak greet-ahead';
   chip.style.setProperty('--c', 'var(--text-muted)');
-  chip.setAttribute('aria-haspopup', 'dialog');
+  chip.setAttribute('aria-expanded', 'false');
   const chipText = document.createElement('span');
   chip.append(icon('calendar-plus'), chipText);
   row.append(chip);
@@ -37,12 +42,19 @@ export function mountPlanAhead(row: HTMLElement): void {
   pop.className = 'ahead-pop';
   pop.setAttribute('role', 'dialog');
   pop.setAttribute('aria-label', 'Plan a day ahead');
-  asPopover(pop);
+  pop.hidden = true;
   document.body.append(pop);
 
-  /** How many days ahead the picker shows (1: tomorrow). */
+  // the day ahead as the dial, in the dial's place (Today's own dial waits hidden underneath, as with peek)
+  const wrap = stage.querySelector<HTMLElement>('.dial-wrap')!;
+  const face = svgEl('svg', { class: 'peek-dial plan-dial', viewBox: '-520 -520 1040 1040', role: 'img' }) as SVGSVGElement;
+  face.style.display = 'none';
+  wrap.append(face);
+
+  /** How many days ahead is shown (1: tomorrow). */
   let ahead = 1;
   const dateNow = () => addDays(dayOf(), ahead);
+  const isOpen = () => !pop.hidden;
 
   const status = document.createElement('p');
   status.className = 'meta ahead-status';
@@ -72,11 +84,20 @@ export function mountPlanAhead(row: HTMLElement): void {
     return b;
   };
 
+  let list = document.createElement('ul');
+  /** The plan's tasks as the dial draws them. */
+  const shown = (): Block[] => (planOn(dateNow())?.blocks ?? []).map((b, i) => ({ ...b, id: `plan-${i}`, done: false }));
+  function drawFace(ghost?: { start: number; dur: number }): void {
+    drawReadOnlyDial(face, shown(), { clock: false, center: weekday(dateNow()) });
+    face.setAttribute('aria-label', `Plan for ${short(dateNow())}`);
+    if (ghost?.dur) face.append(svgEl('path', { class: 'ghost', d: sectorPath(ghost.start, ghost.dur) }));
+  }
+
   function render(): void {
     stale = false;
     const date = dateNow();
     const plan = planOn(date);
-    // the day, with arrows to the one before (not past tomorrow) and after
+    // the day, with arrows to the one before (not past tomorrow) and after, and the way back to Today
     const head = document.createElement('div');
     head.className = 'ahead-head';
     const step = (by: number, label: string, ic: 'chevron-left' | 'chevron-right') => {
@@ -99,10 +120,17 @@ export function mountPlanAhead(row: HTMLElement): void {
     title.innerHTML = '<span></span><span class="meta"></span>';
     title.firstElementChild!.textContent = ahead === 1 ? 'Tomorrow' : `In ${ahead} days`;
     title.lastElementChild!.textContent = short(date);
-    head.append(step(-1, 'Day before', 'chevron-left'), title, step(1, 'Next day', 'chevron-right'));
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'ahead-step ahead-close';
+    close.setAttribute('aria-label', 'Back to Today');
+    close.title = 'Back to Today';
+    close.append(icon('x'));
+    close.addEventListener('click', () => setOpen(false));
+    head.append(step(-1, 'Day before', 'chevron-left'), title, step(1, 'Next day', 'chevron-right'), close);
 
     // the plan's tasks, each opening the form; the form for a new one goes at the end
-    const list = document.createElement('ul');
+    list = document.createElement('ul');
     list.className = 'cal-tt-list ahead-list';
     for (const b of plan?.blocks ?? []) {
       const li = document.createElement('li');
@@ -125,10 +153,7 @@ export function mountPlanAhead(row: HTMLElement): void {
 
     const tools = document.createElement('div');
     tools.className = 'ahead-tools';
-    tools.append(button('Add task', 'plus', () => {
-      planForm(list, null, date, null, say);
-      place();
-    }));
+    tools.append(button('Add task', 'plus', () => planForm(list, null, date, null, say)));
     if (plan) {
       tools.append(button('Clear plan', 'eraser', () => {
         clearPlan(date);
@@ -151,14 +176,15 @@ export function mountPlanAhead(row: HTMLElement): void {
     }
     const foot = document.createElement('p');
     foot.className = 'meta ahead-from';
-    foot.textContent = plan ? (plan.from ? `Planned · ${plan.from}` : 'Planned') : 'Not planned yet';
+    foot.textContent = plan ? (plan.from ? `Planned · ${plan.from}` : 'Planned') : 'Drag on the ring to add a task';
     pop.replaceChildren(head, foot, list, tools, status);
+    drawFace();
     place();
   }
 
-  /** Under the chip, kept on screen as the picker grows (an open form, more tasks). */
+  /** Under the chip, kept on screen as the panel grows (an open form, more tasks). */
   function place(): void {
-    if (!isPopOpen(pop)) return;
+    if (!isOpen()) return;
     const r = chip.getBoundingClientRect();
     const w = pop.offsetWidth;
     const h = pop.offsetHeight;
@@ -166,30 +192,106 @@ export function mountPlanAhead(row: HTMLElement): void {
     pop.style.top = `${r.bottom + 6 + h > innerHeight - 8 ? Math.max(8, innerHeight - h - 8) : r.bottom + 6}px`;
   }
 
-  chip.addEventListener('click', () => {
-    if (isPopOpen(pop)) {
-      hidePop(pop);
+  function setOpen(open: boolean): void {
+    if (open === isOpen()) return;
+    pop.hidden = !open;
+    face.style.display = open ? '' : 'none';
+    wrap.classList.toggle('peeking', open);
+    document.body.classList.toggle('planning', open);
+    chip.setAttribute('aria-expanded', String(open));
+    if (!open) {
+      face.replaceChildren();
+      drag = null;
       return;
     }
     ahead = 1;
-    if (!showPop(pop, chip)) return;
     render();
-    pop.querySelector<HTMLElement>('.ahead-list li, .ahead-tools button')?.focus();
+  }
+  chip.addEventListener('click', () => setOpen(!isOpen()));
+  onView((page) => {
+    if (page !== 'today') setOpen(false);
   });
-  onPopToggle(pop, (open) => chip.setAttribute('aria-expanded', String(open)));
-  new ResizeObserver(place).observe(pop);
-  addEventListener('resize', place);
-  // a changed plan redraws an open picker, but never under a task being written: a change made by a press in the
-  // picker (the form's Save or Remove) redraws once that press is handled, one from elsewhere when the form closes
+  document.addEventListener('keydown', (e) => {
+    // the form keeps its own Esc (it closes the form); a picker open over the page closes first
+    if (e.key !== 'Escape' || !isOpen() || e.defaultPrevented || document.querySelector(':popover-open')) return;
+    setOpen(false);
+  });
+
+  // ---------- on the ring: drag out a stretch for a new task, or click a task to change it
+  let drag: { id: number; start: number; prev: number; acc: number; moved: boolean } | null = null;
+  const at = (e: PointerEvent) => {
+    const m = face.getScreenCTM();
+    if (!m) return null;
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    return polarOf(p.x, p.y);
+  };
+  /** The stretch dragged so far: snapped, either way round, never a whole day. */
+  const span = (d: NonNullable<typeof drag>) => {
+    const a = snap(d.start);
+    const b = snap(d.start + Math.max(-DAY + SNAP, Math.min(DAY - SNAP, d.acc)));
+    return b >= a ? { start: mod(a), dur: b - a } : { start: mod(b), dur: a - b };
+  };
+  face.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const p = at(e);
+    if (!p || p.r < R_IN - 10 || p.r > R_OUT + 20) return;
+    e.preventDefault();
+    face.setPointerCapture(e.pointerId);
+    drag = { id: e.pointerId, start: p.m, prev: p.m, acc: 0, moved: false };
+  });
+  face.addEventListener('pointermove', (e) => {
+    const p = drag?.id === e.pointerId ? at(e) : null;
+    if (!drag || !p) return;
+    // across midnight the minute jumps by a day: count the short way round
+    let d = p.m - drag.prev;
+    if (d > DAY / 2) d -= DAY;
+    if (d < -DAY / 2) d += DAY;
+    drag.prev = p.m;
+    drag.acc += d;
+    if (Math.abs(drag.acc) >= SNAP / 2) drag.moved = true;
+    if (drag.moved) drawFace(span(drag));
+  });
+  const finish = (e: PointerEvent) => {
+    if (!drag || drag.id !== e.pointerId) return;
+    const d = drag;
+    drag = null;
+    const date = dateNow();
+    if (d.moved) {
+      const s = span(d);
+      if (s.dur) {
+        planForm(list, null, date, null, say, s);
+        drawFace(s);
+        return;
+      }
+      drawFace();
+      return;
+    }
+    // a click: the task under it, if any, opens in the form under its row
+    const blocks = planOn(date)?.blocks ?? [];
+    const i = blocks.findIndex((b: PlanBlock) => mod(d.start - b.start) < b.dur);
+    if (i < 0) return;
+    planForm(list, list.querySelectorAll<HTMLElement>('li:not(.plan-form)')[i] ?? null, date, blocks[i]!, say);
+  };
+  face.addEventListener('pointerup', finish);
+  face.addEventListener('pointercancel', (e) => {
+    if (drag?.id !== e.pointerId) return;
+    drag = null;
+    drawFace();
+  });
+
+  // a changed plan redraws the open panel, but never under a task being written: a change made by a press in
+  // the panel (the form's Save or Remove) redraws once that press is handled, one from elsewhere when the form closes
   let stale = false;
   let pressing = false;
   let byPress = false;
   onPlans(() => {
     paintChip();
-    if (!isPopOpen(pop)) return;
+    if (!isOpen()) return;
     if (pressing) byPress = true;
-    else if (pop.querySelector('.plan-form')) stale = true;
-    else render();
+    else if (pop.querySelector('.plan-form')) {
+      stale = true;
+      drawFace();
+    } else render();
   });
   for (const type of ['submit', 'click', 'keydown']) {
     pop.addEventListener(type, () => {
@@ -199,11 +301,18 @@ export function mountPlanAhead(row: HTMLElement): void {
         pressing = false;
         const go = byPress || (stale && !pop.querySelector('.plan-form'));
         byPress = false;
-        if (go && isPopOpen(pop)) render();
+        if (go && isOpen()) render();
+        // the form closed without saving: the stretch dragged for it goes
+        else if (isOpen() && !pop.querySelector('.plan-form')) drawFace();
       });
     }, true);
   }
+  new ResizeObserver(place).observe(pop);
+  addEventListener('resize', place);
   // a new day: "tomorrow" moves on
-  onDaySaved(paintChip);
+  onDaySaved(() => {
+    paintChip();
+    if (isOpen()) render();
+  });
   paintChip();
 }

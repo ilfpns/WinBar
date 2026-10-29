@@ -30,9 +30,10 @@ const catOptions = (sel: Category) =>
 /**
  * The form for one task of a day ahead — name, category, start and end, note — under its row (`row`), or at the
  * end of the list for a new one (`task` null). Save writes the plan (tasks never overlap), Remove takes the task
- * out (the last one: the plan goes), Esc or Cancel leaves it as it was.
+ * out (the last one: the plan goes), Esc or Cancel leaves it as it was. A new one starts at `at` (a stretch dragged
+ * on the dial) when given.
  */
-export function planForm(list: HTMLElement, row: HTMLElement | null, date: string, task: PlanBlock | null, say: Say): void {
+export function planForm(list: HTMLElement, row: HTMLElement | null, date: string, task: PlanBlock | null, say: Say, at?: { start: number; dur: number }): void {
   list.querySelector('.plan-form')?.remove();
   list.querySelectorAll<HTMLElement>('li.editing').forEach((x) => x.classList.remove('editing'));
   const plan = planOn(date);
@@ -40,7 +41,7 @@ export function planForm(list: HTMLElement, row: HTMLElement | null, date: strin
   const others = (plan?.blocks ?? []).filter((x) => !task || x.start !== task.start || x.dur !== task.dur);
   // a new task starts where the day's last one ends, for an hour
   const last = [...others].sort((a, b) => a.start - b.start).at(-1);
-  const base: PlanBlock = task ?? { title: '', cat: 'work', start: last ? mod(last.start + last.dur) : 9 * 60, dur: 60 };
+  const base: PlanBlock = task ?? { title: '', cat: 'work', start: at?.start ?? (last ? mod(last.start + last.dur) : 9 * 60), dur: at?.dur ?? 60 };
   const li = document.createElement('li');
   li.className = 'plan-form';
   li.innerHTML = `

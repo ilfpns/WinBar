@@ -91,7 +91,7 @@ export function mountGreeting(stage: HTMLElement): void {
   chip.className = 'greet-streak';
   chip.style.setProperty('--c', 'var(--accent)');
   runs.append(chip);
-  mountPlanAhead(runs);
+  mountPlanAhead(runs, stage);
   const paintRuns = () => {
     const { days, best } = todayRun();
     chip.hidden = days < 2;

@@ -698,26 +698,30 @@ const noteDot = (cx: number, cy: number): SVGElement => svgEl('circle', { class:
 
 /**
  * Someone else's day drawn as a dial, read only (see peek): the same ring, tasks and clock hand as your
- * own Today, with the done share of the day in the middle. `svg` uses the dial's viewBox.
+ * own Today, with the done share of the day in the middle. `svg` uses the dial's viewBox. A day ahead
+ * (plan-ahead) draws the same way without the clock hand, with its own word in the middle (`center`).
  */
-export function drawReadOnlyDial(svg: SVGSVGElement, blocks: Block[]): void {
+export function drawReadOnlyDial(svg: SVGSVGElement, blocks: Block[], opts: { clock?: boolean; center?: string } = {}): void {
   const now = nowMinutes();
   const g = (name: string) => svg.appendChild(svgEl('g', { class: `layer-${name}` }));
   svg.replaceChildren();
   drawBase(g('base'));
   const gBlocks = g('blocks');
-  for (const b of blocks) gBlocks.append(...blockShapes(b, false, contains(b, now)));
+  const clock = opts.clock ?? true;
+  for (const b of blocks) gBlocks.append(...blockShapes(b, false, clock && contains(b, now)));
   gBlocks.append(...seams(blocks, () => true));
-  const [x0, y0] = pointAt(R_IN - 14, now);
-  const [x1, y1] = pointAt(R_OUT + 14, now);
-  g('now').append(
-    svgEl('line', { class: 'now-hand', x1: x0, y1: y0, x2: x1, y2: y1 }),
-    svgEl('circle', { class: 'now-dot', cx: x1, cy: y1, r: 6 }),
-  );
+  if (clock) {
+    const [x0, y0] = pointAt(R_IN - 14, now);
+    const [x1, y1] = pointAt(R_OUT + 14, now);
+    g('now').append(
+      svgEl('line', { class: 'now-hand', x1: x0, y1: y0, x2: x1, y2: y1 }),
+      svgEl('circle', { class: 'now-dot', cx: x1, cy: y1, r: 6 }),
+    );
+  }
   const pct = Math.round((progressOf(blocks).done / DAY) * 100);
   g('center').append(
     svgEl('circle', { class: 'peek-core', r: 52 }),
-    centeredText('peek-pct', 0, 1, `${pct}%`),
+    centeredText('peek-pct', 0, 1, opts.center ?? `${pct}%`),
   );
 }
 

@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.80',
+    date: '2026-10-29',
+    items: [
+      'Tomorrow 칩을 누르면 다이얼이 내일 계획으로 바뀜: 링을 드래그해 할 일을 만들고(그 시간으로 폼이 열림), 링의 할 일을 눌러 수정·삭제. 화살표로 N일 뒤, X·Esc·칩으로 Today로 돌아옴',
+      '폰에서는 계획 패널이 아래쪽에 붙어 다이얼을 가리지 않음',
+    ],
+  },
+  {
     version: '1.79',
     date: '2026-10-29',
     items: [

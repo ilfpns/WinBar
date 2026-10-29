@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.80** (2026-10-29) — 다이얼에서 내일·N일 뒤 계획을 드래그로 작성
 - **v1.79** (2026-10-29) — Together(WITH 초대) 기능 삭제
 - **v1.78** (2026-10-29) — Today에서 내일·N일 뒤 계획 작성(Tomorrow 칩)
 - **v1.77** (2026-10-28) — 인사말 아래 칩을 Today 연속 기록 하나로
