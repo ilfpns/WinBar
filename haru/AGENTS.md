@@ -69,7 +69,7 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 - 배포 후 `git checkout -- public/data/calendar.json public/data/news.json public/data/school-timetable.json` (시각만 바뀐 파일 되돌리기)
 - 뉴스·학교 시간표는 `.github/workflows/haru-news.yml`, Notion 출석은 `.github/workflows/haru-attendance.yml`이 `gh-pages`의 `data/`만 갱신한다 (GitHub 예약 실행은 몇 시간씩 늦을 수 있다).
 - `firestore.rules`가 바뀌면 Firebase 콘솔에 다시 게시해야 한다 (사용자에게 알린다). 또는 `npx firebase-tools login` 뒤 `npx firebase-tools deploy --only firestore:rules`(`firebase.json`·`.firebaserc` 있음). 로그인은 사용자가 직접 한다.
-- Together(`together/{id}`)는 받는 사람이 수락할 때 자기 데이터에만 쓴다. 다른 사람의 `users/{uid}`에 쓰는 기능은 만들지 않는다.
+- Together(멤버와 같이 할 일 초대)는 v1.79에서 지웠다. 다른 사람의 `users/{uid}`에 쓰는 기능은 만들지 않는다.
 
 ## 작업 규칙
 

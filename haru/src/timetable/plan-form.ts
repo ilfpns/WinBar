@@ -2,7 +2,6 @@ import { CATEGORIES, CATEGORY_KEYS, type Category, labelOf } from './model';
 import { type PlanBlock, clearPlan, planOn, setPlan } from './plans';
 import { templateBlock } from './templates';
 import { hhmm, minutesOf, mod } from './time';
-import { invite, withPicker } from '../cloud/together';
 
 /**
  * Editing a day ahead's plan one task at a time, in a list of its tasks: the Calendar's day panel and Today's
@@ -75,9 +74,6 @@ export function planForm(list: HTMLElement, row: HTMLElement | null, date: strin
   f('start').value = hhmm(base.start);
   f('end').value = hhmm(base.start + base.dur);
   note.value = base.note ?? '';
-  // who to ask along (Together)
-  const company = withPicker();
-  note.before(company.el);
   const fit = () => {
     note.style.height = 'auto';
     note.style.height = `${note.scrollHeight}px`;
@@ -123,9 +119,7 @@ export function planForm(list: HTMLElement, row: HTMLElement | null, date: strin
       return;
     }
     // the plan list changes and the panel draws again with the task in place
-    const who = company.selected();
     write([...others, next], task ? 'Plan saved' : `Added ${labelOf(next)}`);
-    if (who.length) void invite(next, date, who).then((ok) => say(ok ? `Asked ${who.length} to join` : 'Couldn’t ask them: try again', !ok));
   });
   if (row) {
     row.classList.add('editing');

@@ -24,7 +24,6 @@ import { mountTodayViews } from './timetable/today-views';
 import { mountReminders } from './timetable/reminders';
 import { mountStreaks } from './timetable/streaks';
 import { mountReview } from './timetable/review';
-import { mountTogether } from './cloud/together';
 import { mountAccount } from './cloud/account';
 import { mountActivity } from './cloud/activity';
 import { mountWords } from './words/words';
@@ -89,7 +88,6 @@ mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'
 mountReminders();
 mountStreaks();
 mountReview();
-mountTogether(byId('stage'));
 mountGreeting(byId('stage'));
 mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountTitlebar();

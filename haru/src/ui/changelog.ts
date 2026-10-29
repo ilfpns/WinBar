@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.79',
+    date: '2026-10-29',
+    items: [
+      'Together(할 일 편집기·계획 폼의 WITH, 멤버 초대·수락 카드) 기능을 지움',
+    ],
+  },
+  {
     version: '1.78',
     date: '2026-10-29',
     items: [
