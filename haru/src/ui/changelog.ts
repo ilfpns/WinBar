@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.82',
+    date: '2026-10-31',
+    items: [
+      'Review(Dot board의 Week review): Week · Month · All time 전환. 월 단위로 넘겨 보기, All time은 앱을 쓴 전체 기간(하루 평균, 카테고리별 최고 연속)',
+      'Journal의 Your days 정리: 아래 차트를 Categories · Top tasks · Weekdays 중 하나씩 보기, 기간 차트에 All time(한 주에 한 칸) 추가, 숫자 표시를 단순하게',
+      '큰 시간은 100h부터 시간만 표시, 리뷰 카테고리 막대 길이 정렬',
+    ],
+  },
+  {
     version: '1.81',
     date: '2026-10-31',
     items: [

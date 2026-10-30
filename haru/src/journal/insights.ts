@@ -8,14 +8,34 @@ import { lessMotion } from '../ui/motion';
 
 /**
  * Your days, over the top of Journal: everything Today has held so far (every day's snapshot, today live).
- * Four numbers, each with what it means on hover; the last two weeks as columns (planned, and the part of it
- * done); and, opened, where the time went — by category, the tasks that took the most, and each weekday.
+ * Four numbers, each with what it means on hover; opened, the days as columns (planned, and the part of it done) —
+ * the last two weeks, or all of it a week a column — and where the time went, one view at a time: by category, the
+ * tasks that took the most, or each weekday. The views picked are remembered.
  *
  * Every bar shows planned time faint and the done part of it solid in the one chart colour (magnitude, not
  * identity: rows are named, categories carry their dot). Numbers count up and bars grow when the card comes
  * into view or is opened; edits on Today after that just update the values.
  */
 const OPEN_KEY = 'haru:insights-open';
+const SPAN_KEY = 'haru:insights-span';
+const VIEW_KEY = 'haru:insights-view';
+type Span = 'recent' | 'all';
+type View = 'cats' | 'tasks' | 'weekdays';
+const remembered = <T extends string>(key: string, ok: readonly T[], fallback: T): T => {
+  try {
+    const v = localStorage.getItem(key) as T | null;
+    return v && ok.includes(v) ? v : fallback;
+  } catch {
+    return fallback;
+  }
+};
+const remember = (key: string, v: string) => {
+  try {
+    localStorage.setItem(key, v);
+  } catch {
+    // for this visit
+  }
+};
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const RECENT = 14;
 
@@ -33,6 +53,8 @@ interface Stats extends Tally {
   weekdays: (Tally & { n: number })[];
   /** Each of the last RECENT days, oldest first (zeros where nothing was planned). */
   recent: (Tally & { date: string })[];
+  /** Every week (Sunday first) from the first day tracked to this one, oldest first. */
+  weeks: (Tally & { date: string; n: number })[];
 }
 
 const keyOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -81,14 +103,37 @@ function compute(daysMap: Map<string, Block[]>, today: string): Stats {
     const key = keyOf(d);
     recent.push({ date: key, ...(perDay.get(key) ?? { planned: 0, done: 0 }) });
   }
+  // a week a column, from the week of the first day tracked
+  const weeks: Stats['weeks'] = [];
+  const sunday = (key: string) => {
+    const d = new Date(`${key}T00:00`);
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+  };
+  if (filled.length) {
+    const byWeek = new Map<string, Tally & { n: number }>();
+    for (const [date, t] of perDay) {
+      const k = keyOf(sunday(date));
+      const w = byWeek.get(k) ?? { planned: 0, done: 0, n: 0 };
+      w.planned += t.planned;
+      w.done += t.done;
+      w.n++;
+      byWeek.set(k, w);
+    }
+    for (let d = sunday(filled[0]![0]); keyOf(d) <= today; d.setDate(d.getDate() + 7)) {
+      const k = keyOf(d);
+      weeks.push({ date: k, ...(byWeek.get(k) ?? { planned: 0, done: 0, n: 0 }) });
+    }
+  }
   return {
+    weeks,
     days: filled.length,
     first: filled[0]?.[0] ?? '',
     planned,
     done,
     sleep,
     byCat,
-    tasks: [...tasks.values()].sort((a, b) => b.planned - a.planned).slice(0, 5).map((t) => ({ name: t.name, planned: t.planned, done: t.done, days: t.dates.size })),
+    tasks: [...tasks.values()].sort((a, b) => b.planned - a.planned).slice(0, 6).map((t) => ({ name: t.name, planned: t.planned, done: t.done, days: t.dates.size })),
     weekdays: wd.map((w) => ({ planned: w.n ? w.planned / w.n : 0, done: w.n ? w.done / w.n : 0, n: w.n })),
     recent,
   };
@@ -216,8 +261,9 @@ function regrow(root: Element): void {
   }
 }
 
-/** One named row: label (with an optional category dot), planned faint with its done part solid, the value. */
-function barRow(label: string, t: Tally, max: number, text: string, tip: string, animate: boolean, k: number, cat?: Category): HTMLElement {
+/** One named row: label (with an optional category dot), planned faint with its done part solid, the value (and a
+ *  quieter second value, `sub`). */
+function barRow(label: string, t: Tally, max: number, text: string, tip: string, animate: boolean, k: number, cat?: Category, sub = ''): HTMLElement {
   const row = document.createElement('div');
   row.className = 'ins-row';
   row.style.setProperty('--i', String(k));
@@ -248,6 +294,7 @@ function barRow(label: string, t: Tally, max: number, text: string, tip: string,
   const val = document.createElement('span');
   val.className = 'ins-val';
   val.textContent = text;
+  if (sub) val.append(Object.assign(document.createElement('span'), { className: 'ins-val-sub', textContent: sub }));
   row.append(name, track, val);
   return row;
 }
@@ -263,7 +310,12 @@ function group(title: string, explain: string, rows: HTMLElement[], empty: strin
     p.className = 'meta ins-empty';
     p.textContent = empty;
     g.append(h, p);
-  } else g.append(h, ...rows);
+  } else {
+    const list = document.createElement('div');
+    list.className = 'ins-rows';
+    list.append(...rows);
+    g.append(h, list);
+  }
   return g;
 }
 
@@ -274,26 +326,59 @@ function legend(): HTMLElement {
   return l;
 }
 
-/** The last two weeks as columns: planned faint, done solid, today marked; hover names the day. */
-function recentChart(s: Stats, today: string, animate: boolean): HTMLElement {
+/** A small switch; `pick` runs with the choice pressed (not the one already on). */
+function seg<T extends string>(label: string, items: readonly [T, string][], on: T, pick: (v: T) => void): HTMLElement {
+  const g = document.createElement('div');
+  g.className = 'seg ins-seg';
+  g.setAttribute('role', 'group');
+  g.setAttribute('aria-label', label);
+  for (const [v, text] of items) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = text;
+    b.setAttribute('aria-pressed', String(v === on));
+    b.addEventListener('click', () => v !== on && pick(v));
+    g.append(b);
+  }
+  return g;
+}
+
+/**
+ * The days as columns — the last two weeks (a day a column), or all of it (a week a column) — planned faint,
+ * done solid, today marked; hover names the day or week.
+ */
+function recentChart(s: Stats, today: string, animate: boolean, span: Span, onSpan: (v: Span) => void): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'ins-recent';
   const head = document.createElement('div');
   head.className = 'ins-recent-head';
   const title = document.createElement('span');
   title.className = 'card-title ins-group-title';
-  title.append('Last 14 days', info('Each column is a day: its height is the time planned on Today, the solid part what was done'));
-  head.append(title, legend());
+  const all = span === 'all';
+  title.append(all ? 'Every week' : 'Last 14 days', info(all
+    ? 'Each column is a week: its height is the time planned on Today that week, the solid part what was done'
+    : 'Each column is a day: its height is the time planned on Today, the solid part what was done'));
+  const right = document.createElement('span');
+  right.className = 'ins-head-right';
+  right.append(legend(), seg('Range', [['recent', '14 days'], ['all', 'All time']] as const, span, onSpan));
+  head.append(title, right);
   const cols = document.createElement('div');
-  cols.className = 'ins-cols';
-  const max = Math.max(60, ...s.recent.map((d) => d.planned));
-  s.recent.forEach((d, k) => {
+  cols.className = `ins-cols${all ? ' weeks' : ''}`;
+  const list = all ? s.weeks : s.recent;
+  cols.style.setProperty('--n', String(Math.max(1, list.length)));
+  const max = Math.max(60, ...list.map((d) => d.planned));
+  const thisWeek = s.weeks.at(-1)?.date;
+  // all time: a label at each month's first week only, so they never crowd
+  let lastMonth = -1;
+  list.forEach((d, k) => {
+    const isNow = all ? d.date === thisWeek : d.date === today;
     const col = document.createElement('div');
-    col.className = `ins-col${d.date === today ? ' today' : ''}${d.planned ? '' : ' none'}`;
-    col.style.setProperty('--i', String(k));
+    col.className = `ins-col${isNow ? ' today' : ''}${d.planned ? '' : ' none'}`;
+    col.style.setProperty('--i', String(all ? Math.min(k, 30) : k));
+    const when = all ? (ko() ? `${fmtDate(d.date)} 주` : `Week of ${fmtDate(d.date)}`) : fmtDate(d.date, true);
     const tip = d.planned
-      ? `${fmtDate(d.date, true)} · ${hours(d.planned)} planned · ${hours(d.done)} done (${pct(d.done, d.planned)}%)`
-      : `${fmtDate(d.date, true)} · nothing planned`;
+      ? `${when} · ${hours(d.planned)} planned · ${hours(d.done)} done (${pct(d.done, d.planned)}%)`
+      : `${when} · nothing planned`;
     col.dataset.tip = tip;
     col.setAttribute('aria-label', tip);
     const bar = document.createElement('span');
@@ -307,7 +392,12 @@ function recentChart(s: Stats, today: string, animate: boolean): HTMLElement {
     bar.append(plan, done);
     const lab = document.createElement('span');
     lab.className = 'ins-col-label';
-    lab.textContent = d.date === today ? (ko() ? '오늘' : 'Today') : String(new Date(`${d.date}T00:00`).getDate());
+    if (all) {
+      const date = new Date(`${d.date}T00:00`);
+      const m = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 6).getMonth();
+      if (m !== lastMonth) lab.textContent = new Date(2000, m, 1).toLocaleDateString(ko() ? 'ko-KR' : 'en-US', { month: 'short' });
+      lastMonth = m;
+    } else lab.textContent = isNow ? (ko() ? '오늘' : 'Today') : String(new Date(`${d.date}T00:00`).getDate());
     col.append(bar, lab);
     cols.append(col);
   });
@@ -346,6 +436,8 @@ export function mountInsights(page: HTMLElement): void {
   });
   page.insertBefore(card, page.querySelector('.pg-body'));
 
+  let span = remembered<Span>(SPAN_KEY, ['recent', 'all'], 'recent');
+  let view = remembered<View>(VIEW_KEY, ['cats', 'tasks', 'weekdays'], 'cats');
   let open = false;
   try {
     open = localStorage.getItem(OPEN_KEY) === '1';
@@ -417,8 +509,8 @@ export function mountInsights(page: HTMLElement): void {
     const catMax = Math.max(0, ...cats.map((k) => s.byCat.get(k)!.planned));
     const catRows = cats.map((k, i) => {
       const t = s.byCat.get(k)!;
-      return barRow(CATEGORIES[k], t, catMax, `${hours(t.planned)} · ${pct(t.planned, s.planned)}%`,
-        `${CATEGORIES[k]} · ${hours(t.planned)} planned (${pct(t.planned, s.planned)}% of all) · ${pct(t.done, t.planned)}% done`, m, i, k);
+      return barRow(CATEGORIES[k], t, catMax, hours(t.planned),
+        `${CATEGORIES[k]} · ${hours(t.planned)} planned (${pct(t.planned, s.planned)}% of all) · ${pct(t.done, t.planned)}% done`, m, i, k, `${pct(t.planned, s.planned)}%`);
     });
     const taskMax = s.tasks[0]?.planned ?? 0;
     const taskRows = s.tasks.map((t, i) => barRow(t.name, t, taskMax, hours(t.planned),
@@ -428,17 +520,28 @@ export function mountInsights(page: HTMLElement): void {
     const wdMax = Math.max(0, ...s.weekdays.map((w) => w.planned));
     const wdRows = order.filter((d) => s.weekdays[d]!.n).map((d, i) => {
       const w = s.weekdays[d]!;
-      return barRow(WEEKDAYS[d]!, w, wdMax, `${hours(w.planned)} · ${pct(w.done, w.planned)}%`,
-        `${WEEKDAYS[d]} · ${hours(w.planned)} planned on average, ${pct(w.done, w.planned)}% done (${w.n} ${w.n === 1 ? 'day' : 'days'})`, m, i);
+      return barRow(WEEKDAYS[d]!, w, wdMax, hours(w.planned),
+        `${WEEKDAYS[d]} · ${hours(w.planned)} planned on average, ${pct(w.done, w.planned)}% done (${w.n} ${w.n === 1 ? 'day' : 'days'})`, m, i, undefined, `${pct(w.done, w.planned)}% done`);
+    });
+    // one view at a time: where the time went by category, the top tasks, or each weekday
+    const views: Record<View, HTMLElement> = {
+      cats: group('By category', 'All the planned time, split by category; the solid part was done', catRows, 'Nothing planned yet'),
+      tasks: group('Top tasks', 'The tasks (by name) that took the most planned time', taskRows, 'Nothing planned yet'),
+      weekdays: group('By weekday', 'An average day of each weekday: time planned, and how much of it was done', wdRows, 'Nothing planned yet'),
+    };
+    const pickView = seg('View', [['cats', 'Categories'], ['tasks', 'Top tasks'], ['weekdays', 'Weekdays']] as const, view, (v) => {
+      view = v;
+      remember(VIEW_KEY, v);
+      drawCharts({ s, today }, true);
     });
     const groups = document.createElement('div');
     groups.className = 'ins-groups';
-    groups.append(
-      group('By category', 'All the planned time, split by category; the solid part was done', catRows, 'Nothing planned yet'),
-      group('Most time on', 'The five tasks (by name) that took the most planned time', taskRows, 'Nothing planned yet'),
-      group('By weekday', 'An average day of each weekday: time planned, and how much of it was done', wdRows, 'Nothing planned yet'),
-    );
-    more.replaceChildren(recentChart(s, today, m), groups);
+    groups.append(pickView, views[view]);
+    more.replaceChildren(recentChart(s, today, m, span, (v) => {
+      span = v;
+      remember(SPAN_KEY, v);
+      drawCharts({ s, today }, true);
+    }), groups);
     if (m) animateMore = false;
     chartsFresh = true;
   }

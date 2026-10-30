@@ -2075,18 +2075,33 @@ body.splitting-y { cursor: row-resize; }
 
 /* the last two weeks: a column a day, planned faint behind the done part */
 .ins-recent { display: grid; gap: 8px; }
-.ins-recent-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.ins-cols { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; height: 120px; }
+.ins-recent-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; }
+.ins-recent-head > .ins-group-title { white-space: nowrap; }
+.ins-cols { display: grid; grid-template-columns: repeat(var(--n, 14), minmax(0, 1fr)); gap: 6px; height: 120px; }
+/* every week: thin columns, a month name under each month's first week (it may run past its column) */
+.ins-cols.weeks { gap: 3px; }
+.ins-cols.weeks .ins-col { padding: 0; border-radius: 4px; }
+.ins-cols.weeks .ins-col-bar { border-radius: 3px 3px 2px 2px; }
+.ins-cols.weeks .ins-col-label { overflow: visible; white-space: nowrap; text-align: left; }
+.ins-head-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.ins-seg button { height: 24px; padding: 0 10px; font-size: 12px; }
 .ins-col { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; padding: 0 1px; border-radius: 8px; cursor: default; }
 .ins-col:hover { background: rgb(var(--ink) / 0.04); }
 .ins-col-bar { position: relative; border-radius: 6px 6px 3px 3px; background: rgb(var(--ink) / 0.035); overflow: hidden; }
 .ins-col-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 4px 4px 0 0; transition: height .7s var(--ease-out); transition-delay: calc(var(--i, 0) * 30ms); }
-.ins-col-label { text-align: center; font: 400 10.5px var(--font-mono); color: var(--text-subtle); }
+.ins-col-label { min-height: 1.4em; text-align: center; font: 400 10.5px/1.4 var(--font-mono); color: var(--text-subtle); }
 .ins-col.today .ins-col-label { color: var(--accent); font-weight: 600; }
 .ins-col.today .ins-col-bar { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
 
 /* by category, most time on, by weekday: named rows, planned faint with the done part solid */
-.ins-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.ins-groups { display: grid; gap: 10px; }
+/* the one view shown: its rows down two columns where there is room (first column first) */
+.ins-rows { display: grid; gap: 4px; }
+.ins-groups .ins-rows { display: block; columns: 2; column-gap: 28px; }
+.ins-groups .ins-rows > .ins-row { break-inside: avoid; margin-bottom: 4px; }
+.ins-val-sub { margin-left: 8px; color: var(--text-subtle); }
+/* the switch above names the view: its own title would only say it again */
+.ins-groups .ins-group-title { display: none; }
 .ins-group { display: grid; gap: 4px; align-content: start; min-width: 0; }
 .ins-group .card-title { margin-bottom: 4px; }
 .ins-row { position: relative; display: grid; grid-template-columns: minmax(64px, 32%) minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; font-size: 12.5px; }
@@ -2100,7 +2115,7 @@ body.splitting-y { cursor: row-resize; }
 .ins-empty { margin: 0; text-transform: none; }
 @media (max-width: 1000px) {
   .ins-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ins-groups { grid-template-columns: minmax(0, 1fr); }
+  .ins-groups .ins-rows { columns: 1; }
 }
 @media (max-width: 640px) {
   .ins-cols { gap: 3px; height: 96px; }
@@ -3113,6 +3128,16 @@ body.planning .today-views { visibility: hidden; }
 .review-title .meta { text-transform: none; }
 .review-nav { display: flex; gap: 2px; }
 .review-nav .icon-btn:disabled { opacity: .3; cursor: default; }
+.review-nav[hidden] { display: none; }
+/* a small switch of a few choices (the review's Week / Month / All time, the Journal card's views) */
+.seg { display: inline-flex; justify-self: start; gap: 2px; padding: 3px; border-radius: 17px; background: rgb(var(--ink) / 0.04); box-shadow: inset 0 0 0 1px var(--glass-edge); }
+.seg button {
+  height: 28px; padding: 0 12px; border: 0; border-radius: 14px; background: none; cursor: pointer;
+  font: 500 12.5px/1 var(--font-sans); color: var(--text-muted);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.seg button:hover { color: var(--text-strong); }
+.seg button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
 .review-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .review-tile { display: grid; gap: 4px; padding: 12px; border-radius: 12px; background: rgb(var(--ink) / .04); box-shadow: inset 0 0 0 1px var(--glass-edge); }
 .review-tile .meta { text-transform: none; font-size: 11px; }
@@ -3120,20 +3145,24 @@ body.planning .today-views { visibility: hidden; }
 .review-sub { font-size: 11px; color: var(--text-subtle); }
 .review-empty { margin: 0; grid-column: 1 / -1; font-size: 14px; color: var(--text-subtle); }
 .review-cats { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.review-cats li { display: grid; grid-template-columns: 8px 76px minmax(0, 1fr) auto 54px; align-items: center; gap: 10px; font-size: 13px; }
+.review-cats li { display: grid; grid-template-columns: 8px 76px minmax(0, 1fr) 112px 54px; align-items: center; gap: 10px; font-size: 13px; }
 .review-cats .dot { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
 .review-cats .n { color: var(--text); }
 .review-bar { position: relative; height: 8px; border-radius: 4px; background: rgb(var(--ink) / .05); overflow: hidden; }
 .review-bar span { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
 .review-bar .plan { background: color-mix(in srgb, var(--c) 28%, transparent); }
 .review-bar .done { background: var(--c); }
-.review-cats .v { font: 400 11px var(--font-mono); color: var(--text-muted); }
+.review-cats .v { font: 400 11px var(--font-mono); color: var(--text-subtle); white-space: nowrap; text-align: right; }
+.review-cats .v b { font-weight: 500; color: var(--text); }
+.review-cats.no-delta li { grid-template-columns: 8px 76px minmax(0, 1fr) 112px; }
+.review-cats.no-delta .d { display: none; }
 .review-cats .d { font: 400 11px var(--font-mono); color: var(--text-subtle); text-align: right; }
 .review-cats .d.up { color: var(--accent); }
 .review-runs { display: flex; flex-wrap: wrap; gap: 6px; }
 .review-runs[hidden] { display: none; }
 @media (max-width: 560px) {
   .review-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .review-cats li { grid-template-columns: 8px 64px minmax(0, 1fr) 44px; }
-  .review-cats .v { display: none; }
+  /* narrow: the done hours stay, the change since the stretch before goes */
+  .review-cats li, .review-cats.no-delta li { grid-template-columns: 8px 64px minmax(0, 1fr) 64px; }
+  .review-cats .v span, .review-cats .d { display: none; }
 }

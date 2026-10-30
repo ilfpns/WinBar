@@ -201,7 +201,8 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
   const replay = body.querySelector<HTMLButtonElement>('.bd-replay')!;
   replay.append(icon('rotate-ccw'), 'Replay');
   const review = body.querySelector<HTMLButtonElement>('.bd-review')!;
-  review.append(icon('chart-column'), 'Week review');
+  review.append(icon('chart-column'), 'Review');
+  review.title = 'Your week, month or all time';
   review.addEventListener('click', () => void openReview());
   let days: Day[] = [];
   /** The last load failed (their board), and which load is the latest. */
