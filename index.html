@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Haru</title>
+  <link rel="icon" type="image/png" sizes="180x180" href="./favicon.png?v=2">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <!-- installable as an app (ui/pwa.ts) -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Haru">
+  <meta name="theme-color" content="#0d0e10">
+  <script>
+    // theme and language before the first paint: no flash of the other one
+    try {
+      var t = localStorage.getItem('haru:theme') || 'dark';
+      if (t === 'system') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = t;
+      if (t === 'light') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#e9eaee');
+      document.documentElement.lang = localStorage.getItem('haru:lang') === 'ko' ? 'ko' : 'en';
+    } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500&display=swap"></noscript>
+  <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"></noscript>
+  <script type="module" crossorigin src="/WinBar/assets/index-BVPwFrqy.js"></script>
+  <link rel="stylesheet" crossorigin href="/WinBar/assets/index-BEiW35sM.css">
+</head>
+<body>
+  <main class="stage page" id="stage">
+    <div class="dial-wrap">
+      <svg id="dial" viewBox="-520 -520 1040 1040" role="img" aria-label="24-hour timetable. Drag the ring to add a block."></svg>
+      <canvas id="orb-canvas" aria-hidden="true"></canvas>
+      <svg id="orb-layer" viewBox="-520 -520 1040 1040" aria-hidden="true"></svg>
+    </div>
+  </main>
+
+  <main class="calendar-view page" id="calendar" aria-label="Calendar">
+    <header class="cal-head">
+      <div class="cal-title"><h1 id="cal-month"></h1><span class="meta" id="cal-year"></span></div>
+      <div class="cal-nav">
+        <div class="cal-mode" id="cal-mode" role="group" aria-label="View">
+          <button type="button" data-mode="month" aria-pressed="true">Month</button>
+          <button type="button" data-mode="week" aria-pressed="false">Week</button>
+        </div>
+        <button type="button" class="btn-sm" id="cal-plan" hidden title="Plan the weekdays ahead with a template"><i data-icon="calendar-clock"></i><span>Plan week</span></button>
+        <button type="button" class="icon-btn" id="cal-prev" aria-label="Previous month"><i data-icon="chevron-left"></i></button>
+        <button type="button" class="btn-sm" id="cal-today">Today</button>
+        <button type="button" class="icon-btn" id="cal-next" aria-label="Next month"><i data-icon="chevron-right"></i></button>
+        <button type="button" class="icon-btn" id="cal-stats" aria-label="Statistics" title="Statistics"><i data-icon="chart-column"></i></button>
+      </div>
+    </header>
+    <div class="cal-filters" id="cal-filters" role="group" aria-label="Show"></div>
+    <div class="cal-body">
+      <div class="cal-main">
+        <div class="cal-week" id="cal-week"></div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+      <aside class="cal-day" id="cal-day" aria-live="polite"></aside>
+    </div>
+  </main>
+
+  <main class="news-view page" id="news" aria-label="News">
+    <div class="globe-wrap">
+      <canvas id="globe" role="img" aria-label="Interactive globe"></canvas>
+      <p class="globe-readout meta" id="globe-readout" aria-live="polite"></p>
+    </div>
+  </main>
+
+  <main class="words-view text-page page" id="words" aria-label="Words">
+    <header class="pg-head"><h1>Words</h1><span class="meta" id="words-sum"></span></header>
+    <div class="pg-body words-body" id="words-body"></div>
+  </main>
+
+  <main class="journal-view text-page page" id="journal" aria-label="Journal">
+    <header class="pg-head"><h1>Journal</h1></header>
+    <div class="pg-body journal-body" id="journal-body"></div>
+  </main>
+
+  <main class="archive-view text-page page" id="archive" aria-label="Archive">
+    <header class="pg-head"><h1>Archive</h1><span class="meta" id="archive-sum"></span></header>
+    <div class="pg-body journal-body" id="archive-body"></div>
+  </main>
+
+  <main class="board-view text-page page" id="board" aria-label="Dot board">
+    <header class="pg-head"><h1>Dot board</h1><span class="meta" id="board-sum"></span></header>
+    <div class="pg-body board-body" id="board-body"></div>
+  </main>
+
+
+  <!-- installed on a computer, the window's title bar (ui/titlebar.ts): the logo, the pages, how the day is going -->
+  <header class="titlebar" id="titlebar">
+    <button type="button" class="tb-btn tb-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" title="Haru · settings and more"><i data-icon="circle-dot"></i></button>
+    <button type="button" class="tb-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" title="Open overview  ["><i data-icon="panel-left"></i></button>
+    <span class="tb-rule" aria-hidden="true"></span>
+    <nav class="tb-tabs" aria-label="Pages">
+      <a class="tb-tab" href="#/" data-view="today" title="Today"><i data-icon="clock"></i><span>Today</span></a>
+      <a class="tb-tab" href="#/calendar" data-view="calendar" title="Calendar"><i data-icon="calendar"></i><span>Calendar</span></a>
+      <span class="tb-rule" data-split aria-hidden="true"></span>
+      <a class="tb-tab" href="#/news" data-view="news" title="News"><i data-icon="newspaper"></i><span>News</span></a>
+      <a class="tb-tab" href="#/words" data-view="words" title="Words"><i data-icon="languages"></i><span>Words</span></a>
+      <a class="tb-tab" href="#/journal" data-view="journal" title="Journal"><i data-icon="notebook-pen"></i><span>Journal</span></a>
+      <a class="tb-tab" href="#/archive" data-view="archive" title="Archive"><i data-icon="archive"></i><span>Archive</span></a>
+      <a class="tb-tab" href="#/board" data-view="board" title="Dot board"><i data-icon="hexagon"></i><span>Dot board</span></a>
+    </nav>
+    <span class="tb-fill"></span>
+    <div class="tb-progress" id="tb-progress"></div>
+    <span class="tb-clock" id="tb-clock"></span>
+  </header>
+
+  <!-- the closed overview: a slim glass rail (logo, pages, search); the open panel slides over it -->
+  <nav class="rail" id="rail" aria-label="Pages">
+    <button type="button" class="rail-btn rail-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" data-tip="Haru · settings and more"><i data-icon="circle-dot"></i></button>
+    <span class="rail-rule" aria-hidden="true"></span>
+    <a class="rail-btn" href="#/" data-view="today" aria-label="Today" data-tip="Today · the day's timetable"><i data-icon="clock"></i></a>
+    <a class="rail-btn" href="#/calendar" data-view="calendar" aria-label="Calendar" data-tip="Calendar · month, notes, stats"><i data-icon="calendar"></i></a>
+    <span class="rail-rule" data-split aria-hidden="true" data-tip="Swipe line · pages above it turn with the wheel or a swipe. Drag pages or this line to rearrange"></span>
+    <a class="rail-btn" href="#/news" data-view="news" aria-label="News" data-tip="News · headlines on the globe, attendance"><i data-icon="newspaper"></i></a>
+    <a class="rail-btn" href="#/words" data-view="words" aria-label="Words" data-tip="Words · learn English vocabulary"><i data-icon="languages"></i></a>
+    <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
+    <a class="rail-btn" href="#/archive" data-view="archive" aria-label="Archive" data-tip="Archive · pages everyone shared"><i data-icon="archive"></i></a>
+    <a class="rail-btn" href="#/board" data-view="board" aria-label="Dot board" data-tip="Dot board · every day, a cell for each category"><i data-icon="hexagon"></i></a>
+    <span class="rail-fill"></span>
+    <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
+  </nav>
+
+  <!-- side drawers start tucked away; only their tab (or, on the left, the rail) shows until it is clicked -->
+  <aside class="drawer drawer-left" id="drawer-left">
+    <div class="panel panel-left" id="panel-left" aria-label="Navigation and overview">
+      <div class="brand">
+        <button type="button" class="brand-mark-btn" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu"><i data-icon="circle-dot" class="brand-mark"></i></button>
+        <span class="brand-name">Haru</span>
+      </div>
+
+      <nav class="nav" aria-label="Main">
+        <a class="nav-item" href="#/" data-view="today">
+          <i data-icon="clock"></i>Today
+        </a>
+        <a class="nav-item" href="#/calendar" data-view="calendar">
+          <i data-icon="calendar"></i>Calendar
+        </a>
+        <span class="nav-rule" data-split aria-hidden="true" title="Pages above this line turn with the wheel or a swipe. Drag to rearrange"></span>
+        <a class="nav-item" href="#/news" data-view="news">
+          <i data-icon="newspaper"></i>News
+        </a>
+        <a class="nav-item" href="#/words" data-view="words">
+          <i data-icon="languages"></i>Words
+        </a>
+        <a class="nav-item" href="#/journal" data-view="journal">
+          <i data-icon="notebook-pen"></i>Journal
+        </a>
+        <a class="nav-item" href="#/archive" data-view="archive">
+          <i data-icon="archive"></i>Archive
+        </a>
+        <a class="nav-item" href="#/board" data-view="board">
+          <i data-icon="hexagon"></i>Dot board
+        </a>
+      </nav>
+
+      <section class="section">
+        <div class="section-head"><span>Now</span><span class="meta" id="clock"></span></div>
+        <div class="card now-card" id="now-card"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-head"><span>Day</span><span class="meta" id="date"></span></div>
+        <div class="rings rings-lg" id="day-rings"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-head"><span>Categories</span></div>
+        <div class="rings rings-sm" id="cat-rings"></div>
+      </section>
+
+
+
+
+      <div class="panel-foot">
+        <button type="button" class="btn-text settings-open" id="settings-open"><i data-icon="settings"></i>Settings</button>
+        <button type="button" class="btn-text" id="install-open" hidden><i data-icon="download"></i>Install app</button>
+      </div>
+    </div>
+  </aside>
+
+  <aside class="drawer drawer-right" id="drawer-right">
+    <button type="button" class="drawer-tab" data-drawer="right" aria-controls="panel-right" aria-expanded="false" aria-label="Toggle tasks" title="Tasks  ]">
+      <i data-icon="chevron-left"></i><span class="tab-label">Tasks</span>
+    </button>
+    <div class="panel panel-right" id="panel-right" aria-label="Tasks">
+    <div class="panel-head">
+      <div class="seg rp-tabs" role="tablist" aria-label="Tasks panel">
+        <button type="button" role="tab" id="rp-tab-today" data-rtab="today" aria-selected="true" aria-controls="list">Today <span class="badge" id="count">0</span></button>
+        <button type="button" role="tab" id="rp-tab-templates" data-rtab="templates" aria-selected="false" aria-controls="tpl-pane">Templates</button>
+      </div>
+      <button type="button" class="btn-sm" id="new">
+        <i data-icon="plus"></i>New
+      </button>
+    </div>
+
+    <!-- the Templates tab: day templates to build, edit and put on Today -->
+    <section class="tpl-pane" id="tpl-pane" role="tabpanel" aria-labelledby="rp-tab-templates" hidden>
+      <div class="tpl-browse" id="tpl-browse">
+        <form class="tpl-save" id="tpl-save" autocomplete="off">
+          <input name="name" placeholder="New template name" maxlength="32" aria-label="Template name">
+          <button type="submit" class="btn-sm" title="An empty template to fill in">New</button>
+          <button type="button" class="btn-text" id="tpl-from-today" title="A template of Today's tasks">From today</button>
+        </form>
+        <span class="meta tpl-status" id="tpl-status" aria-live="polite"></span>
+        <ul class="tpl-list" id="tpl-list"></ul>
+      </div>
+      <div class="tpl-edit" id="tpl-edit" hidden></div>
+    </section>
+
+    <form id="editor" class="card editor" hidden autocomplete="off">
+      <div class="editor-head">
+        <span class="dot"></span><span id="ed-head">New task</span>
+      </div>
+      <input class="title-input" name="title" placeholder="What are you doing?" maxlength="40">
+      <div class="status-seg" id="status-seg" role="radiogroup" aria-label="Status">
+        <button type="button" role="radio" data-status="yet"><i data-icon="circle-dashed"></i>Yet</button>
+        <button type="button" role="radio" data-status="doing"><i data-icon="hourglass"></i>In progress</button>
+        <button type="button" role="radio" data-status="done"><i data-icon="check"></i>Done</button>
+      </div>
+      <div class="chips" id="chips" role="radiogroup" aria-label="Category"></div>
+      <div class="times">
+        <div class="time-col"><span class="meta">Start</span><button type="button" class="time-field" data-field="start" aria-label="Start time"></button></div>
+        <span class="arrow"><i data-icon="arrow-right"></i></span>
+        <div class="time-col"><span class="meta">End</span><button type="button" class="time-field" data-field="end" aria-label="End time"></button></div>
+      </div>
+      <textarea class="note-input" name="note" rows="3" maxlength="1000" placeholder="Notes (optional)" aria-label="Notes"></textarea>
+      <p class="err" id="err" role="alert"></p>
+      <div class="actions">
+        <button type="submit" class="btn-solid">Save</button>
+        <button type="button" class="btn-ghost" data-act="cancel">Cancel</button>
+        <button type="button" class="btn-text danger" data-act="delete" id="del">Delete</button>
+      </div>
+    </form>
+    <ol id="list"></ol>
+
+    <section id="bulk" class="card bulk" hidden aria-label="Batch actions">
+      <div class="bulk-head">
+        <span id="bulk-count">0 selected</span>
+        <button type="button" class="btn-text" data-bulk="clear">Clear <kbd>Esc</kbd></button>
+      </div>
+      <div class="bulk-row">
+        <button type="button" class="btn-ghost" data-bulk="done">
+          <i data-icon="check"></i>Mark done
+        </button>
+        <button type="button" class="btn-ghost" data-bulk="undone">Mark not done</button>
+      </div>
+      <div class="bulk-field"><span class="meta">Category</span><div class="chips" id="bulk-cats"></div></div>
+      <div class="bulk-field">
+        <span class="meta">Move</span>
+        <div class="seg">
+          <button type="button" data-bulk="move" data-by="-60">−1h</button>
+          <button type="button" data-bulk="move" data-by="-15">−15m</button>
+          <button type="button" data-bulk="move" data-by="15">+15m</button>
+          <button type="button" data-bulk="move" data-by="60">+1h</button>
+        </div>
+      </div>
+      <div class="bulk-field">
+        <span class="meta">Length</span>
+        <div class="seg">
+          <button type="button" data-bulk="len" data-by="-30">−30m</button>
+          <button type="button" data-bulk="len" data-by="-15">−15m</button>
+          <button type="button" data-bulk="len" data-by="15">+15m</button>
+          <button type="button" data-bulk="len" data-by="30">+30m</button>
+        </div>
+      </div>
+      <p class="err" id="bulk-err" role="alert"></p>
+      <button type="button" class="btn-danger" data-bulk="delete">Delete</button>
+    </section>
+    </div>
+  </aside>
+
+  <!-- News page's right drawer: the live headlines (all places, or the one picked on the globe) -->
+  <aside class="drawer drawer-right drawer-news" id="drawer-news" hidden>
+    <button type="button" class="drawer-tab" data-drawer="right" aria-controls="panel-news" aria-expanded="false" aria-label="Toggle news" title="News  ]">
+      <i data-icon="chevron-left"></i><span class="tab-label">News</span>
+    </button>
+    <div class="panel panel-right" id="panel-news" aria-label="News">
+      <div class="panel-head">
+        <span class="panel-title">News</span>
+        <span class="live-dot" id="news-live" title="Live"></span>
+        <span class="meta news-updated" id="news-updated"></span>
+      </div>
+      <section class="news-week" id="news-week" aria-label="This week"></section>
+      <section class="news-filters" aria-label="Filters">
+        <div class="news-scope" id="news-scope"></div>
+        <div class="news-topics" id="news-topics" role="group" aria-label="Topics"></div>
+      </section>
+      <ol class="news-list" id="news-list"></ol>
+    </div>
+  </aside>
+
+  <!-- the logo's menu: Settings, the overview, the theme -->
+  <div class="logo-menu" id="logo-menu" role="menu" aria-label="Haru menu" hidden>
+    <button type="button" role="menuitem" data-menu="settings"><i data-icon="settings"></i><span>Settings</span></button>
+    <button type="button" role="menuitem" data-menu="overview"><i data-icon="panel-left"></i><span>Overview</span></button>
+    <button type="button" role="menuitem" data-menu="theme"><i data-icon="sun"></i><span class="logo-menu-theme">Light mode</span></button>
+    <button type="button" role="menuitem" data-menu="install" hidden><i data-icon="download"></i><span>Install app</span></button>
+  </div>
+
+  <!-- settings: from the logo's menu (or Settings at the overview's foot). A sidebar of pages on the left,
+       the open page on the right; search filters both. -->
+  <dialog class="settings" id="settings" aria-label="Settings">
+    <aside class="set-side">
+      <div class="set-brand">
+        <span class="brand-mark-sm"><i data-icon="circle-dot"></i></span>
+        <span class="set-brand-name">Haru</span>
+        <button type="button" class="icon-btn set-close" id="settings-close" aria-label="Close settings" title="Close  Esc"><i data-icon="x"></i></button>
+      </div>
+      <label class="set-search">
+        <i data-icon="search"></i>
+        <input type="search" id="set-search" placeholder="Search settings" autocomplete="off" aria-label="Search settings">
+      </label>
+      <nav class="set-nav" aria-label="Settings pages">
+        <button type="button" data-set-page="appearance"><i data-icon="palette"></i><span>Appearance</span></button>
+        <button type="button" data-set-page="features"><i data-icon="panel-left"></i><span>Features</span></button>
+        <button type="button" data-set-page="language"><i data-icon="languages"></i><span>Language</span></button>
+        <button type="button" data-set-page="backup"><i data-icon="hard-drive"></i><span>Backup</span></button>
+        <button type="button" data-set-page="today"><i data-icon="eraser"></i><span>Today</span></button>
+      </nav>
+      <span class="set-group">Other</span>
+      <nav class="set-nav" aria-label="More">
+        <button type="button" data-set-page="shortcuts"><i data-icon="keyboard"></i><span>Shortcuts</span></button>
+        <button type="button" data-set-page="changelog"><i data-icon="sparkles"></i><span>What’s new</span></button>
+        <button type="button" data-set-page="account"><i data-icon="user"></i><span>Account</span></button>
+        <button type="button" data-set-page="about"><i data-icon="info"></i><span>About</span></button>
+      </nav>
+      <div class="set-promo">
+        <strong><i data-icon="sparkles"></i>Keep a copy</strong>
+        <p>Everything lives on this device. A backup file keeps it safe.</p>
+        <button type="button" class="btn-accent" id="set-promo-export">Export backup</button>
+      </div>
+      <button type="button" class="set-me" data-set-page="account">
+        <span class="set-me-avatar">H</span>
+        <span class="set-me-text"><strong>This device</strong><span class="meta">Local · sign-in off</span></span>
+        <i data-icon="chevron-up"></i>
+      </button>
+    </aside>
+
+    <div class="set-main">
+      <section class="set-page" data-page="appearance">
+        <h2 class="set-title">Appearance</h2>
+        <p class="set-lead">How Haru looks on this device.</p>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-label"><strong>Theme</strong><span>Dark, light, or whatever the system uses</span></div>
+            <div class="seg set-seg" id="set-theme" role="radiogroup" aria-label="Theme">
+              <button type="button" role="radio" data-theme-pick="dark"><i data-icon="moon"></i>Dark</button>
+              <button type="button" role="radio" data-theme-pick="light"><i data-icon="sun"></i>Light</button>
+              <button type="button" role="radio" data-theme-pick="system"><i data-icon="monitor"></i>System</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><strong>Motion</strong><span>Reduced keeps short fades and drops the decoration (also when the system asks for less)</span></div>
+            <div class="seg set-seg" id="set-motion" role="radiogroup" aria-label="Motion">
+              <button type="button" role="radio" data-motion-pick="full"><i data-icon="sparkles"></i>Full</button>
+              <button type="button" role="radio" data-motion-pick="less"><i data-icon="circle-dot"></i>Reduced</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="set-page" data-page="features">
+        <h2 class="set-title">Features</h2>
+        <p class="set-lead">Turn pages and tools on or off. What is off leaves the rail and the overview; nothing in it is deleted.</p>
+        <div class="set-card" id="set-features"></div>
+      </section>
+
+      <section class="set-page" data-page="language">
+        <h2 class="set-title">Language</h2>
+        <p class="set-lead">The language of labels and dates. What you write stays as you wrote it.</p>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-label"><strong>Language</strong><span>Haru reloads in the one you pick</span></div>
+            <div class="seg set-seg" id="set-lang" role="radiogroup" aria-label="Language">
+              <button type="button" role="radio" data-lang-pick="en">English</button>
+              <button type="button" role="radio" data-lang-pick="ko">한국어</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="set-page" data-page="backup">
+        <h2 class="set-title">Backup</h2>
+        <p class="set-lead">Your timetable, memos, images, templates, words, journal and attendance in one file. <span class="backup-status" id="backup-status"></span></p>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-label"><strong>Auto-backup</strong><span>Keeps a file up to date after every change</span></div>
+            <button type="button" class="btn-sm" id="backup-auto" aria-pressed="false">Auto-backup</button>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><strong>Export</strong><span>Download a backup file now</span></div>
+            <button type="button" class="btn-sm" id="backup-export">Export</button>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><strong>Import</strong><span>Restore from a backup file</span></div>
+            <button type="button" class="btn-sm" id="backup-import">Import</button>
+            <input type="file" id="backup-file" accept="application/json,.json" hidden>
+          </div>
+        </div>
+      </section>
+
+      <section class="set-page" data-page="today">
+        <h2 class="set-title">Today</h2>
+        <p class="set-lead">Start the day over.</p>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-label"><strong>New day</strong><span>At this time the day's timetable is kept in the calendar and Today starts empty</span></div>
+            <div class="set-reset">
+              <button type="button" class="time-field" id="reset-time" aria-label="New day time"></button>
+              <button type="button" class="switch" role="switch" id="reset-on" aria-label="Start a new day automatically"><i></i></button>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label">
+              <strong>School</strong>
+              <span id="school-name"></span>
+            </div>
+            <form class="set-reset" id="school-search" autocomplete="off">
+              <input type="search" class="set-input" id="school-q" placeholder="Find a school" maxlength="30" aria-label="Find a school">
+              <button type="submit" class="btn-sm">Find</button>
+            </form>
+          </div>
+          <div class="set-row school-results" id="school-results" hidden></div>
+          <div class="set-row">
+            <div class="set-label">
+              <strong>School timetable</strong>
+              <span>Puts your class's lessons for today on Today, at their periods (컴시간알리미). Every day: each day by itself, around your own tasks</span>
+              <span class="set-status" id="school-status" aria-live="polite"></span>
+            </div>
+            <div class="set-reset">
+              <select class="set-input set-select" id="school-class" aria-label="Class"><option value="">Class</option></select>
+              <button type="button" class="btn-sm" id="school-apply">Apply</button>
+              <label class="set-auto" title="Put the lessons on Today every day"><span>Every day</span><button type="button" class="switch" id="school-auto" role="switch" aria-checked="false" aria-label="School timetable every day"><i></i></button></label>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label">
+              <strong>School meals</strong>
+              <span>Puts today's breakfast, lunch and dinner on Today as Meal tasks, the menu in the note (NEIS). Every day: each day by itself, around your own tasks</span>
+              <span class="set-status" id="meals-status" aria-live="polite"></span>
+            </div>
+            <div class="set-reset">
+              <button type="button" class="btn-sm" id="meals-apply">Apply</button>
+              <label class="set-auto" title="Put the meals on Today every day"><span>Every day</span><button type="button" class="switch" id="meals-auto" role="switch" aria-checked="false" aria-label="School meals every day"><i></i></button></label>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><strong>Clear all</strong><span>Clear every task on today's timetable</span></div>
+            <button type="button" class="btn-sm danger" id="clear">Clear all</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="set-page" data-page="shortcuts">
+        <h2 class="set-title">Shortcuts</h2>
+        <p class="set-lead">Keys that work anywhere outside a text box.</p>
+        <div class="set-card set-keys">
+          <div class="set-row"><span>Open or close the overview</span><kbd>[</kbd></div>
+          <div class="set-row"><span>Open or close the right drawer</span><kbd>]</kbd></div>
+          <div class="set-row"><span>Select every task</span><kbd>Ctrl A</kbd></div>
+          <div class="set-row"><span>Delete the selected tasks</span><kbd>Delete</kbd></div>
+          <div class="set-row"><span>Close, one layer at a time</span><kbd>Esc</kbd></div>
+          <div class="set-row"><span>Words: flip · again · got it</span><kbd>Space ← →</kbd></div>
+          <div class="set-row"><span>Words: English definition · pronounce</span><kbd>E P</kbd></div>
+        </div>
+      </section>
+
+      <section class="set-page" data-page="account">
+        <h2 class="set-title">Account</h2>
+        <p class="set-lead">Sign-in and sync across devices.</p>
+        <div class="set-card acct" id="account">
+          <div class="section-head"><span>Account</span></div>
+        </div>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-label">
+              <strong>Name</strong>
+              <span>Used in the greeting on Today. Empty: your account’s first name.</span>
+            </div>
+            <input type="text" class="set-input" id="greet-name" placeholder="e.g. Public" maxlength="30" autocomplete="off" aria-label="Name for the greeting">
+          </div>
+        </div>
+      </section>
+
+      <section class="set-page" data-page="changelog">
+        <h2 class="set-title">What’s new</h2>
+        <p class="set-lead">Patch notes, newest first.</p>
+        <div class="set-card set-row cl-card" id="changelog-list"></div>
+      </section>
+      <section class="set-page" data-page="about">
+        <h2 class="set-title">About</h2>
+        <p class="set-lead">A day planner: timetable, calendar, news, words and journal.</p>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-label"><strong>App</strong><span id="install-hint"></span></div>
+            <button type="button" class="btn-sm" id="install-btn" hidden><i data-icon="download"></i>Install</button>
+          </div>
+          <div class="set-row"><div class="set-label"><strong>Build</strong><span id="settings-build"></span></div></div>
+          <div class="set-row"><div class="set-label"><strong>Your data</strong><span id="about-data">Kept in this browser (local storage and IndexedDB), never sent anywhere while sign-in is off</span></div></div>
+          <div class="set-row"><div class="set-label"><strong>Word list</strong><span>TOEIC Service List 1.2 by Browne &amp; Culligan, CC BY-SA 4.0</span></div></div>
+        </div>
+      </section>
+      <p class="set-none" hidden>Nothing matches</p>
+    </div>
+  </dialog>
+
+</body>
+</html>
