@@ -3007,6 +3007,10 @@ body.gated .titlebar > * { visibility: hidden; }
 .bd-tools { display: flex; gap: 2px; }
 .bd-review, .bd-replay { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; font-size: 13px; }
 .bd-review .ic, .bd-replay .ic { width: 14px; height: 14px; }
+.bd-who { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px 0 4px; font-size: 13px; }
+.bd-who[hidden], .bd-review[hidden], .bd-replay[hidden] { display: none; }
+.bd-who .a-avatar { width: 22px; height: 22px; font-size: 10px; }
+.bd-who .ic { width: 13px; height: 13px; color: var(--text-subtle); }
 .bd-stage { flex: 1; min-height: 0; display: grid; place-items: center; }
 .bd-svg { width: 100%; height: 100%; max-height: calc(100svh - 220px); overflow: visible; }
 .bd-empty { margin: 0; font-size: 14px; color: var(--text-subtle); }

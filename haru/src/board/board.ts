@@ -1,4 +1,4 @@
-import { CATEGORIES, CATEGORY_KEYS, type Block, type Category } from '../timetable/model';
+import { CATEGORIES, CATEGORY_KEYS, type Block, type Category, isBlock } from '../timetable/model';
 import { allDays, dayOf, onDaySaved } from '../timetable/history';
 import { state, subscribe } from '../timetable/state';
 import { svgEl } from '../timetable/svg';
@@ -6,8 +6,11 @@ import { formatDuration } from '../timetable/time';
 import { currentView, onView } from '../ui/router';
 import { icon } from '../ui/icons';
 import { lessMotion } from '../ui/motion';
-import { onStreaks, streaks } from '../timetable/streaks';
+import { onStreaks, streaksOf } from '../timetable/streaks';
 import { openReview } from '../timetable/review';
+import { avatar, onSession, session, type Profile } from '../cloud/session';
+import { memberList } from '../cloud/viewing';
+import { showMenu } from '../ui/modal';
 
 /**
  * Dot board: every day you keep, as hexagon cells. Each of the nine categories starts as one seed on a ring
@@ -15,6 +18,8 @@ import { openReview } from '../timetable/review';
  * by another patch is passed over, so the patches press into one another as the days pile up). A cell's shade is
  * how much of that day went to the category, against the category's own fullest day: blank (none) to full colour.
  * Built again from the day history each time, so it is always what the calendar holds; Today counts as it stands.
+ * Signed in, the person button at the top switches to another member's board: read only, from their kept days and
+ * their Today (the same documents the Today peek reads), loaded when picked.
  */
 
 interface Day { date: string; mins: Record<Category, number>; done: Record<Category, number> }
@@ -38,6 +43,29 @@ async function loadDays(): Promise<Day[]> {
   const kept = (await allDays()).filter((s) => s.date !== today && s.blocks?.length);
   const days = kept.map((s) => summarize(s.date, s.blocks));
   if (state.blocks.length) days.push(summarize(today, state.blocks));
+  return days.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Someone else's days, the same way: their kept days and their Today (counted as today here). */
+async function loadTheirs(uid: string): Promise<Day[]> {
+  const s = session();
+  if (!s) return [];
+  const { fs, db } = s.fb;
+  const today = dayOf();
+  const [kept, now] = await Promise.all([
+    fs.getDocs(fs.collection(db, `users/${uid}/days`)),
+    fs.getDoc(fs.doc(db, `users/${uid}/state/timetable`)).catch(() => null),
+  ]);
+  const blocksOf = (v: unknown): Block[] => (Array.isArray(v) ? v.filter(isBlock).map((b) => ({ ...b, done: b.done === true })) : []);
+  const days: Day[] = [];
+  for (const d of kept.docs) {
+    const x = d.data() as { date?: unknown; blocks?: unknown };
+    const date = typeof x.date === 'string' ? x.date : d.id;
+    const blocks = blocksOf(x.blocks);
+    if (date !== today && date < today && blocks.length) days.push(summarize(date, blocks));
+  }
+  const live = blocksOf((now?.data() as { blocks?: unknown } | undefined)?.blocks);
+  if (live.length) days.push(summarize(today, live));
   return days.sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -152,6 +180,7 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
       <div class="bd-bar">
         <span class="meta bd-range"></span>
         <span class="bd-tools">
+          <button type="button" class="btn-text bd-who" aria-haspopup="menu" hidden></button>
           <button type="button" class="btn-text bd-review"></button>
           <button type="button" class="btn-text bd-replay"></button>
         </span>
@@ -174,10 +203,46 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
   const review = body.querySelector<HTMLButtonElement>('.bd-review')!;
   review.append(icon('chart-column'), 'Week review');
   review.addEventListener('click', () => void openReview());
+  let days: Day[] = [];
+  /** The last load failed (their board), and which load is the latest. */
+  let failed = false;
+  let asked = 0;
+  // whose board: yours, or another member's (signed in, with others invited)
+  const whoBtn = body.querySelector<HTMLButtonElement>('.bd-who')!;
+  let who: Profile | null = null;
+  const others = () => {
+    const s = session();
+    return s ? memberList().filter((m) => m.uid !== s.uid) : [];
+  };
+  const paintWho = () => {
+    const s = session();
+    whoBtn.hidden = !s || (!who && !others().length);
+    review.hidden = !!who;
+    if (!s) return;
+    const p = who ?? { name: 'Me', photo: s.photo };
+    whoBtn.replaceChildren(avatar({ name: who?.name ?? s.name, photo: p.photo }, 'a-avatar'), who ? who.name || who.email : 'Me', icon('chevron-down'));
+    whoBtn.title = who ? `${who.name}’s board (read only)` : 'See someone’s board';
+  };
+  const pick = (p: Profile | null) => {
+    if (p?.uid === who?.uid) return;
+    who = p;
+    paintWho();
+    void refresh(true);
+  };
+  whoBtn.addEventListener('click', () => {
+    showMenu(whoBtn, [
+      { label: 'Me', icon: who ? 'user' : 'check', run: () => pick(null) },
+      ...others().map((m) => ({ label: m.name || m.email, icon: (m.uid === who?.uid ? 'check' : 'user') as 'check' | 'user', run: () => pick(m) })),
+    ]);
+  });
+  onSession(() => {
+    who = null;
+    paintWho();
+    if (currentView() === 'board') void refresh(false);
+  });
   const swatches = body.querySelector<HTMLElement>('.bd-swatches')!;
   for (let l = 0; l <= 5; l++) swatches.append(Object.assign(document.createElement('span'), { className: `bd-sw l${l}` }));
 
-  let days: Day[] = [];
   let focus: Category | null = null;
   let drawn = '';
 
@@ -190,11 +255,12 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
   function draw(animate: boolean): void {
     const cells = grow(days);
     const today = dayOf();
-    sum.textContent = days.length ? `${days.length} ${days.length === 1 ? 'day' : 'days'} · since ${fmtDate(days[0]!.date)}` : '';
+    const span = days.length ? `${days.length} ${days.length === 1 ? 'day' : 'days'} · since ${fmtDate(days[0]!.date)}` : '';
+    sum.textContent = who ? [who.name, span].filter(Boolean).join(' · ') : span;
     body.querySelector('.bd-range')!.textContent = days.length ? `${fmtDate(days[0]!.date)} – ${fmtDate(days.at(-1)!.date)}` : '';
     replay.hidden = days.length < 2;
     if (!cells.length) {
-      stage.replaceChildren(Object.assign(document.createElement('p'), { className: 'bd-empty', textContent: 'The board starts with the first day you plan on Today' }));
+      stage.replaceChildren(Object.assign(document.createElement('p'), { className: 'bd-empty', textContent: failed ? 'Couldn’t load their board. Check your connection.' : who ? 'Nothing on their board yet' : 'The board starts with the first day you plan on Today' }));
     } else {
       const S = 10;
       const pts = cells.map((c) => toXY(c.q, c.r).map((v) => v * S) as [number, number]);
@@ -219,6 +285,7 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
       stage.replaceChildren(svg);
     }
     // the legend: each category's days with time in it and its hours in all
+    const runs = streaksOf(days.map((d) => ({ date: d.date, planned: d.mins, done: d.done })), today);
     legend.replaceChildren(...CATEGORY_KEYS.map((cat) => {
       const li = document.createElement('li');
       const b = document.createElement('button');
@@ -231,7 +298,7 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
       b.querySelector('.n')!.textContent = CATEGORIES[cat];
       b.querySelector('.meta')!.textContent = used ? `${used}d · ${formatDuration(total)}` : '–';
       // days running, when it is going
-      const run = streaks().find((s) => s.cat === cat);
+      const run = runs.find((s) => s.cat === cat);
       if (run && run.days >= 2) {
         const f = Object.assign(document.createElement('span'), { className: 'bd-run', title: `${run.days} days in a row (longest ${run.best})` });
         f.append(icon('flame'), String(run.days));
@@ -268,12 +335,24 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
   });
   stage.addEventListener('pointerleave', () => (tip.hidden = true));
   replay.addEventListener('click', () => draw(true));
-  onStreaks(() => currentView() === 'board' && days.length && draw(false));
+  onStreaks(() => currentView() === 'board' && !who && days.length && draw(false));
 
   // built when the page is opened, and again when the days change while it is open
   async function refresh(animate: boolean): Promise<void> {
-    days = await loadDays();
-    const sig = JSON.stringify(days);
+    const mine = asked + 1;
+    asked = mine;
+    const of = who;
+    let next: Day[] = [];
+    failed = false;
+    try {
+      next = of ? await loadTheirs(of.uid) : await loadDays();
+    } catch {
+      failed = true;
+    }
+    // a later pick (or a later refresh) wins
+    if (mine !== asked) return;
+    days = next;
+    const sig = `${of?.uid ?? ''}|${failed}|${JSON.stringify(days)}`;
     if (sig === drawn && !animate) return;
     drawn = sig;
     draw(animate);
@@ -281,6 +360,7 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
   let first = true;
   onView((v) => {
     if (v !== 'board') return;
+    paintWho();
     void refresh(first);
     first = false;
   });
@@ -289,12 +369,13 @@ export function mountBoard(body: HTMLElement, sum: HTMLElement): void {
     clearTimeout(timer);
     timer = window.setTimeout(() => currentView() === 'board' && void refresh(false), 400);
   };
-  onDaySaved(later);
+  // your own days changing redraws your own board only
+  onDaySaved(() => !who && later());
   let blocks = state.blocks;
   subscribe(() => {
     if (state.blocks === blocks) return;
     blocks = state.blocks;
-    later();
+    if (!who) later();
   });
   if (currentView() === 'board') {
     void refresh(true);

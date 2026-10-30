@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.81',
+    date: '2026-10-31',
+    items: [
+      'Dot board 위쪽 사람 버튼으로 다른 멤버의 보드도 볼 수 있음(읽기 전용, 그 사람의 지난 날과 Today 기준, 카테고리 연속도 그 사람 것)',
+    ],
+  },
+  {
     version: '1.80',
     date: '2026-10-29',
     items: [
