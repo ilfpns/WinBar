@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.84',
+    date: '2026-11-02',
+    items: [
+      '새 날 시작 시간에 걸친 태스크(예: 새 날 01:20, 태스크 01:14–03:29)가 지나도 회색으로 남던 문제를 고쳤어요. 더 많이 걸친 쪽의 날에 속하게 계산해요.',
+    ],
+  },
+  {
     version: '1.83',
     date: '2026-11-02',
     items: [

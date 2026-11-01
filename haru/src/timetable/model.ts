@@ -63,11 +63,14 @@ export const contains = (b: Pick<Block, 'start' | 'dur'>, m: number): boolean =>
 /**
  * Minutes of `b` gone by at `now`, in a day that begins at `dayStart` (the New day time; 0: midnight): all of a
  * task that ended earlier that day, the elapsed part of the running one, none of one still ahead. A task before
- * the day's start on the clock (00:15 with a 01:30 start) belongs to the day's end, so it is still ahead.
+ * the day's start on the clock (00:15 with a 01:30 start) belongs to the day's end, so it is still ahead; one across
+ * it belongs to the side holding most of it: 01:14–03:29 with a 01:20 start begins the day, gone once it ended.
  */
 export function passedOf(b: Pick<Block, 'start' | 'dur'>, now: number, dayStart = 0): number {
   if (contains(b, now)) return mod(now - b.start);
-  return mod(b.start - dayStart) + b.dur <= mod(now - dayStart) ? b.dur : 0;
+  let at = mod(b.start - dayStart);
+  if (at + b.dur - DAY > DAY - at) at -= DAY;
+  return at + b.dur <= mod(now - dayStart) ? b.dur : 0;
 }
 
 export function blockAt(blocks: readonly Block[], m: number, excludeId?: string | null): Block | undefined {
