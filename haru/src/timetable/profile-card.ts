@@ -1,6 +1,6 @@
 import { avatar, session, type Profile } from '../cloud/session';
-import { onViewing, watchTheirs } from '../cloud/viewing';
-import { dayKey } from './history';
+import { onViewing, watchTheirToday, watchTheirs } from '../cloud/viewing';
+import { dayKey, dayOf } from './history';
 import { type Block, isBlock, labelOf } from './model';
 import { formatDuration, hhmm, mod, nowMinutes } from './time';
 import { icon } from '../ui/icons';
@@ -49,6 +49,8 @@ export function mountProfileCard(stage: HTMLElement): void {
   let stops: (() => void)[] = [];
   let who: Profile | null = null;
   let blocks: Block[] = [];
+  /** Their Haru has begun today (until then what it holds is an earlier day's, not shown). */
+  let started = true;
   let checkins = new Set<string>();
   let recent: { date: string; planned: number; done: number }[] = [];
   let clock = 0;
@@ -83,7 +85,8 @@ export function mountProfileCard(stage: HTMLElement): void {
     today.querySelector('.who-ring strong')!.textContent = `${pct}%`;
     const facts = today.querySelector('.who-facts')!;
     const fact = (k: string, v: string) => facts.append(Object.assign(document.createElement('dt'), { textContent: k }), Object.assign(document.createElement('dd'), { textContent: v }));
-    fact(ko() ? '계획' : 'Planned', planned ? `${formatDuration(planned)} · ${blocks.length}${ko() ? '개' : ' tasks'}` : (ko() ? '아직 없음' : 'Nothing yet'));
+    if (!started) fact(ko() ? '계획' : 'Planned', ko() ? '오늘 아직 안 열었어요' : 'Not opened today yet');
+    else fact(ko() ? '계획' : 'Planned', planned ? `${formatDuration(planned)} · ${blocks.length}${ko() ? '개' : ' tasks'}` : (ko() ? '아직 없음' : 'Nothing yet'));
     fact(ko() ? '완료' : 'Done', formatDuration(done));
     fact(ko() ? '지금' : 'Now', cur ? `${labelOf(cur)} · ${formatDuration(Math.ceil(cur.dur - mod(now - cur.start)))} ${ko() ? '남음' : 'left'}` : (ko() ? '여유' : 'Free'));
     if (next) fact(ko() ? '다음' : 'Next', `${hhmm(next.start)} ${labelOf(next)}`);
@@ -164,7 +167,7 @@ export function mountProfileCard(stage: HTMLElement): void {
     if (who !== p) return;
     recent = out;
     // today counts as it is now
-    const t = recent.find((r) => r.date === keyOf(new Date()));
+    const t = recent.find((r) => r.date === dayOf());
     if (t && blocks.length) {
       t.planned = blocks.reduce((a, b) => a + b.dur, 0);
       t.done = blocks.filter((b) => b.done).reduce((a, b) => a + b.dur, 0);
@@ -178,6 +181,7 @@ export function mountProfileCard(stage: HTMLElement): void {
     clearInterval(clock);
     who = p;
     blocks = [];
+    started = true;
     checkins = new Set();
     recent = [];
     card.hidden = !p;
@@ -186,8 +190,9 @@ export function mountProfileCard(stage: HTMLElement): void {
     void card.offsetWidth;
     card.classList.add('in');
     paint();
-    stops.push(watchTheirs<{ blocks?: unknown[] }>('state/timetable', (data) => {
-      blocks = (data?.blocks ?? []).filter(isBlock).map((b) => ({ ...b, done: b.done === true }));
+    stops.push(watchTheirToday((bl) => {
+      started = !!bl;
+      blocks = bl ?? [];
       paint();
     }));
     stops.push(watchTheirs<{ items?: unknown[] }>('lists/checkins', (data) => {

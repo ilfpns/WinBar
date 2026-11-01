@@ -3,6 +3,8 @@ import { icon } from '../ui/icons';
 import { showMenu } from '../ui/modal';
 import { onView } from '../ui/router';
 import { anyPopOpen } from '../ui/popover';
+import { dayOf } from '../timetable/history';
+import { type Block, isBlock } from '../timetable/model';
 
 /**
  * Looking at someone else's Today: the people button (top right of Today, signed in only) lists everyone;
@@ -45,6 +47,44 @@ export function watchTheirs<T>(path: string, fn: (data: T | undefined, failed?: 
   if (!s || !p) return () => {};
   const { fs, db } = s.fb;
   return fs.onSnapshot(fs.doc(db, `users/${p.uid}/${path}`), (snap) => fn(snap.data() as T | undefined), () => fn(undefined, true));
+}
+
+/**
+ * The person on screen's Today, live — once it is today's. Their Today has no date of its own: until their Haru
+ * has begun today (its copy of the day, `days/{date}`, is there), what it holds is an earlier day's, and `fn`
+ * gets null. Waits for both before the first call, and moves on with the day while you look.
+ */
+export function watchTheirToday(fn: (blocks: Block[] | null) => void): () => void {
+  let blocks: Block[] | undefined;
+  let started: boolean | undefined;
+  let date = dayOf();
+  const send = () => {
+    if (blocks !== undefined && started !== undefined) fn(started ? blocks : null);
+  };
+  const stopState = watchTheirs<{ blocks?: unknown[] }>('state/timetable', (data) => {
+    blocks = (data?.blocks ?? []).filter(isBlock).map((b) => ({ ...b, done: b.done === true }));
+    send();
+  });
+  let stopDay = () => {};
+  const watchDay = () => {
+    stopDay();
+    stopDay = watchTheirs('days/' + date, (data) => {
+      started = !!data;
+      send();
+    });
+  };
+  watchDay();
+  const timer = window.setInterval(() => {
+    if (dayOf() === date) return;
+    date = dayOf();
+    started = undefined;
+    watchDay();
+  }, 30_000);
+  return () => {
+    stopState();
+    stopDay();
+    clearInterval(timer);
+  };
 }
 
 export function mountViewing(): void {

@@ -3,6 +3,11 @@
 Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호를 붙이고, 처리 결과(고침 / 보류 / 사양대로)를 함께 적는다.
 점검은 사용자의 브라우저가 아니라 별도의 헤드리스 브라우저(gstack browse, `http://localhost:5288`)에서 한다.
 
+## 2026-11-02 (v1.83) — 멤버 Today는 오늘 것만
+
+- 원인: `state/timetable`에는 날짜가 없어서, 상대가 오늘 Haru를 열기 전에는 지난 날 시간표가 그대로 보였다. 이제 그 사람의 `days/{오늘}`이 있을 때만 시간표를 보여 준다(`watchTheirToday`).
+- 별도 헤드리스 컨텍스트에서 메모리 Firestore로 확인: 오늘 기록이 없으면 다이얼이 비고 가운데에 –, 카드에 "Not opened today yet"이 보였다. `days/{오늘}`을 넣으면 그 사람의 시간표(3조각)와 %가 보였다. 콘솔 오류 0.
+
 ## 2026-10-31 (v1.82) — 기록 보기 정리, 전체 기간
 
 - 별도 헤드리스 컨텍스트에 49일치 가짜 기록을 넣고 1440×900·390×844에서 캡처로 확인: Review의 Week/Month/All time 전환, Month ‹ 로 9월(18일), All time "Since Sep 13, 2026 · 49 days kept"와 타일(388h, 636h·61%, Sep 18, 하루 7h 55m), Journal 카드의 14 days/All time 차트(주 단위, 달 이름은 그달 첫 주에만), Categories/Top tasks/Weekdays 탭. 콘솔 오류 0.

@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.83',
+    date: '2026-11-02',
+    items: [
+      'Today에서 다른 멤버를 볼 때 그 사람의 오늘 시간표만 보여요. 오늘 아직 Haru를 안 열었으면 어제 시간표 대신 빈 다이얼과 "Not opened today yet"이 보여요.',
+    ],
+  },
+  {
     version: '1.82',
     date: '2026-10-31',
     items: [
