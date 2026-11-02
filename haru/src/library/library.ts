@@ -8,6 +8,8 @@ import { noteOpened, openedIn, openedKey } from './opened';
 import { type MemoConf, memoConf, memoPath, memoToken, readMemo, saveMemoConf, writeMemo } from './memo';
 import { NotionError, notionDriver } from './notion';
 import { allowVault, canPickFolder, forgetVault, obsidianDriver, pickVault } from './obsidian';
+import { unlockSecrets } from './secrets';
+import { add as gitAdd, commit as gitCommit, commits as gitCommits, gitConf, gitToken, isStaged, onGit, push as gitPush, saveGitConf, staged as gitStaged, unstage } from './git';
 import { type Driver, type Item, NeedsAccess, type SourceConf, type SourceKind, newSourceId, onSources, removeSource, saveSource, sources, tokenOf } from './sources';
 
 /**
@@ -23,6 +25,8 @@ const KIND: Record<SourceKind, { label: string; icon: IconName; hint: string }> 
   github: { label: 'GitHub folder', icon: 'git-branch', hint: 'A repo and a path; saving commits' },
   notion: { label: 'Notion workspace', icon: 'book-text', hint: 'Pages shared with an integration; edits sync' },
 };
+/** What can be added as a source: GitHub is where notes go (Git → Add, Commit, Push), not where they come from. */
+const ADDABLE: SourceKind[] = ['obsidian', 'notion'];
 const CURRENT = 'haru:library-current';
 /** Cards drawn either side of the one in the middle (the rest are off the fan). */
 const REACH = 14;
@@ -72,6 +76,7 @@ const NEW_TOKEN: Partial<Record<SourceKind, { url: string; label: string; steps:
 };
 
 export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
+  void unlockSecrets();
   const drivers = new Map<string, Driver>();
   const loaded = new Map<string, Loaded>();
   const failed = new Map<string, { message: string; access: boolean; auth: boolean }>();
@@ -128,7 +133,21 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     return { f, b };
   });
   tools.append(search, chips);
-  bar.append(pills, add, tools);
+  // Git: the repository chosen once (the branch button), then Add on a note, Commit, Push
+  const git = el('div', 'lib-git');
+  git.setAttribute('role', 'group');
+  git.setAttribute('aria-label', 'Git');
+  const gitSet = iconBtn('git-branch', 'Git settings', 'lib-git-set');
+  const gitStage = el('button', 'lib-git-btn lib-git-staged');
+  gitStage.type = 'button';
+  const gitCommitBtn = el('button', 'lib-git-btn');
+  gitCommitBtn.type = 'button';
+  gitCommitBtn.append(icon('git-commit'), el('span', '', 'Commit'));
+  const gitPushBtn = el('button', 'lib-git-btn lib-git-push');
+  gitPushBtn.type = 'button';
+  const gitSay = el('span', 'lib-git-say');
+  git.append(gitSet, gitStage, gitCommitBtn, gitPushBtn, gitSay);
+  bar.append(pills, add, git, tools);
 
   const crumbs = el('nav', 'lib-crumbs');
   crumbs.setAttribute('aria-label', 'Folder path');
@@ -168,7 +187,8 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     return d;
   }
   const order = (a: Item, b: Item) => (a.kind === b.kind ? a.name.localeCompare(b.name, undefined, { numeric: true }) : a.kind === 'folder' ? -1 : 1);
-  function index(items: Item[]): Loaded {
+  /** Vaults and repos read like Obsidian's sidebar (folders, then names); Notion keeps its own order. */
+  function index(items: Item[], sorted = conf()?.kind !== 'notion'): Loaded {
     const byId = new Map(items.map((i) => [i.id, i]));
     const kids = new Map<string | null, Item[]>();
     for (const i of items) {
@@ -176,7 +196,7 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
       if (!kids.has(p)) kids.set(p, []);
       kids.get(p)!.push(i);
     }
-    for (const list of kids.values()) list.sort(order);
+    if (sorted) for (const list of kids.values()) list.sort(order);
     return { items, byId, kids };
   }
   async function load(s: SourceConf): Promise<void> {
@@ -185,7 +205,11 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     failed.delete(s.id);
     paint();
     try {
-      loaded.set(s.id, index(await driverOf(s).load()));
+      // the tokens are decrypted once, before the first call needs one
+      await unlockSecrets();
+      loaded.set(s.id, index(await driverOf(s).load(), s.kind !== 'notion'));
+      // orders read before stay good for the folders still there
+      for (const k of [...orders.keys()]) if (k.startsWith(`${s.id}|`)) orders.delete(k);
       const want = pendingOpen?.source === s.id ? loaded.get(s.id)!.byId.get(pendingOpen.id) : undefined;
       pendingOpen = null;
       if (want && current === s.id) queueMicrotask(() => void openNote(want, true));
@@ -245,12 +269,47 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     paint();
   }
 
-  /** What the fan shows: the open folder's contents, or every match when searching. */
+  /** Folders' own orders (Notion: where the sub-pages stand on the page), read when the folder is opened. */
+  const orders = new Map<string, string[] | null>();
+  const ordering = new Set<string>();
+  function inOrder(s: SourceConf, folder: string | null, list: Item[]): Item[] {
+    const d = driverOf(s);
+    if (!d.orderIn || !folder) return list;
+    const key = `${s.id}|${folder}`;
+    const ids = orders.get(key);
+    if (ids === undefined) {
+      if (!ordering.has(key)) {
+        ordering.add(key);
+        const item = loaded.get(s.id)?.byId.get(folder);
+        if (item) {
+          void d.orderIn(item).catch(() => null).then((got) => {
+            ordering.delete(key);
+            orders.set(key, got);
+            if (current !== s.id || at().folder !== folder || !got) return;
+            // the same card stays in the middle as the rest move to their places
+            const mid = shown()[at().focus]?.id;
+            fanKey = '';
+            const p = at();
+            p.focus = Math.max(0, shown().findIndex((i) => i.id === mid));
+            paintFan();
+          });
+        }
+      }
+      return list;
+    }
+    if (!ids) return list;
+    const pos = new Map(ids.map((id, k) => [id, k]));
+    // what the page doesn't place keeps its place after the rest
+    return [...list].sort((a, b) => (pos.get(a.id) ?? 1e6) - (pos.get(b.id) ?? 1e6));
+  }
+
+  /** What the fan shows: the open folder's contents (in their order), or every match when searching. */
   function shown(): Item[] {
-    const data = current ? loaded.get(current) : undefined;
-    if (!data) return [];
+    const s = conf();
+    const data = s ? loaded.get(s.id) : undefined;
+    if (!s || !data) return [];
     const q = query.trim().toLowerCase();
-    const list = q ? data.items.filter((i) => i.name.toLowerCase().includes(q)).sort(order) : (data.kids.get(at().folder) ?? []);
+    const list = q ? data.items.filter((i) => i.name.toLowerCase().includes(q)) : inOrder(s, at().folder, data.kids.get(at().folder) ?? []);
     return filter === 'all' ? list : list.filter((i) => i.kind === filter);
   }
   const countIn = (data: Loaded, id: string) => {
@@ -507,7 +566,7 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
       empty.append(el('p', 'lib-empty-title', 'Bring your notes in'), el('p', 'lib-empty-sub', 'Look through a vault, a repo or a workspace as cards. Nothing here is synced by Haru.'));
     }
     const row = el('div', 'lib-kinds');
-    (Object.keys(KIND) as SourceKind[]).forEach((k) => {
+    ADDABLE.forEach((k) => {
       const b = el('button', 'lib-kind-tile');
       b.type = 'button';
       b.append(icon(KIND[k].icon), el('strong', '', KIND[k].label), el('span', '', KIND[k].hint));
@@ -633,6 +692,19 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
       out.title = 'Open in Notion';
       out.append(icon('arrow-up-right'));
       actions.append(out);
+    }
+    {
+      const on = isStaged(s, open);
+      const stage = iconBtn('git-commit', on ? 'Staged · add again to update' : 'Add to Git (stage)');
+      stage.classList.toggle('has', on);
+      stage.addEventListener('click', () => {
+        if (!gitConf()) return void gitSettings();
+        flushSave();
+        gitAdd(s, open!, text);
+        say(`Added ${open!.name} · ${gitStaged().length} staged`);
+        paintReader();
+      });
+      actions.append(stage);
     }
     if (d.addImage) {
       const pic = iconBtn('image-plus', 'Add a picture');
@@ -916,13 +988,13 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
         { key: 'repo', label: 'Repository', value: was?.repo, placeholder: 'owner/name', required: true },
         { key: 'path', label: 'Path', value: was?.path ?? 'haru-memos', placeholder: 'haru-memos' },
         { key: 'branch', label: 'Branch', value: was?.branch, placeholder: 'empty: the default branch' },
-        { key: 'token', label: 'Token', value: memoToken() || (was ? tokenOf(lend(was.repo)?.id ?? '') : ''), placeholder: 'github_pat_…', secret: true, hint: 'Fine-grained, Contents read and write on this repo. Kept in this browser only. Empty: uses a GitHub source’s token for the same repo.' },
+        { key: 'token', label: 'Token', placeholder: memoToken() ? 'Saved · leave empty to keep it' : 'github_pat_…', secret: true, hint: 'Fine-grained, Contents read and write on this repo. Kept encrypted in this browser only. Empty: keeps the saved one, or uses a GitHub source’s token for the same repo.' },
       ],
     });
     if (!v) return;
     const repo = v.repo!.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$|\/$/g, '');
     const c: MemoConf = { repo, path: (v.path ?? '').replace(/^\/+|\/+$/g, ''), branch: v.branch ?? '' };
-    saveMemoConf(c, v.token || tokenOf(lend(repo)?.id ?? ''));
+    saveMemoConf(c, v.token || (memoToken() ? '' : tokenOf(lend(repo)?.id ?? '')));
     const s = conf();
     if (s && open) {
       memoShown = true;
@@ -1046,7 +1118,7 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
           { key: 'repo', label: 'Repository', value: was?.repo, placeholder: 'owner/name', required: true },
           { key: 'path', label: 'Path', value: was?.path, placeholder: 'notes (empty: the whole repo)' },
           { key: 'branch', label: 'Branch', value: was?.branch, placeholder: 'empty: the default branch' },
-          { key: 'token', label: 'Token', value: was ? tokenOf(was.id) : '', placeholder: 'github_pat_…', secret: true, hint: 'Fine-grained, Contents read and write on this repo. Kept in this browser only; empty reads a public repo.' },
+          { key: 'token', label: 'Token', placeholder: was && tokenOf(was.id) ? 'Saved · leave empty to keep it' : 'github_pat_…', secret: true, hint: 'Fine-grained, Contents read and write on this repo. Kept encrypted in this browser only (never in the site’s code); empty reads a public repo.' },
         ],
       });
       if (!v) return null;
@@ -1058,7 +1130,7 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
       body: 'Make an internal integration at notion.so/profile/integrations, then share pages with it (a page’s ••• → Connections).',
       fields: [
         { key: 'name', label: 'Name', value: was?.name ?? 'Notion', required: true },
-        { key: 'token', label: 'Integration secret', value: was ? tokenOf(was.id) : '', placeholder: 'ntn_…', secret: true, required: true, hint: 'Kept in this browser only. Give the integration Read, Update and Insert content: edits, new pages and pictures made in Haru go to Notion.' },
+        { key: 'token', label: 'Integration secret', placeholder: was && tokenOf(was.id) ? 'Saved · leave empty to keep it' : 'ntn_…', secret: true, required: !(was && tokenOf(was.id)), hint: 'Kept encrypted in this browser only (never in the site’s code). Give the integration Read, Update and Insert content: edits, new pages and pictures made in Haru go to Notion.' },
       ],
     });
     return v ? { conf: { name: v.name! }, token: v.token! } : null;
@@ -1106,7 +1178,8 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
 
   add.addEventListener('click', () => {
     showMenu(add, [
-      ...(Object.keys(KIND) as SourceKind[]).map((k) => ({ label: KIND[k].label, icon: KIND[k].icon, run: () => void addSource(k) })),
+      ...ADDABLE.map((k) => ({ label: KIND[k].label, icon: KIND[k].icon, run: () => void addSource(k) })),
+      { label: gitConf() ? `Git · ${gitConf()!.repo}` : 'Git settings…', icon: 'git-branch' as IconName, run: () => void gitSettings() },
       { label: memoConf() ? `Memo repo · ${memoConf()!.repo}` : 'Memo repo…', icon: 'message' as IconName, run: () => void memoSettings() },
     ]);
   });
@@ -1187,6 +1260,77 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     }, 120);
   });
 
+  // ---------- Git
+  function say(msg: string, bad = false): void {
+    gitSay.textContent = msg;
+    gitSay.classList.toggle('bad', bad);
+    gitSay.classList.remove('in');
+    void gitSay.offsetWidth;
+    gitSay.classList.add('in');
+  }
+  function paintGit(): void {
+    const c = gitConf();
+    const st = gitStaged();
+    const waiting = gitCommits();
+    git.classList.toggle('set', !!c);
+    gitSet.title = c ? `Git: ${c.repo}${c.path ? ` / ${c.path}` : ''}${c.branch ? ` (${c.branch})` : ''} · settings` : 'Git settings: choose a repository';
+    gitStage.hidden = !c;
+    gitCommitBtn.hidden = !c;
+    gitPushBtn.hidden = !c;
+    gitStage.replaceChildren(el('b', '', String(st.length)), el('span', '', 'staged'));
+    gitStage.disabled = !st.length;
+    gitCommitBtn.disabled = !st.length;
+    gitPushBtn.replaceChildren(icon('cloud-upload'), el('span', '', 'Push'), ...(waiting.length ? [el('b', '', String(waiting.length))] : []));
+    gitPushBtn.disabled = !waiting.length;
+  }
+  async function gitSettings(): Promise<void> {
+    const was = gitConf();
+    const mc = memoConf();
+    const lend = (repo: string) => sources().find((x) => x.kind === 'github' && x.repo === repo);
+    const v = await askForm({
+      title: 'Git settings', icon: 'git-branch', ok: 'Save',
+      body: 'Where notes go with Add → Commit → Push: one Markdown file per note under the path, each commit a commit of its own.',
+      fields: [
+        { key: 'repo', label: 'Repository', value: was?.repo ?? mc?.repo, placeholder: 'owner/name', required: true },
+        { key: 'path', label: 'Path', value: was?.path ?? 'haru-notes', placeholder: 'haru-notes' },
+        { key: 'branch', label: 'Branch', value: was?.branch, placeholder: 'empty: the default branch' },
+        { key: 'token', label: 'Token', placeholder: gitToken() ? 'Saved · leave empty to keep it' : 'github_pat_…', secret: true, hint: 'Fine-grained, Contents read and write on this repo. Kept encrypted in this browser only. Empty: keeps the saved one, or borrows the memo repo’s or a GitHub source’s token for the same repo.' },
+      ],
+    });
+    if (!v) return;
+    const repo = v.repo!.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$|\/$/g, '');
+    const borrowed = v.token || (gitToken() ? '' : (mc?.repo === repo ? memoToken() : '') || tokenOf(lend(repo)?.id ?? ''));
+    saveGitConf({ repo, path: (v.path ?? '').replace(/^\/+|\/+$/g, ''), branch: v.branch ?? '' }, borrowed);
+    say(`Git: ${repo}`);
+  }
+  gitSet.addEventListener('click', () => void gitSettings());
+  gitStage.addEventListener('click', () => {
+    const st = gitStaged();
+    showMenu(gitStage, st.map((x) => ({ label: `Unstage ${x.name}`, icon: 'x' as IconName, run: () => unstage(x.key) })));
+  });
+  gitCommitBtn.addEventListener('click', async () => {
+    const st = gitStaged();
+    const msg = await askText({ title: 'Commit', label: `Message · ${st.length} staged`, placeholder: `Update ${st.map((x) => x.name).slice(0, 3).join(', ')}`, icon: 'git-commit', ok: 'Commit' });
+    if (msg === null) return;
+    const c = gitCommit(msg);
+    if (c) say(`Committed “${c.message}” · Push to send it`);
+  });
+  gitPushBtn.addEventListener('click', async () => {
+    gitPushBtn.disabled = true;
+    try {
+      const n = await gitPush((done, of) => say(`Pushing ${Math.min(done + 1, of)}/${of}…`));
+      say(n ? `Pushed ${n} commit${n === 1 ? '' : 's'} to ${gitConf()?.repo}` : 'Nothing to push');
+    } catch (e) {
+      say(tokenRefused(e) ? 'Push failed: the token has expired — Git settings to update it' : e instanceof Error ? `Push failed: ${e.message}` : 'Push failed', true);
+    }
+    paintGit();
+  });
+  onGit(() => {
+    paintGit();
+    if (open && !editing) paintReader();
+  });
+  paintGit();
+
   onSources(paint);
   // Esc peels one layer: out of the editor's text, then the larger reader back to its place, then the note closed
   document.addEventListener('keydown', (e) => {
@@ -1229,4 +1373,10 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     } else paint();
   });
   paint();
+  // opened straight on the Library (a reload): its source loads now
+  const first = conf();
+  if (currentView() === 'library' && first) {
+    seenAt.set(first.id, Date.now());
+    void load(first);
+  }
 }

@@ -82,8 +82,8 @@ export const TOURS: Record<View, { name: [string, string]; steps: Step[] }> = {
       ko: ['리뷰', '한 주, 한 달, 전체 기간을 카드 한 장으로 봐요.'] },
   ] },
   library: { name: ['Library', '라이브러리'], steps: [
-    { target: '.lib-add, .lib-kinds', en: ['Bring notes in', 'Connect an Obsidian vault, a folder of a GitHub repo, or a Notion workspace. Tokens stay in this browser.'],
-      ko: ['노트 가져오기', 'Obsidian 보관함, GitHub 레포의 폴더, Notion 워크스페이스를 연결해요. 토큰은 이 브라우저에만 저장돼요.'] },
+    { target: '.lib-add, .lib-kinds', en: ['Bring notes in, keep them in Git', 'Connect an Obsidian vault or a Notion workspace. The branch button sets a GitHub repository once; then Add on a note, Commit, Push. Tokens stay encrypted in this browser.'],
+      ko: ['노트 가져오기, Git에 기록하기', 'Obsidian 보관함이나 Notion 워크스페이스를 연결해요. 브랜치 버튼으로 GitHub 레포를 한 번 정해 두면, 노트에서 Add → Commit → Push로 기록돼요. 토큰은 이 브라우저에 암호화돼 저장돼요.'] },
     { target: '.lib-stage', en: ['Cards', 'Folders are stacked cards, notes single sheets. Wheel, drag or ← → to move; open the middle one to step in or read.'],
       ko: ['카드 넘기기', '폴더는 겹친 카드, 노트는 한 장이에요. 휠·드래그·← →로 넘기고, 가운데 카드를 열면 폴더로 들어가거나 노트를 읽어요.'] },
     { target: '.lib-crumbs', en: ['Where you are', 'The path steps back out of folders. New note makes one in the open folder.'],

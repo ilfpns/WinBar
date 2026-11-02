@@ -28,7 +28,10 @@
 .md-view :is(ul, ol) { margin: 0 0 .7em; padding-left: 1.3em; }
 .md-view li { margin: .15em 0; }
 .md-view li::marker { color: var(--text-subtle); }
-.md-view .md-task { list-style: none; margin-left: -1.3em; display: flex; align-items: flex-start; gap: 8px; }
+.md-view .md-task { list-style: none; margin-left: -1.3em; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 8px; }
+.md-view .md-task > span { flex: 1; min-width: 0; }
+/* items nested under a to-do go on the lines below it, in line with its text */
+.md-view .md-task > :is(ul, ol) { flex: 1 0 100%; margin: .15em 0 0; padding-left: calc(15px + 8px + 1.3em); }
 .md-view .md-task input { flex: none; width: 15px; height: 15px; margin: .3em 0 0; accent-color: var(--accent); cursor: pointer; }
 .md-view .md-task.done span { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-subtle); }
 .md-view strong { color: var(--text-strong); font-weight: 600; }

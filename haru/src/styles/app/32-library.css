@@ -216,3 +216,21 @@ html.calm :is(.lib-card.deal, .lib-card.on .lib-face, .lib-arc-dot, .lib-reader)
 .lib-pic-del .ic { width: 14px; height: 14px; }
 @media (hover: none) { .lib-pic-del { opacity: 1; } }
 .lib-flash { position: absolute; left: 50%; bottom: 14px; z-index: 250; transform: translateX(-50%); padding: 7px 14px; border-radius: 999px; background: var(--popover); box-shadow: 0 8px 22px rgb(0 0 0 / .4); font-size: 12.5px; color: var(--text-strong); animation: lib-rise .3s var(--ease-out) both; }
+/* home: room under the choices before Recently visited */
+.lib-body.home .lib-empty.welcome { padding-bottom: 44px; }
+/* Git (library/git.ts): settings, what is staged, Commit, Push — beside the sources */
+.lib-git { display: inline-flex; align-items: center; gap: 4px; height: 34px; padding: 0 4px; border-radius: 17px; background: rgb(var(--ink) / .04); box-shadow: inset 0 0 0 1px var(--glass-edge); }
+.lib-git .lib-git-set { width: 26px; height: 26px; background: none; }
+.lib-git.set .lib-git-set { color: var(--accent); }
+.lib-git-btn { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border: 0; border-radius: 13px; background: none; color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; }
+.lib-git-btn:hover:not(:disabled) { background: rgb(var(--ink) / .08); color: var(--text-strong); }
+.lib-git-btn:disabled { opacity: .4; cursor: default; }
+.lib-git-btn[hidden] { display: none; }
+.lib-git-btn .ic { width: 14px; height: 14px; }
+.lib-git-btn b { font: 600 11px var(--font-mono); }
+.lib-git-push b { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: #06130b; display: inline-grid; place-items: center; }
+.lib-git-staged b { color: var(--accent); }
+.lib-git-say { max-width: 280px; padding: 0 6px; font: 11.5px var(--font-mono); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-git-say.in { animation: lib-rise .3s var(--ease-out) both; }
+.lib-git-say.bad { color: #f0a08f; }
+@media (max-width: 760px) { .lib-git-say { display: none; } }

@@ -1,4 +1,5 @@
 import { GitHubError, encodePath, ghCall, toBase64 } from './github';
+import { secret, setSecret } from './secrets';
 import type { Item, SourceConf } from './sources';
 
 /**
@@ -7,12 +8,11 @@ import type { Item, SourceConf } from './sources';
  * under `<path>/<source>/<the note's path>.md`, front matter saying which note it is about, a [[link]] to it. A memo
  * is committed (that is, pushed) a few seconds after typing stops.
  *
- * The memo repo is chosen once per browser (`haru:library-memo`); its token sits with the sources' tokens
- * (`haru:library-keys` → `memo`) and never leaves this browser.
+ * The memo repo is chosen once per browser (`haru:library-memo`); its token sits with the sources' tokens,
+ * encrypted (secrets.ts), and never leaves this browser.
  */
 export interface MemoConf { repo: string; branch: string; path: string }
 const KEY = 'haru:library-memo';
-const KEYS = 'haru:library-keys';
 
 export function memoConf(): MemoConf | null {
   try {
@@ -22,23 +22,15 @@ export function memoConf(): MemoConf | null {
     return null;
   }
 }
-export function memoToken(): string {
-  try {
-    return (JSON.parse(localStorage.getItem(KEYS) ?? '{}') as Record<string, string>).memo ?? '';
-  } catch {
-    return '';
-  }
-}
+export const memoToken = (): string => secret('memo');
+/** Saves the memo repo; `token`, when not empty, replaces its token (sealed, see secrets.ts). */
 export function saveMemoConf(c: MemoConf, token: string): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(c));
-    const keys = JSON.parse(localStorage.getItem(KEYS) ?? '{}') as Record<string, string>;
-    if (token) keys.memo = token;
-    else delete keys.memo;
-    localStorage.setItem(KEYS, JSON.stringify(keys));
   } catch {
     // for this visit: nothing kept
   }
+  if (token) setSecret('memo', token);
   branch = '';
 }
 

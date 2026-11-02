@@ -16,7 +16,7 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 - Vite + TypeScript(strict), 아이콘은 `lucide`만 쓴다. 새 프레임워크·라이브러리는 먼저 이유를 설명하고 허락을 받는다.
 - `src/timetable/`: Today 다이얼, 할 일 목록, 편집기 / `src/calendar/`: 달력, 날짜 메모 / `src/news/`: 지구본, 뉴스 서랍
 - `src/ui/`: 페이지 전환(router, view-swipe), 서랍(drawers), 공통 UI / `src/storage/`: IndexedDB, 백업
-- `src/library/`: Library 페이지(Obsidian·GitHub·Notion 노트). 연결 정보와 토큰은 브라우저 localStorage(`haru:library`, `haru:library-keys`)에만 두고 동기화·백업에 넣지 않는다.
+- `src/library/`: Library 페이지(Obsidian·GitHub·Notion 노트). 연결 정보와 토큰은 브라우저에만 두고 동기화·백업에 넣지 않는다. 토큰은 `secrets.ts`로 암호화해 저장한다(공개 사이트라 env·코드에 넣으면 유출된다). 검사에서 GitHub·Notion 실제 API를 부르지 않는다(가짜 응답 사용).
 - `scripts/`: 빌드 시 데이터 생성(`fetch-calendar.mjs`, `fetch-news.mjs`, `build-globe.mjs`)과 배포(`deploy.mjs`)
 - `public/data/*.json`은 스크립트가 만든 결과물이다. 직접 고치지 않는다(`change-requests.json`도 `scripts/change-requests.mjs`로만 바꾼다).
 

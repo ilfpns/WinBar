@@ -1,4 +1,4 @@
-import { type Block, IMAGE_SCHEME, KEEP_TYPES, type RichText, TEXT_TYPES, blockLines, diffUnits, lineToBlock, nests, unitToBlock, units } from './notion-blocks';
+import { type Block, IMAGE_SCHEME, KEEP_TYPES, type RichText, TEXT_TYPES, blockLines, diffUnits, lineToBlock, nests, richToMd, unitToBlock, units } from './notion-blocks';
 import { type Driver, type Item, type SourceConf, tokenOf } from './sources';
 
 /**
@@ -81,14 +81,31 @@ export function notionDriver(conf: SourceConf): Driver {
     return out;
   }
 
-  /** Nested items as indented lines, three levels at most. */
-  async function nestedLines(parent: Block, depth: number): Promise<string[]> {
-    if (!parent.has_children || !nests(parent) || depth > 3) return [];
+  /**
+   * What a block holds, as lines: list items, toggles and paragraphs nest theirs (indented, three levels at most);
+   * blocks that only hold others — columns, synced blocks, toggle headings, callouts, quotes — show their content at
+   * their own level (it then reads as more than one unit, so the text never rewrites them; see writePage).
+   */
+  const CONTAINERS = new Set(['column_list', 'column', 'synced_block', 'heading_1', 'heading_2', 'heading_3', 'callout', 'quote', 'table_of_contents']);
+  async function nestedLines(parent: Block, depth: number, hops = 0): Promise<string[]> {
+    if (!parent.has_children || hops > 6) return [];
+    if (parent.type === 'table') {
+      // a table as a Markdown table: its first row is the header (Notion's own header, or the first row anyway)
+      const rows = (await children(parent.id)).map((r) => ((r.table_row as { cells?: RichText[][] } | undefined)?.cells ?? []).map((c) => richToMd(c).replace(/\|/g, '\\|').replace(/\n/g, ' ')));
+      if (!rows.length) return [];
+      const width = Math.max(...rows.map((r) => r.length));
+      const line = (r: string[]) => `| ${Array.from({ length: width }, (_, k) => r[k] ?? '').join(' | ')} |`;
+      return [line(rows[0]!), `| ${Array.from({ length: width }, () => '---').join(' | ')} |`, ...rows.slice(1).map(line)];
+    }
+    const indent = nests(parent) || parent.type === 'paragraph';
+    if (!indent && !CONTAINERS.has(parent.type)) return [];
+    if (indent && depth > 3) return [];
+    const at = indent ? depth : depth - 1;
     const out: string[] = [];
     let n = 0;
     for (const b of await children(parent.id)) {
       n = b.type === 'numbered_list_item' ? n + 1 : 0;
-      out.push(...blockLines(b, depth, n, await nestedLines(b, depth + 1)));
+      out.push(...blockLines(b, at, n, await nestedLines(b, at + 1, hops + 1)));
     }
     return out;
   }
@@ -122,7 +139,8 @@ export function notionDriver(conf: SourceConf): Driver {
     }
     pages.set(pid, { segs, units: all, owner });
     // list items sit line under line; everything else a paragraph apart
-    return all.map((u, k) => (k && listy(u) && listy(all[k - 1]!) ? '\n' : k ? '\n\n' : '') + u).join('');
+    const row = (u: string) => /^\|/.test(u);
+    return all.map((u, k) => (k && ((listy(u) && listy(all[k - 1]!)) || (row(u) && row(all[k - 1]!))) ? '\n' : k ? '\n\n' : '') + u).join('');
   }
 
   /** Saves `text` over the page: only the units that changed become calls. */
@@ -188,9 +206,21 @@ export function notionDriver(conf: SourceConf): Driver {
       const oneForOne = dels.length === ins.length && dels.every((d, q) => editable(d) === unitToBlock(next[ins[q]!]!).type);
       if (oneForOne) dels.forEach((d, q) => pairs.push([d, q]));
       let from = oneForOne ? ins.length : 0;
+      // new units that are an edit of something the text can't rewrite (inside columns, tables, toggle headings):
+      // left out, so nothing is added twice — those change in Notion
+      const absorbed = new Set<number>();
       for (const d of oneForOne ? [] : dels) {
         const seg = st.segs[st.owner[d]!]!;
-        if (seg.units !== 1 || !TEXT_TYPES.has(seg.type)) continue;
+        if (seg.units !== 1 || !TEXT_TYPES.has(seg.type)) {
+          for (let q = from; q < ins.length; q++) {
+            if (like(st.units[d]!, next[ins[q]!]!)) {
+              absorbed.add(q);
+              from = q + 1;
+              break;
+            }
+          }
+          continue;
+        }
         for (let q = from; q < ins.length; q++) {
           const cand = next[ins[q]!]!;
           if (unitToBlock(cand).type === seg.type && like(st.units[d]!, cand)) {
@@ -207,7 +237,7 @@ export function notionDriver(conf: SourceConf): Driver {
           await flush();
           await remove(dels[di]!);
         }
-        for (; qi < qUntil; qi++) queue.push(unitToBlock(next[ins[qi]!]!));
+        for (; qi < qUntil; qi++) if (!absorbed.has(qi)) queue.push(unitToBlock(next[ins[qi]!]!));
       };
       for (const [d, q] of pairs) {
         await gap(dels.indexOf(d), q);
@@ -322,6 +352,24 @@ export function notionDriver(conf: SourceConf): Driver {
       await call(`/blocks/${id}`, undefined, 'DELETE');
       images.delete(id);
       return { text: await readPage(pageId(item)), saved: true };
+    },
+    async orderIn(folder) {
+      // where the sub-pages stand on the page (inside columns and toggles too): the page itself first, then them
+      const pid = pageId(folder);
+      const out: string[] = [`${pid}${SELF}`];
+      const walk = async (id: string, hops: number): Promise<void> => {
+        for (const b of await children(id)) {
+          if (b.type === 'child_page' || b.type === 'child_database') out.push(b.id);
+          else if (b.has_children && hops < 3 && ['column_list', 'column', 'toggle', 'synced_block', 'heading_1', 'heading_2', 'heading_3', 'callout'].includes(b.type)) await walk(b.id, hops + 1);
+        }
+      };
+      try {
+        await walk(pid, 0);
+      } catch {
+        // a database: no order of its own here
+        return null;
+      }
+      return out;
     },
     async imageUrl(_item, ref) {
       return ref.startsWith(IMAGE_SCHEME) ? images.get(ref.slice(IMAGE_SCHEME.length)) ?? null : /^https?:/.test(ref) ? ref : null;

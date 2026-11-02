@@ -2,8 +2,9 @@
  * Library sources: places notes live outside Haru — an Obsidian vault (a folder on this computer), a folder in a
  * GitHub repository, a Notion workspace. Each is read into one shape, a tree of folders and notes, so the Library
  * shows them all the same way. Which sources there are is remembered per browser (`haru:library`); tokens are kept
- * apart (`haru:library-keys`) and never leave this browser — not to the cloud sync, not into a backup.
+ * apart, encrypted (secrets.ts), and never leave this browser — not to the cloud sync, not into a backup.
  */
+import { secret, setSecret } from './secrets';
 export type SourceKind = 'obsidian' | 'github' | 'notion';
 
 export interface SourceConf {
@@ -46,6 +47,8 @@ export interface Driver {
   addImage?(item: Item, file: File, text: string): Promise<{ text: string; saved: boolean }>;
   /** Takes a picture (as the text names it) out of the note and deletes it; resolves like addImage. */
   removeImage?(item: Item, ref: string, text: string): Promise<{ text: string; saved: boolean }>;
+  /** The ids under `folder` in the order the source keeps them (null: no order of its own). */
+  orderIn?(folder: Item): Promise<string[] | null>;
   /** An address a picture the text names can be shown from (null: none). */
   imageUrl?(item: Item, ref: string): Promise<string | null>;
 }
@@ -54,7 +57,6 @@ export interface Driver {
 export class NeedsAccess extends Error {}
 
 const KEY = 'haru:library';
-const KEYS = 'haru:library-keys';
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -77,26 +79,20 @@ export const onSources = (fn: () => void): void => void listeners.add(fn);
 export const sources = (): SourceConf[] =>
   readJson<SourceConf[]>(KEY, []).filter((s) => s && typeof s.id === 'string' && ['obsidian', 'github', 'notion'].includes(s.kind));
 
+/** Saves a source; `token` (when given and not empty) replaces its token, sealed (see secrets.ts). */
 export function saveSource(s: SourceConf, token?: string): void {
   const list = sources().filter((x) => x.id !== s.id);
   writeJson(KEY, [...list, s]);
-  if (token !== undefined) {
-    const keys = readJson<Record<string, string>>(KEYS, {});
-    if (token) keys[s.id] = token;
-    else delete keys[s.id];
-    writeJson(KEYS, keys);
-  }
+  if (token) setSecret(s.id, token);
   listeners.forEach((fn) => fn());
 }
 
 export function removeSource(id: string): void {
   writeJson(KEY, sources().filter((x) => x.id !== id));
-  const keys = readJson<Record<string, string>>(KEYS, {});
-  delete keys[id];
-  writeJson(KEYS, keys);
+  setSecret(id, '');
   listeners.forEach((fn) => fn());
 }
 
-export const tokenOf = (id: string): string => readJson<Record<string, string>>(KEYS, {})[id] ?? '';
+export const tokenOf = (id: string): string => secret(id);
 
 export const newSourceId = (): string => `src-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;

@@ -22,7 +22,7 @@
 | `src/journal/` | Journal | `journal.ts`(화면), `journal-store.ts`(데이터), `journal-tree.ts`, `journal-photos.ts`, `insights.ts`(Your days 카드) |
 | `src/archive/` | Archive(공유 페이지)·고정 항목 | `archive.ts`, `updates.ts`(업데이트 공지), `guide.ts`(사용 안내: 투어 다시 보기) |
 | `src/board/` | Dot board | `board.ts` |
-| `src/library/` | Library(Obsidian·GitHub·Notion) | `library.ts`(화면: 카드 부채·경로·Recent·읽기/편집), `sources.ts`(소스 목록·토큰 저장, Driver 인터페이스), `obsidian.ts`·`github.ts`·`notion.ts`(소스별 읽기·쓰기·삭제·그림), `notion-blocks.ts`(Notion 블록 ↔ 마크다운, 바뀐 블록만 고르는 비교), `note-text.ts`(앞머리·`[[링크]]`), `opened.ts`(최근 연 노트), `memo.ts`(노트 메모를 GitHub 메모 레포에 커밋) |
+| `src/library/` | Library(Obsidian·GitHub·Notion) | `library.ts`(화면: 카드 부채·경로·Recent·읽기/편집), `sources.ts`(소스 목록·토큰 저장, Driver 인터페이스), `obsidian.ts`·`github.ts`·`notion.ts`(소스별 읽기·쓰기·삭제·그림), `notion-blocks.ts`(Notion 블록 ↔ 마크다운, 바뀐 블록만 고르는 비교), `note-text.ts`(앞머리·`[[링크]]`), `opened.ts`(최근 연 노트), `memo.ts`(노트 메모를 GitHub 메모 레포에 커밋), `git.ts`(Add·Commit·Push: 스테이징·커밋 대기열·Git 데이터 API로 푸시), `secrets.ts`(토큰 암호화 저장: 꺼낼 수 없는 AES 키) |
 | `src/cloud/` | 로그인·동기화·멤버 | `sync.ts`(Firestore 구조 표가 맨 위에 있다), `merge.ts`(목록 합치기), `account.ts`, `session.ts`, `viewing.ts`(다른 멤버 보기, `watchTheirToday`), `log.ts`, `activity.ts`, `firebase.ts` |
 | `src/storage/` | 이 기기 저장 | `db.ts`(IndexedDB: `notes`·`images`·`kv`), `list-store.ts`, `gone.ts`(삭제 기록), `backup.ts` |
 | `src/ui/` | 공통 화면 | `router.ts`(페이지 목록 `VIEW_ORDER`·`TEXT_PAGES`), `features.ts`(켜고 끄기), `page-order.ts`·`page-drag.ts`, `view-swipe.ts`, `drawers.ts`, `settings.ts`(설정 대화상자), `modal.ts`(`askText`·`askConfirm`·`askForm`·`showMenu`), `icons.ts`(Lucide 등록), `markdown.ts`(읽기용 렌더러), `md-editor.ts`·`md-pad.ts`(쓰기), `i18n.ts`(한국어), `changelog.ts`(What's new), `tour.ts`(페이지별 첫 안내: 단계 내용 `TOURS`, 본 기록은 `users/{uid}/meta/tour`), `greeting.ts`, `titlebar.ts`, `winbar.ts` |
@@ -34,7 +34,7 @@
 - Today: `state.ts`의 `setState` → localStorage + IndexedDB 미러 → `cloud/sync.ts`가 `users/{uid}/state/timetable`로 보냄(할 일마다 `u`, 삭제는 `gone`).
 - 지난 날: `history.ts`가 `day:YYYY-MM-DD`로 저장 → `sync.ts`가 `days/{date}`로 올림. 시작할 때는 최근 바뀐 날만 읽는다(`haru:days-cloud:{uid}`, 일주일마다 전체).
 - 다른 멤버: `viewing.ts`의 `watchTheirs`/`watchTheirToday`로 읽기만 한다(쓰기 금지).
-- Library: 클라우드에 아무것도 올리지 않는다. 소스 설정 `haru:library`, 토큰 `haru:library-keys`, 보관함 폴더 핸들은 IndexedDB `kv`의 `library:vault:{id}`.
+- Library: 클라우드에 아무것도 올리지 않는다. 소스 설정 `haru:library`, 토큰 `haru:library-keys`(암호문, 키는 IndexedDB `library:secret-key`), Git 설정·스테이징·커밋 대기 `haru:library-git*`, 보관함 폴더 핸들은 IndexedDB `kv`의 `library:vault:{id}`.
 
 ## 자주 하는 일
 
