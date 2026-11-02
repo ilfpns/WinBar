@@ -13,11 +13,15 @@ const VERSION = '2022-06-28';
 const MAX_PAGES = 20;
 
 interface RichText { plain_text: string; href?: string | null; annotations?: { bold?: boolean; italic?: boolean; code?: boolean; strikethrough?: boolean } }
-interface Parent { type: 'page_id' | 'database_id' | 'workspace' | 'block_id'; page_id?: string; database_id?: string }
+interface Parent { type: 'page_id' | 'database_id' | 'workspace' | 'block_id'; page_id?: string; database_id?: string; block_id?: string }
 interface PageObj { object: 'page' | 'database'; id: string; url: string; last_edited_time: string; parent: Parent; archived?: boolean; in_trash?: boolean; title?: RichText[]; properties?: Record<string, { type: string; title?: RichText[] }> }
 interface Block { id: string; type: string; has_children: boolean; [k: string]: unknown }
 
-export class NotionError extends Error {}
+export class NotionError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
 
 const SELF = '#page';
 
@@ -32,7 +36,7 @@ export function notionDriver(conf: SourceConf): Driver {
       throw new NotionError(res.status === 401 ? 'The integration secret was refused'
         : res.status === 404 ? 'Not shared with the integration'
         : res.status === 429 ? 'Notion asked to slow down — try again in a moment'
-        : `Notion said ${res.status}`);
+        : `Notion said ${res.status}`, res.status);
     }
     return res.json() as Promise<T>;
   }
@@ -41,7 +45,30 @@ export function notionDriver(conf: SourceConf): Driver {
     const rich = p.object === 'database' ? p.title : Object.values(p.properties ?? {}).find((v) => v.type === 'title')?.title;
     return (rich ?? []).map((t) => t.plain_text).join('').trim() || 'Untitled';
   };
-  const parentOf = (p: PageObj): string | null => p.parent.page_id ?? p.parent.database_id ?? null;
+  /**
+   * A page put inside a block (a toggle, a column, a callout) names that block as its parent, not the page: the
+   * blocks are followed up (a few levels, each asked once) to the page or database they sit in, so the page stays
+   * under it instead of coming up to the top.
+   */
+  const viaBlock = new Map<string, string | null>();
+  async function pageOfBlock(id: string): Promise<string | null> {
+    if (viaBlock.has(id)) return viaBlock.get(id)!;
+    let at: string | null = id;
+    let found: string | null = null;
+    for (let guard = 0; at && guard < 6; guard++) {
+      const b: { parent?: Parent } | null = await call<{ parent?: Parent }>(`/blocks/${at}`).catch(() => null);
+      const par: Parent | undefined = b?.parent;
+      if (!par) break;
+      if (par.page_id || par.database_id) {
+        found = par.page_id ?? par.database_id ?? null;
+        break;
+      }
+      at = par.block_id ?? null;
+    }
+    viaBlock.set(id, found);
+    return found;
+  }
+  const parentOf = (p: PageObj): string | null => p.parent.page_id ?? p.parent.database_id ?? (p.parent.block_id ? viaBlock.get(p.parent.block_id) ?? null : null);
 
   const text = (rich: RichText[] = []): string => rich.map((t) => {
     let s = t.plain_text;
@@ -113,6 +140,9 @@ export function notionDriver(conf: SourceConf): Driver {
         if (!r.has_more || !r.next_cursor) break;
         cursor = r.next_cursor;
       }
+      // pages inside blocks: find the page each block sits in (three at a time, Notion's pace)
+      const blocks = [...new Set(found.flatMap((p) => (p.parent.type === 'block_id' && p.parent.block_id ? [p.parent.block_id] : [])))];
+      for (let i = 0; i < blocks.length; i += 3) await Promise.all(blocks.slice(i, i + 3).map(pageOfBlock));
       const ids = new Set(found.map((p) => p.id));
       const hasKids = new Set(found.map(parentOf).filter((x): x is string => !!x && ids.has(x)));
       const names = new Map(found.map((p) => [p.id, titleOf(p)]));

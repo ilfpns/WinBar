@@ -1,0 +1,43 @@
+/* ---------- tours (ui/tour.ts): a spotlight on one part of the page, a card saying what it does */
+.tour { position: fixed; inset: 0; z-index: 900; animation: fade-in .2s var(--ease-out) both; }
+.tour.out { animation: fade-out .18s var(--ease-out) both; }
+.tour-spot {
+  position: fixed; border-radius: 18px; pointer-events: none;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / .62), 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent), 0 0 30px color-mix(in srgb, var(--accent) 30%, transparent);
+  transition: left .35s cubic-bezier(.2, .8, .2, 1), top .35s cubic-bezier(.2, .8, .2, 1), width .35s cubic-bezier(.2, .8, .2, 1), height .35s cubic-bezier(.2, .8, .2, 1);
+}
+.tour-spot.none { left: 50% !important; top: 50% !important; width: 0 !important; height: 0 !important; box-shadow: 0 0 0 9999px rgb(0 0 0 / .62); }
+.tour-card {
+  position: fixed; display: grid; gap: 10px; padding: 18px 18px 14px; border-radius: 20px; color: var(--text);
+  background: var(--sheet); box-shadow: inset 0 0 0 1px var(--glass-edge), var(--glass-drop);
+  transition: left .35s cubic-bezier(.2, .8, .2, 1), top .35s cubic-bezier(.2, .8, .2, 1);
+  animation: modal-in .25s var(--ease-out) both;
+}
+.tour-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tour-count { font: 500 11px var(--font-mono); letter-spacing: .04em; color: var(--accent); }
+.tour-skip { padding: 4px 8px; border: 0; border-radius: 8px; background: none; color: var(--text-muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+.tour-skip:hover { color: var(--text-strong); background: rgb(var(--ink) / .06); }
+.tour-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.015em; color: var(--text-strong); }
+.tour-body { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text); }
+.tour-nav { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.tour-dots { display: flex; gap: 5px; margin-right: auto; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgb(var(--ink) / .18); transition: width .25s var(--ease-out), background .25s var(--ease-out); }
+.tour-dots i.on { width: 16px; background: var(--accent); }
+.tour-nav button { display: inline-flex; align-items: center; gap: 4px; height: 34px; padding: 0 14px; border-radius: 11px; }
+.tour-back:disabled { opacity: .35; cursor: default; }
+.tour-nav .ic { width: 14px; height: 14px; }
+
+/* Archive → 사용 안내 (archive/guide.ts) */
+.guide-lead { margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: var(--text-muted); }
+.guide-list { display: grid; gap: 6px; }
+.guide-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border: 0; border-radius: 14px; background: rgb(var(--ink) / .04); box-shadow: inset 0 0 0 1px var(--glass-edge); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+.guide-row:hover { background: rgb(var(--ink) / .08); }
+.guide-name { font-size: 15px; font-weight: 500; color: var(--text-strong); }
+.guide-meta { text-transform: none; }
+.guide-go { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--accent); }
+.guide-go .ic { width: 14px; height: 14px; }
+.guide-reset { justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; }
+@media (max-width: 560px) {
+  .guide-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .guide-meta { display: none; }
+}

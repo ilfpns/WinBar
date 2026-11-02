@@ -18,42 +18,44 @@ export class GitHubError extends Error {
   }
 }
 
-const encodePath = (p: string) => p.split('/').map(encodeURIComponent).join('/');
+export const encodePath = (p: string) => p.split('/').map(encodeURIComponent).join('/');
 /** UTF-8 text → base64, as the contents API wants it. */
-const toBase64 = (text: string) => {
+export const toBase64 = (text: string) => {
   const bytes = new TextEncoder().encode(text);
   let bin = '';
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(bin);
 };
 
+/** One GitHub API call with `token` (empty: none); a failure throws a GitHubError saying what went wrong. */
+export async function ghCall<T>(token: string, path: string, init: RequestInit = {}, raw = false): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    cache: 'no-store',
+    headers: {
+      Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+    },
+  });
+  if (!res.ok) {
+    const why = res.status === 401 ? 'The token was refused'
+      : res.status === 403 ? 'No access (check the token’s permissions, or the hourly limit)'
+      : res.status === 404 ? 'Not found (the repo, branch or path — or a private repo without a token)'
+      : res.status === 409 ? 'Changed on GitHub since it was opened'
+      : `GitHub said ${res.status}`;
+    throw new GitHubError(why, res.status);
+  }
+  return (raw ? res.text() : res.json()) as Promise<T>;
+}
+
 export function githubDriver(conf: SourceConf): Driver {
   const repo = (conf.repo ?? '').trim();
   const base = (conf.path ?? '').replace(/^\/+|\/+$/g, '');
   let branch = (conf.branch ?? '').trim();
 
-  async function call<T>(path: string, init: RequestInit = {}, raw = false): Promise<T> {
-    const token = tokenOf(conf.id);
-    const res = await fetch(`${API}${path}`, {
-      ...init,
-      cache: 'no-store',
-      headers: {
-        Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-      },
-    });
-    if (!res.ok) {
-      const why = res.status === 401 ? 'The token was refused'
-        : res.status === 403 ? 'No access (check the token’s permissions, or the hourly limit)'
-        : res.status === 404 ? 'Not found (the repo, branch or path — or a private repo without a token)'
-        : res.status === 409 ? 'Changed on GitHub since it was opened'
-        : `GitHub said ${res.status}`;
-      throw new GitHubError(why, res.status);
-    }
-    return (raw ? res.text() : res.json()) as Promise<T>;
-  }
+  const call = <T>(path: string, init: RequestInit = {}, raw = false) => ghCall<T>(tokenOf(conf.id), path, init, raw);
 
   /** The repo path of an item (ids are relative to the chosen folder). */
   const full = (rel: string) => (base ? `${base}/${rel}` : rel);

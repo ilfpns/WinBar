@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.88** (2026-11-02) — 페이지별 첫 안내(Archive → 사용 안내에서 다시 보기), Library 메모(GitHub 자동 커밋)·토큰 만료 안내·처음 화면·카드 애니메이션·크기 조절, Notion 부모 찾기 수정
 - **v1.87** (2026-11-02) — 내부 정리: CSS 부분별 분리, Today 보조 화면 폴더, STRUCTURE.md
 - **v1.86** (2026-11-02) — Library(Obsidian·GitHub·Notion 노트를 카드로, GitHub 자동 커밋), Today Flow 보기(태스크 다이어그램, 그 안에서 추가), Glass 투명도 설정
 - **v1.85** (2026-11-02) — 지난 날 기록은 최근 바뀐 날만 읽기

@@ -40,6 +40,7 @@ import { makeSortable } from './ui/page-drag';
 import { mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountLibrary } from './library/library';
+import { mountTours } from './ui/tour';
 import { mountBoard } from './board/board';
 import { mountInsights } from './journal/insights';
 import { addSplit } from './ui/splitter';
@@ -152,6 +153,11 @@ mountCalendar({
   side(wb, 'words', wb.lastElementChild as HTMLElement, true, 260, 420);
   const cb = document.querySelector<HTMLElement>('.cal-body')!;
   side(cb, 'calendar', cb.lastElementChild as HTMLElement, true, 220, 480);
+  // Library: how wide Recent is beside the note, and how tall the cards are above them
+  const lb = byId('library-body');
+  const lower = lb.querySelector<HTMLElement>('.lib-lower')!;
+  addSplit(lower, { key: 'library-recent', axis: 'x', pane: lower.querySelector<HTMLElement>('.lib-recent')!, prop: '--side-w', min: 260, max: () => lower.getBoundingClientRect().width - 320 });
+  addSplit(lb, { key: 'library-stage', axis: 'y', pane: lb.querySelector<HTMLElement>('.lib-stage')!, prop: '--stage-h', min: 240, max: () => innerHeight - 260, enabled: () => innerWidth > 760 });
   // Journal's Your days: its height (it scrolls inside when made shorter than its contents)
   const jv = byId('journal');
   const card = jv.querySelector<HTMLElement>('.insights')!;
@@ -228,3 +234,5 @@ document.addEventListener('keydown', (e) => {
 // sign-in and cloud sync start once the local stores exist (memos and images are created by the calendar)
 mountAccount({ section: byId('account') });
 mountActivity();
+// each page's tour, the first time it is opened (Archive → 사용 안내 shows them again)
+mountTours();

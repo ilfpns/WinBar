@@ -5,6 +5,7 @@ import { setBadge } from '../ui/badge';
 import { mentions } from '../cloud/viewing';
 import { askConfirm } from '../ui/modal';
 import { type Notice, markUpdatesSeen, updatesItem, updatesPage, updatesUnread, watchNotice } from './updates';
+import { guideItem, guidePage } from './guide';
 
 /**
  * Archive: journal pages people chose to share (Share on a page in Journal), from everyone invited, newest
@@ -85,7 +86,9 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   let postError = '';
   // the Updates page pinned on top (its key never matches a shared page's)
   const PIN = '__updates';
-  const pinned = (k: string | null) => k === PIN;
+  // and 사용 안내 under it: every page's tour, to see again
+  const GUIDE = '__guide';
+  const pinned = (k: string | null) => k === PIN || k === GUIDE;
   let notice: Notice | null = null;
   let stopNotice: (() => void) | null = null;
   let editingNotice = false;
@@ -186,7 +189,7 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
   function renderList(): void {
     sum.textContent = pages.length ? `${pages.length} shared` : '';
     const s0 = session();
-    const pin = s0 ? [updatesItem(openKey === PIN, updatesUnread(s0, notice), openUpdates)] : [];
+    const pin = s0 ? [updatesItem(openKey === PIN, updatesUnread(s0, notice), openUpdates), guideItem(openKey === GUIDE, openGuide)] : [];
     if (!pages.length) {
       const li = document.createElement('li');
       li.className = 'j-empty';
@@ -222,8 +225,19 @@ export function mountArchive(body: HTMLElement, sum: HTMLElement): void {
     }));
   }
 
+  function openGuide(): void {
+    openKey = GUIDE;
+    editingNotice = false;
+    renderList();
+    renderReader();
+  }
+
   function renderReader(): void {
     const s = session();
+    if (s && openKey === GUIDE) {
+      reader.replaceChildren(...guidePage(() => openKey === GUIDE && renderReader()));
+      return;
+    }
     const p = pinned(openKey) ? undefined : pages.find((x) => keyOf(x) === openKey) ?? pages[0];
     if (!s) {
       reader.replaceChildren(note('Pages shared from Journal show here once you sign in.'));
