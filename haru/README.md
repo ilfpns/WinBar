@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.92** (2026-11-02) — Library 카드 크기 맞춤·호 끝 정렬·가운데 카드 채움·Git 버튼·로딩 중 크기 조절 바 숨김
 - **v1.91** (2026-11-02) — Library Git(Add·Commit·Push), Notion 가져오기 개선(컬럼·토글·표·하위 목록·페이지 순서), 토큰 암호화 저장
 - **v1.90** (2026-11-02) — Library 호 위 점이 빠르게 넘겨도 호를 따라 움직임
 - **v1.89** (2026-11-02) — Library 쓰기 연동(Notion 블록 단위 저장·페이지·그림, 보관함·GitHub 삭제·그림), Journal 전체로 보기, Esc로 닫기

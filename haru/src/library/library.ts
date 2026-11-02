@@ -137,7 +137,9 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
   const git = el('div', 'lib-git');
   git.setAttribute('role', 'group');
   git.setAttribute('aria-label', 'Git');
-  const gitSet = iconBtn('git-branch', 'Git settings', 'lib-git-set');
+  const gitSet = el('button', 'lib-git-set');
+  gitSet.type = 'button';
+  gitSet.append(icon('git-branch'), el('span', 'lib-git-name', 'Git'));
   const gitStage = el('button', 'lib-git-btn lib-git-staged');
   gitStage.type = 'button';
   const gitCommitBtn = el('button', 'lib-git-btn');
@@ -159,6 +161,8 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
   const prev = iconBtn('chevron-left', 'Previous', 'lib-step');
   const next = iconBtn('chevron-right', 'Next', 'lib-step');
   const arcTrack = el('div', 'lib-arc-track');
+  // the line is the very path the dot rides (offset-path in the stylesheet), so they meet end to end
+  arcTrack.innerHTML = '<svg viewBox="0 0 220 22" width="220" height="22" aria-hidden="true"><path d="M 0 22 A 110 22 0 0 1 220 22"/></svg>';
   const arcDot = el('span', 'lib-arc-dot');
   arcTrack.append(arcDot);
   arc.append(prev, arcTrack, next);
@@ -455,8 +459,10 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
   function stand(c: HTMLElement, d: number, item: Item): void {
     const side = Math.sign(d);
     const a = Math.abs(d);
-    const x = d === 0 ? 0 : side * (150 + (a - 1) * 46);
-    c.style.transform = `translate(-50%, -50%) translateX(${x}px) translateZ(${-a * 34 - (a ? 90 : 0)}px) rotateY(${d === 0 ? 0 : -side * 62}deg)`;
+    // in card widths (the card grows and shrinks with the stage): the first to the side ¾ of a card out, then closer
+    const x = d === 0 ? 0 : side * (0.75 + (a - 1) * 0.23);
+    const z = -a * 0.17 - (a ? 0.45 : 0);
+    c.style.transform = `translate(-50%, -50%) translateX(calc(var(--card-w) * ${x})) translateZ(calc(var(--card-w) * ${z})) rotateY(${d === 0 ? 0 : -side * 62}deg)`;
     c.style.zIndex = String(100 - a);
     c.style.opacity = String(a > REACH - 2 ? 0 : 1);
     c.style.setProperty('--a', String(a));
@@ -1006,6 +1012,7 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
   function paint(): void {
     // home (no source open): every part takes the height it needs
     body.classList.toggle('home', !conf());
+    body.classList.toggle('waiting', !!conf() && !loaded.has(conf()!.id));
     paintSources();
     paintCrumbs();
     paintFan();
@@ -1273,6 +1280,7 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     const st = gitStaged();
     const waiting = gitCommits();
     git.classList.toggle('set', !!c);
+    gitSet.setAttribute('aria-label', c ? `Git settings (${c.repo})` : 'Git settings');
     gitSet.title = c ? `Git: ${c.repo}${c.path ? ` / ${c.path}` : ''}${c.branch ? ` (${c.branch})` : ''} · settings` : 'Git settings: choose a repository';
     gitStage.hidden = !c;
     gitCommitBtn.hidden = !c;
