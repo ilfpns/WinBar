@@ -23,6 +23,19 @@ import { type InstallState, install, installState, onInstallState } from './pwa'
  */
 type Theme = 'dark' | 'light' | 'system';
 const THEME_KEY = 'haru:theme';
+const GLASS_KEY = 'haru:glass';
+/** Panels and cards see-through (`clear`, `glass`) or not: set on <html>, read by the stylesheet. */
+const applyGlass = () => {
+  let g: string | null = null;
+  try {
+    g = localStorage.getItem(GLASS_KEY);
+  } catch {
+    // solid
+  }
+  if (g === 'clear' || g === 'glass') document.documentElement.dataset.glass = g;
+  else delete document.documentElement.dataset.glass;
+};
+applyGlass();
 const LANG_KEY = 'haru:lang';
 const read = (k: string) => {
   try {
@@ -411,6 +424,19 @@ export function mountSettings(): void {
   });
   applyTheme(savedTheme());
   paintTheme();
+
+  // ---- glass: how see-through the panels and cards are (solid, the default; clear; glass)
+  const glassBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-glass-pick]')];
+  const paintGlass = () => {
+    const g = read(GLASS_KEY) ?? 'solid';
+    glassBtns.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.glassPick === g)));
+  };
+  glassBtns.forEach((b) => b.addEventListener('click', () => {
+    write(GLASS_KEY, b.dataset.glassPick!);
+    applyGlass();
+    paintGlass();
+  }));
+  paintGlass();
 
   // ---- language: the page reloads in the other one (every label is translated on the way in)
   const langBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-lang-pick]')];

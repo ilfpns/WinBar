@@ -11,6 +11,7 @@ import { onPlans } from './plans';
 import { nowMinutes } from './time';
 import { DAY, formatDuration } from './time';
 import { icon, type IconName } from '../ui/icons';
+import { createFlow, type Flow } from './flow';
 
 /**
  * Today can show the day three ways, all interactive:
@@ -18,14 +19,15 @@ import { icon, type IconName } from '../ui/icons';
  *  - slices: the same dial in a slimmer style, every task named outside on a leader line
  *            (hover, click to edit, drag to create, sweep-select all work as on the dial);
  *  - rings:  one ring per category — hover shows its hours in the middle, click selects its tasks;
+ *  - flow:   the tasks as cards wired in time order, tasks added on a wire's + (flow.ts);
  *  - focus, week, dots: the next three hours large, this week as strips, this month as dots (today-modes.ts);
  *            a click on one of Today's tasks there selects it, on a day opens it in the calendar; the week's
  *            tasks drag to another time or day, and yesterday's unfinished ones can be carried over.
  */
-type TodayView = 'dial' | 'slices' | 'rings' | 'focus' | 'week' | 'dots';
+type TodayView = 'dial' | 'slices' | 'rings' | 'flow' | 'focus' | 'week' | 'dots';
 const KEY = 'haru:today-view';
 const VIEWS: [TodayView, string, IconName][] = [
-  ['dial', 'Dial', 'clock'], ['slices', 'Slices', 'chart-pie'], ['rings', 'By category', 'target'],
+  ['dial', 'Dial', 'clock'], ['slices', 'Slices', 'chart-pie'], ['rings', 'By category', 'target'], ['flow', 'Flow', 'workflow'],
   ['focus', 'Next 3 hours', 'focus'], ['week', 'This week', 'chart-gantt'], ['dots', 'This month in dots', 'grip'],
 ];
 /** Drawn by today-modes.ts in place of the dial, like the rings. */
@@ -43,6 +45,7 @@ export function mountTodayViews(wrap: HTMLElement, stage: HTMLElement, dial: Dia
   const host = document.createElement('div');
   host.className = 'today-chart';
   wrap.append(host);
+  let flow: Flow | null = null;
 
   const bar = document.createElement('div');
   bar.className = 'today-views';
@@ -269,8 +272,17 @@ export function mountTodayViews(wrap: HTMLElement, stage: HTMLElement, dial: Dia
   function render(): void {
     for (const [id, b] of buttons) b.setAttribute('aria-pressed', String(id === view));
     dial.setStyle(view === 'slices' ? 'thin' : 'full');
-    wrap.classList.toggle('alt', view === 'rings' || MODES.includes(view));
+    wrap.classList.toggle('alt', view === 'rings' || view === 'flow' || MODES.includes(view));
     wrap.classList.toggle('thin', view === 'slices');
+    wrap.classList.toggle('flowing', view === 'flow');
+    if (view === 'flow') {
+      drawing++;
+      shownBlocks = state.blocks;
+      flow ??= createFlow();
+      host.replaceChildren(flow.el);
+      flow.render(true);
+      return;
+    }
     if (MODES.includes(view)) {
       host.replaceChildren();
       void renderMode();
@@ -298,11 +310,16 @@ export function mountTodayViews(wrap: HTMLElement, stage: HTMLElement, dial: Dia
   subscribe(() => {
     if (state.blocks === shownBlocks) return;
     if (view === 'rings') render();
-    else if (MODES.includes(view)) void renderMode();
+    else if (view === 'flow') {
+      shownBlocks = state.blocks;
+      flow?.render();
+    } else if (MODES.includes(view)) void renderMode();
   });
   // the modes follow the clock (now moves through them), the New day time and the days planned ahead
   setInterval(() => {
-    if (MODES.includes(view) && !document.hidden && currentView() === 'today') void renderMode();
+    if (document.hidden || currentView() !== 'today') return;
+    if (MODES.includes(view)) void renderMode();
+    else if (view === 'flow') flow?.render();
   }, 60_000);
   // back on Today after a while away: the clock has moved on
   onView((v) => v === 'today' && MODES.includes(view) && void renderMode());

@@ -88,6 +88,11 @@
     <div class="pg-body board-body" id="board-body"></div>
   </main>
 
+  <main class="library-view text-page page" id="library" aria-label="Library">
+    <header class="pg-head"><h1>Library</h1><span class="meta" id="library-sum"></span></header>
+    <div class="pg-body lib-body" id="library-body"></div>
+  </main>
+
 
   <!-- installed on a computer, the window's title bar (ui/titlebar.ts): the logo, the pages, how the day is going -->
   <header class="titlebar" id="titlebar">
@@ -103,6 +108,7 @@
       <a class="tb-tab" href="#/journal" data-view="journal" title="Journal"><i data-icon="notebook-pen"></i><span>Journal</span></a>
       <a class="tb-tab" href="#/archive" data-view="archive" title="Archive"><i data-icon="archive"></i><span>Archive</span></a>
       <a class="tb-tab" href="#/board" data-view="board" title="Dot board"><i data-icon="hexagon"></i><span>Dot board</span></a>
+      <a class="tb-tab" href="#/library" data-view="library" title="Library"><i data-icon="library"></i><span>Library</span></a>
     </nav>
     <span class="tb-fill"></span>
     <div class="tb-progress" id="tb-progress"></div>
@@ -121,6 +127,7 @@
     <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
     <a class="rail-btn" href="#/archive" data-view="archive" aria-label="Archive" data-tip="Archive · pages everyone shared"><i data-icon="archive"></i></a>
     <a class="rail-btn" href="#/board" data-view="board" aria-label="Dot board" data-tip="Dot board · every day, a cell for each category"><i data-icon="hexagon"></i></a>
+    <a class="rail-btn" href="#/library" data-view="library" aria-label="Library" data-tip="Library · Obsidian, GitHub and Notion notes"><i data-icon="library"></i></a>
     <span class="rail-fill"></span>
     <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
   </nav>
@@ -155,6 +162,9 @@
         </a>
         <a class="nav-item" href="#/board" data-view="board">
           <i data-icon="hexagon"></i>Dot board
+        </a>
+        <a class="nav-item" href="#/library" data-view="library">
+          <i data-icon="library"></i>Library
         </a>
       </nav>
 
@@ -359,6 +369,14 @@
             <div class="seg set-seg" id="set-motion" role="radiogroup" aria-label="Motion">
               <button type="button" role="radio" data-motion-pick="full"><i data-icon="sparkles"></i>Full</button>
               <button type="button" role="radio" data-motion-pick="less"><i data-icon="circle-dot"></i>Reduced</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-label"><strong>Glass</strong><span>How much shows through panels and cards</span></div>
+            <div class="seg set-seg" id="set-glass" role="radiogroup" aria-label="Glass">
+              <button type="button" role="radio" data-glass-pick="solid"><i data-icon="eye-off"></i>Solid</button>
+              <button type="button" role="radio" data-glass-pick="clear"><i data-icon="eye"></i>Clear</button>
+              <button type="button" role="radio" data-glass-pick="glass"><i data-icon="sparkles"></i>Glass</button>
             </div>
           </div>
         </div>

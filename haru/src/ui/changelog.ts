@@ -17,6 +17,17 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.86',
+    date: '2026-11-02',
+    items: [
+      '새 페이지 Library(왼쪽 레일의 책장): + 버튼으로 Obsidian 보관함(이 컴퓨터의 폴더), GitHub 레포의 경로, Notion 워크스페이스를 연결해 노트를 카드로 넘겨 봐요. 폴더는 겹친 카드, 노트는 한 장으로 보이고, 가운데 카드를 열면 폴더 안으로 들어가요(위쪽 경로로 다시 나가기).',
+      'Library에서 Obsidian·GitHub 노트는 바로 고칠 수 있어요. Obsidian은 파일에 저장, GitHub는 입력을 멈추고 몇 초 뒤 그 브랜치에 자동으로 커밋·푸시돼요. 새 노트도 만들 수 있고, Notion은 읽기 전용이에요.',
+      '연결 정보와 토큰은 이 브라우저에만 저장돼요(동기화·백업에 들어가지 않음).',
+      'Today 보기에 Flow 추가: 하루 태스크가 시간 순서대로 카드로 이어지고, 선 위에 빈 시간이 보여요. 선의 +나 끝의 Add after로 그 자리에 바로 태스크를 추가해요(이름·길이·카테고리, Enter).',
+      '설정 → Appearance → Glass: 패널과 카드를 Solid · Clear · Glass로 더 투명하게 볼 수 있어요.',
+    ],
+  },
+  {
     version: '1.85',
     date: '2026-11-02',
     items: [

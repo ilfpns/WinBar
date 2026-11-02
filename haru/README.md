@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.86** (2026-11-02) — Library(Obsidian·GitHub·Notion 노트를 카드로, GitHub 자동 커밋), Today Flow 보기(태스크 다이어그램, 그 안에서 추가), Glass 투명도 설정
 - **v1.85** (2026-11-02) — 지난 날 기록은 최근 바뀐 날만 읽기
 - **v1.84** (2026-11-02) — 새 날 시작에 걸친 태스크도 지나면 색 표시
 - **v1.83** (2026-11-02) — 멤버 Today 보기는 그 사람의 오늘 시간표만
