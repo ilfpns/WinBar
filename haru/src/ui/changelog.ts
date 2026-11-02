@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.85',
+    date: '2026-11-02',
+    items: [
+      '앱을 열 때 지난 날 기록을 전부 다시 읽지 않고, 최근 바뀐 날만 읽어요. 기록이 많아도 동기화가 가볍고 Firebase 무료 한도에 여유가 생겨요. 일주일에 한 번은 전체를 확인해요.',
+    ],
+  },
+  {
     version: '1.84',
     date: '2026-11-02',
     items: [

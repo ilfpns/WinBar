@@ -299,28 +299,63 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   }
 
   // ---------- day history (per date)
-  // a day goes up only over an older copy of it (offline: the next start sends what the cloud lacks)
+  // a day goes up only over an older copy of it (offline: the next start sends what the cloud lacks). What the cloud
+  // holds is remembered on this device (date → saved), so a start reads only the days saved lately instead of every
+  // day there is, and a save the cloud already has (the same snapshot again on start or on leaving) reads nothing.
+  // Every week, or with nothing remembered, all days are read once: that catches a day sent late from a device that
+  // was offline for longer than the margin.
+  const DAYS_KEY = `haru:days-cloud:${uid}`;
+  const DAYS_MARGIN = 3 * 86_400_000;
+  const DAYS_FULL_EVERY = 7 * 86_400_000;
+  let daysKnown: { days: Record<string, number>; full: number } = { days: {}, full: 0 };
+  try {
+    const v = JSON.parse(localStorage.getItem(DAYS_KEY) ?? 'null') as typeof daysKnown | null;
+    if (v && typeof v.days === 'object' && typeof v.full === 'number') daysKnown = v;
+  } catch {
+    // unreadable: read every day once
+  }
+  const keepKnown = () => {
+    try {
+      localStorage.setItem(DAYS_KEY, JSON.stringify(daysKnown));
+    } catch {
+      // full reads only, then
+    }
+  };
+  const cloudHas = (date: string, saved: number) => {
+    if ((daysKnown.days[date] ?? 0) >= saved) return;
+    daysKnown.days[date] = saved;
+    keepKnown();
+  };
+  const sendDay = (s: DaySnapshot) => write(fs.runTransaction(db, async (tx) => {
+    const cur = await tx.get(ref(`days/${s.date}`));
+    const there = Number(cur.data()?.saved) || 0;
+    if (there >= s.saved) return there;
+    tx.set(ref(`days/${s.date}`), s);
+    return s.saved;
+  }).then((saved) => cloudHas(s.date, saved)).catch(() => {}));
   onDaySaved((s) => {
     if (stopped) return;
+    if ((daysKnown.days[s.date] ?? 0) >= s.saved) return;
     logChange('day', s.date, 'save', s.blocks);
-    write(fs.runTransaction(db, async (tx) => {
-      const cur = await tx.get(ref(`days/${s.date}`));
-      if ((Number(cur.data()?.saved) || 0) >= s.saved) return;
-      tx.set(ref(`days/${s.date}`), s);
-    }).catch(() => {}));
+    sendDay(s);
   });
   void (async () => {
-    const remote = await fs.getDocs(col('days')).catch(() => null);
-    if (!remote) return;
-    const seen = new Map<string, number>();
+    // days this device lacks though the cloud has them (cleared for another account) can only come from a full read
+    const mine = await allDays();
+    const here = new Set(mine.map((d) => d.date));
+    const full = !daysKnown.full || Date.now() - daysKnown.full > DAYS_FULL_EVERY || Object.keys(daysKnown.days).some((d) => !here.has(d));
+    const since = Math.max(0, ...Object.values(daysKnown.days)) - DAYS_MARGIN;
+    const q = full ? col('days') : fs.query(col('days'), fs.where('saved', '>', since));
+    const remote = await fs.getDocs(q).catch(() => null);
+    if (!remote || stopped) return;
+    if (full) daysKnown = { days: {}, full: Date.now() };
     for (const d of remote.docs) {
       const s = d.data() as DaySnapshot;
-      seen.set(s.date, s.saved);
+      daysKnown.days[s.date] = Math.max(daysKnown.days[s.date] ?? 0, Number(s.saved) || 0);
       await putFromRemote(s);
     }
-    for (const s of await allDays()) {
-      if ((seen.get(s.date) ?? 0) < s.saved) write(fs.setDoc(ref(`days/${s.date}`), s));
-    }
+    keepKnown();
+    for (const s of mine) if ((daysKnown.days[s.date] ?? 0) < s.saved) sendDay(s);
   })();
 
   // ---------- images (added / removed; never edited)

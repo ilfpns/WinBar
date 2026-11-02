@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.85** (2026-11-02) — 지난 날 기록은 최근 바뀐 날만 읽기
 - **v1.84** (2026-11-02) — 새 날 시작에 걸친 태스크도 지나면 색 표시
 - **v1.83** (2026-11-02) — 멤버 Today 보기는 그 사람의 오늘 시간표만
 - **v1.82** (2026-10-31) — Review Week·Month·All time, Journal 기록 카드 정리
