@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.95',
+    date: '2026-11-02',
+    items: [
+      '사용 안내(Archive) 설명 아래의 큰 빈 공간을 없앴어요. 페이지 목록이 설명 바로 밑에 붙어요.',
+      '페이지 안내를 한 단계에 한 가지씩 더 잘게 나눴어요(Today 12단계, Library 9단계 등). 직접 해 볼 동작은 "해 보기" 줄로 따로 보여 줘요.',
+      '한국어 안내 문구의 버튼 이름을 화면과 같게 맞췄어요(알아요·다시·시작 전·진행 중·완료 등).',
+    ],
+  },
+  {
     version: '1.94',
     date: '2026-11-02',
     items: [
