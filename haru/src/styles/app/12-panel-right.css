@@ -1,0 +1,205 @@
+/* right panel */
+.panel-head { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 2px 0 8px; }
+.panel-title { font-size: 15px; font-weight: 500; color: var(--text-strong); letter-spacing: -.01em; }
+.panel-head .btn-sm { margin-left: auto; }
+
+.editor { display: grid; gap: 14px; box-shadow: inset 2px 0 0 var(--c, var(--text)); }
+.editor[hidden] { display: none; }
+/* more about the task, under its hours */
+.editor .note-input {
+  width: 100%; min-height: 64px; max-height: 200px; padding: 9px 12px; resize: vertical;
+  border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well);
+  font: 400 13.5px/1.5 var(--font-sans); color: var(--text-strong); outline: none;
+}
+.editor .note-input:focus { border-color: var(--line-strong); }
+.editor .note-input::placeholder { color: var(--text-subtle); }
+#list .note-mark { display: inline-block; width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; vertical-align: super; background: var(--accent); }
+.done-toggle .ic { width: 13px; height: 13px; stroke-width: 2.5; }
+.done-toggle { position: relative; transition: background-color .25s var(--ease-out), color .25s var(--ease-out), border-color .25s var(--ease-out), transform .15s var(--ease-out); }
+.done-toggle:active, #list .check:active { transform: scale(.92); }
+.done-toggle[aria-pressed="true"] { color: var(--bg); background: var(--accent); border-color: var(--accent); animation: done-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+.done-toggle[aria-pressed="true"] .ic > *, #list .check.just[aria-checked="true"] .ic > * { animation: ic-draw .4s var(--ease-out) .08s both; }
+.done-toggle[aria-pressed="true"]::after, #list .check.just[aria-checked="true"]::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); animation: done-ring .6s var(--ease-out) both;
+}
+@keyframes done-pop { 0% { transform: scale(1); } 40% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes done-ring { to { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 0%, transparent); } }
+.editor-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
+.title-input {
+  width: 100%; padding: 0 0 8px; border: 0; border-bottom: 1px solid var(--line-strong); border-radius: 0; background: none; outline: none;
+  font-size: 20px; line-height: 26px; letter-spacing: -.01em; color: var(--text-strong);
+}
+.title-input::placeholder { color: var(--text-subtle); }
+.title-input:focus { border-bottom-color: var(--info); }
+.chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+/* the editor's status: Yet · In progress · Done, side by side */
+.status-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: 12px; background: rgb(var(--shade) / .35); }
+.status-seg button {
+  display: flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 6px; border: 0; border-radius: 9px;
+  background: none; color: var(--text-muted); font: 500 12.5px/1 var(--font-sans); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.status-seg button .ic { flex: none; width: 14px; height: 14px; }
+.status-seg button:hover { color: var(--text-strong); }
+.status-seg [aria-checked="true"] { color: var(--text-strong); }
+.status-seg [data-status="doing"][aria-checked="true"] { color: var(--status-doing); }
+.status-seg [data-status="done"][aria-checked="true"] { color: var(--accent); }
+/* one highlight under the picked status: it slides from one to the next and takes that status's colour */
+.status-seg { position: relative; --i: 0; --hl: var(--gray-btn-hover); }
+.status-seg[data-status="doing"] { --i: 1; --hl: color-mix(in srgb, var(--status-doing) 22%, transparent); }
+.status-seg[data-status="done"] { --i: 2; --hl: color-mix(in srgb, var(--accent) 20%, transparent); }
+.status-seg::before {
+  content: ""; position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 10px) / 3); border-radius: 9px; background: var(--hl);
+  transform: translate3d(calc(var(--i) * (100% + 2px)), 0, 0);
+}
+.status-seg.changed::before { transition: transform .34s cubic-bezier(.3, 1.35, .5, 1), background-color .3s var(--ease-out); }
+.status-seg button { position: relative; z-index: 1; }
+/* the new status's icon plays once: the dashed ring turns, the hourglass flips, the check draws itself */
+.status-seg.changed [data-status="yet"][aria-checked="true"] .ic { animation: st-spin .5s var(--ease-out); }
+.status-seg.changed [data-status="doing"][aria-checked="true"] .ic { animation: st-flip .55s cubic-bezier(.3, 1.4, .5, 1); }
+.status-seg.changed [data-status="done"][aria-checked="true"] .ic > * { animation: ic-draw .4s var(--ease-out) .06s both; }
+.status-seg.changed [aria-checked="true"] { animation: st-pop .34s var(--ease-out); }
+@keyframes st-spin { from { transform: rotate(-120deg); } }
+@keyframes st-flip { from { transform: rotate(-180deg) scale(.7); } }
+@keyframes st-pop { 40% { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .status-seg.changed::before, .status-seg.changed [aria-checked="true"], .status-seg.changed [aria-checked="true"] .ic, .status-seg.changed [aria-checked="true"] .ic > * { transition: none; animation: none; } }
+.chip {
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-width: 0; height: 30px; padding: 0 10px;
+  border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well);
+  font: 400 13px/1 var(--font-sans); color: var(--text-muted); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.chip:hover { color: var(--text); background: var(--surface-3); }
+.chip[aria-checked="true"] { color: var(--text-strong); background: var(--gray-btn-hover); border-color: rgb(var(--ink) / 0.12); }
+.times { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; }
+.time-col { display: grid; gap: 6px; min-width: 0; }
+.time-field {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  width: 100%; height: 36px; padding: 0 8px 0 12px; cursor: pointer;
+  border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well);
+  font: 400 15px var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-strong);
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.time-field:hover { background: var(--surface-3); }
+.time-field[aria-expanded="true"] { border-color: var(--line-strong); background: var(--surface-3); }
+.time-field .ic { color: var(--text-subtle); transition: transform var(--dur-fast) var(--ease-out); }
+.time-field[aria-expanded="true"] .ic { transform: rotate(180deg); }
+
+/* the class picker: a field like the time fields; its popover lists the grades as rows of class chips */
+.class-field { width: auto; min-width: 118px; justify-content: space-between; gap: 10px; }
+.class-field.empty .time-text { color: var(--text-subtle); }
+.class-pop {
+  position: fixed; inset: auto; margin: 0; padding: 10px 12px; min-width: 240px;
+  border: 1px solid rgb(var(--ink) / 0.08); border-radius: var(--radius-sm);
+  background: var(--popover); color: var(--text); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+.class-pop:popover-open { display: grid; gap: 8px; animation: class-pop-in .18s var(--ease-out); }
+@keyframes class-pop-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.class-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; gap: 8px; }
+.class-grade { text-transform: none; font-size: 11.5px; color: var(--text-muted); }
+.class-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.class-chips button {
+  min-width: 46px; height: 30px; padding: 0 10px; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+  background: rgb(var(--shade) / 0.35); color: var(--text-muted); font: 500 13px/1 var(--font-sans);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.class-chips button:hover { background: var(--surface-3); color: var(--text-strong); }
+.class-chips button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+@media (prefers-reduced-motion: reduce) { .class-pop:popover-open { animation: none; } }
+/* time picker popover (top layer) */
+.time-pop {
+  position: fixed; inset: auto; margin: 0; width: 252px; padding: 10px;
+  border: 1px solid rgb(var(--ink) / 0.08); border-radius: var(--radius-sm);
+  background: var(--popover); color: var(--text);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+.time-pop:popover-open { display: grid; gap: 6px; }
+.time-label { padding: 0 2px; }
+.time-label + .time-mins { margin-bottom: 0; }
+.time-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin-bottom: 6px; }
+.time-mins { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 2px; border-radius: var(--radius-sm); background: rgb(var(--shade) / 0.35); }
+.time-pop button {
+  position: relative; height: 30px; border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer;
+  font: 400 13px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-muted);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.time-pop button:hover { background: var(--surface-3); color: var(--text-strong); }
+.time-pop button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+.time-pop .now::after {
+  content: ""; position: absolute; left: 50%; bottom: 3px; width: 3px; height: 3px; margin-left: -1.5px;
+  border-radius: 50%; background: var(--accent);
+}
+.times .arrow { display: grid; place-items: center; height: 36px; color: var(--text-subtle); }
+.err { margin: -4px 0 0; min-height: 16px; font: 400 var(--text-meta) / var(--text-meta--lh) var(--font-mono); color: var(--danger); }
+.err:empty { display: none; }
+.actions { display: flex; align-items: center; gap: 6px; }
+.actions .btn-text { margin-left: auto; }
+
+/* batch actions */
+/* docked at the bottom of the panel so the list never shifts under a drag */
+.bulk {
+  display: grid; gap: 12px; margin-top: auto; position: sticky; bottom: 0; z-index: 1;
+  background: var(--popover); box-shadow: inset 2px 0 0 var(--text), 0 -12px 24px rgba(0, 0, 0, 0.5);
+}
+.bulk[hidden] { display: none; }
+.bulk-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 500; color: var(--text-strong); }
+.bulk-head kbd { margin-left: 4px; padding: 0 4px; border: 1px solid rgb(var(--ink) / 0.1); border-radius: 4px; font: 400 10px/14px var(--font-mono); }
+.bulk-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.bulk-row .ic { width: 14px; height: 14px; stroke-width: 2.25; }
+.bulk-field { display: grid; gap: 6px; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 2px; border-radius: var(--radius-sm); background: var(--well); }
+.seg button {
+  height: 28px; border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer;
+  font: 400 12px/1 var(--font-mono); color: var(--text-muted);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.seg button:hover { background: var(--surface-3); color: var(--text-strong); }
+.btn-danger {
+  height: 32px; border: 0; border-radius: var(--radius-sm); cursor: pointer;
+  background: color-mix(in srgb, var(--danger) 16%, transparent); color: #e0806c;
+  font: 500 13px/1 var(--font-sans);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.btn-danger:hover { background: color-mix(in srgb, var(--danger) 30%, transparent); }
+
+#list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+#list li { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 8px; }
+#list .check {
+  position: relative; display: grid; place-items: center; width: 24px; height: 24px; margin-left: 4px; padding: 0;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: none; color: transparent; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+#list .check:hover { border-color: var(--text-muted); color: var(--text-subtle); }
+#list .check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+/* only a check just made pops (see schedule.ts) */
+#list .check.just[aria-checked="true"] { animation: done-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+#list .check .ic { width: 14px; height: 14px; stroke-width: 2.5; }
+/* task status: not started (a dashed box, a faint dashed ring), in progress (blue, an hourglass), done (green check) */
+:root { --status-doing: #5aa7e0; }
+:root[data-theme="light"] { --status-doing: #2f7fbf; }
+#list .check[data-status="yet"] { border-style: dashed; border-color: var(--text-subtle); color: var(--text-subtle); }
+#list .check[data-status="yet"] .ic { width: 13px; height: 13px; stroke-width: 2.2; opacity: .9; }
+#list .check[data-status="doing"] { border-color: var(--status-doing); background: color-mix(in srgb, var(--status-doing) 16%, transparent); color: var(--status-doing); }
+#list .check[data-status="doing"] .ic { width: 13px; height: 13px; stroke-width: 2.2; animation: hourglass-tip 2.4s var(--ease-out) infinite; }
+@keyframes hourglass-tip { 0%, 70% { transform: none; } 85%, 100% { transform: rotate(180deg); } }
+/* a status just changed from the list: the box springs, then its icon plays (hourglass turns over, ring winds round) */
+#list .check.just[data-status="doing"], #list .check.just[data-status="yet"] { animation: done-pop .45s cubic-bezier(.2, 1.6, .4, 1); }
+#list .check.just[data-status="doing"] .ic { animation: st-flip .55s cubic-bezier(.3, 1.4, .5, 1), hourglass-tip 2.4s var(--ease-out) .55s infinite; }
+#list .check.just[data-status="yet"] .ic { animation: st-spin .5s var(--ease-out); }
+#list .doing .t { color: var(--status-doing); }
+@media (prefers-reduced-motion: reduce) { #list .check[data-status="doing"] .ic, #list .check.just, #list .check.just .ic { animation: none; } }
+#list .done .n { color: var(--text-subtle); text-decoration: line-through; }
+#list .row {
+  width: 100%; height: 40px; padding: 0 10px 0 6px;
+  display: grid; grid-template-columns: 84px 6px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  border: 0; border-radius: var(--radius-sm); background: none; text-align: left; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+#list .row:hover { background: var(--surface-2); }
+#list .row.sel { background: var(--surface-3); box-shadow: inset 2px 0 0 var(--c); }
+#list .row { user-select: none; -webkit-user-select: none; touch-action: pan-y; }
+#list .t, #list .d { font: 400 var(--text-meta) var(--font-mono); color: var(--text-subtle); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#list .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--text); }
+#list .now .n { color: var(--text-strong); }
+#list .now .t { color: var(--accent); }

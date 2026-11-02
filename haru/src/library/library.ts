@@ -1,8 +1,10 @@
 import { icon, type IconName } from '../ui/icons';
 import { renderMarkdown } from '../ui/markdown';
-import { askConfirm, askText, showMenu } from '../ui/modal';
+import { askConfirm, askForm, askText, showMenu } from '../ui/modal';
 import { onView } from '../ui/router';
 import { githubDriver } from './github';
+import { WIKI, splitFrontMatter, wikiToMarkdown } from './note-text';
+import { noteOpened, openedIn, openedKey } from './opened';
 import { notionDriver } from './notion';
 import { allowVault, canPickFolder, forgetVault, obsidianDriver, pickVault } from './obsidian';
 import { type Driver, type Item, NeedsAccess, type SourceConf, type SourceKind, newSourceId, onSources, removeSource, saveSource, sources, tokenOf } from './sources';
@@ -25,7 +27,6 @@ const CURRENT = 'haru:library-current';
 const REACH = 14;
 /** Wait after the last keystroke before saving: a file is cheap, a commit is not. */
 const SAVE_AFTER: Record<SourceKind, number> = { obsidian: 900, github: 4000, notion: 0 };
-const WIKI = 'https://wiki.haru.invalid/';
 
 type Filter = 'all' | 'folder' | 'note';
 
@@ -58,105 +59,6 @@ function iconBtn(name: IconName, label: string, cls = 'lib-ibtn'): HTMLButtonEle
   return b;
 }
 
-/** Front matter (`---` lines at the top) apart from the text, as key–value pairs. */
-function splitFrontMatter(src: string): { meta: [string, string][]; body: string } {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(src);
-  if (!m) return { meta: [], body: src };
-  const meta = m[1]!.split(/\r?\n/).flatMap((l) => {
-    const kv = /^([\w-]+):\s*(.*)$/.exec(l);
-    return kv && kv[2]!.trim() ? [[kv[1]!, kv[2]!.replace(/^\[|\]$/g, '').trim()] as [string, string]] : [];
-  });
-  return { meta, body: src.slice(m[0].length) };
-}
-
-/** Obsidian's links in plain Markdown: `[[Note|label]]` a link Haru catches, `![[file]]` its name. */
-const wikiToMarkdown = (src: string) => src
-  .replace(/!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g, (_, f: string) => `\`${f}\``)
-  .replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_, t: string, label?: string) => `[${label ?? t}](${WIKI}${encodeURIComponent(t.trim())})`);
-
-/** A small form in Haru's dialog: the fields' values, or null when cancelled. */
-function askForm(opts: { title: string; icon: IconName; body?: string; ok: string; fields: { key: string; label: string; value?: string; placeholder?: string; secret?: boolean; required?: boolean; hint?: string }[] }): Promise<Record<string, string> | null> {
-  return new Promise((resolve) => {
-    const dlg = el('dialog', 'modal');
-    const form = el('form', 'modal-card lib-form');
-    form.method = 'dialog';
-    const head = el('div', 'modal-head');
-    const ic = el('span', 'modal-icon');
-    ic.append(icon(opts.icon));
-    head.append(ic, el('h2', 'modal-title', opts.title));
-    form.append(head);
-    if (opts.body) form.append(el('p', 'modal-body', opts.body));
-    const inputs = opts.fields.map((f) => {
-      const label = el('label', 'modal-field');
-      const input = el('input', 'modal-input');
-      input.name = f.key;
-      input.value = f.value ?? '';
-      input.placeholder = f.placeholder ?? '';
-      input.autocomplete = 'off';
-      input.spellcheck = false;
-      if (f.secret) input.type = 'password';
-      label.append(el('span', 'modal-label', f.label), input);
-      if (f.hint) label.append(el('span', 'lib-hint', f.hint));
-      form.append(label);
-      return { f, input };
-    });
-    const actions = el('div', 'modal-actions');
-    const cancel = el('button', 'btn-sm modal-cancel', 'Cancel');
-    cancel.type = 'button';
-    const ok = el('button', 'modal-ok btn-accent', opts.ok);
-    ok.type = 'submit';
-    actions.append(cancel, ok);
-    form.append(actions);
-    dlg.append(form);
-    const sync = () => (ok.disabled = inputs.some(({ f, input }) => f.required && !input.value.trim()));
-    form.addEventListener('input', sync);
-    sync();
-    let result: Record<string, string> | null = null;
-    const finish = () => {
-      dlg.classList.add('closing');
-      setTimeout(() => {
-        dlg.close();
-        dlg.remove();
-        resolve(result);
-      }, 150);
-    };
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      if (ok.disabled) return;
-      result = Object.fromEntries(inputs.map(({ f, input }) => [f.key, input.value.trim()]));
-      finish();
-    });
-    cancel.addEventListener('click', finish);
-    dlg.addEventListener('cancel', (e) => {
-      e.preventDefault();
-      finish();
-    });
-    dlg.addEventListener('click', (e) => {
-      if (e.target === dlg) finish();
-    });
-    document.body.append(dlg);
-    dlg.showModal();
-    inputs[0]?.input.focus();
-  });
-}
-
-/** Notes opened last, per source (most recent first): Recent for a source that has no dates. */
-const openedKey = (id: string) => `haru:library-opened:${id}`;
-function openedIn(source: string): { id: string; at: number }[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(openedKey(source)) ?? '[]') as unknown;
-    return Array.isArray(v) ? v.filter((o): o is { id: string; at: number } => typeof o?.id === 'string' && typeof o?.at === 'number') : [];
-  } catch {
-    return [];
-  }
-}
-function noteOpened(source: string, id: string): void {
-  try {
-    localStorage.setItem(openedKey(source), JSON.stringify([{ id, at: Date.now() }, ...openedIn(source).filter((o) => o.id !== id)].slice(0, 20)));
-  } catch {
-    // not remembered
-  }
-}
 
 export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
   const drivers = new Map<string, Driver>();

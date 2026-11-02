@@ -1,0 +1,96 @@
+/* ---------- drawers: panel + a tab; tucked off-screen so only the tab peeks out */
+:root {
+  --panel-left-w: 272px;
+  --panel-right-w: 340px;
+  --panel-inset: 10px;
+  --tab-w: 20px;
+  --drawer-dur: .55s;
+  --drawer-ease: cubic-bezier(.22, 1, .36, 1);        /* dial: smooth ease-out */
+  --drawer-pop: cubic-bezier(.18, 1.25, .4, 1);       /* drawers: a small overshoot as they pop out */
+}
+.drawer[hidden] { display: none; }
+.drawer {
+  position: fixed; z-index: 20; top: var(--panel-inset); bottom: var(--panel-inset);
+  display: flex; align-items: center;
+  transition: transform var(--drawer-dur) var(--drawer-ease);
+  will-change: transform;
+}
+body.right-open .drawer-right { transition-timing-function: var(--drawer-pop); }
+/* a drawer that closes because the page turned (narrow screens, a page's own drawer) goes with the page: no slide */
+body.switching .drawer { transition: none; }
+
+/* opening: the drawer's contents rise in one after another */
+@keyframes drawer-in-left { from { opacity: 0; transform: translate3d(-14px, 0, 0); } }
+@keyframes drawer-in-right { from { opacity: 0; transform: translate3d(14px, 0, 0); } }
+body.left-open .panel-left > * { animation: drawer-in-left .45s var(--drawer-ease) both; animation-delay: calc(80ms + var(--k, 0) * 35ms); }
+body.right-open .panel-right > * { animation: drawer-in-right .45s var(--drawer-ease) both; animation-delay: calc(80ms + var(--k, 0) * 35ms); }
+/* the left drawer grows out of the rail and folds back into it. Two opposite moves, both on the compositor: the
+   frame slides left by the panel's width less the rail's while the panel inside slides right as much, so the panel
+   holds still and only the window onto it narrows to the rail (a clip-path would repaint the glass every frame).
+   Closing, its contents go at once and the rail comes back as it folds, so nothing shows twice. */
+.drawer-left {
+  --fold: calc(var(--panel-left-w) - var(--rail-w));
+  left: var(--panel-inset); overflow: hidden; border-radius: var(--radius-panel);
+  transform: translate3d(calc(-1 * var(--fold)), 0, 0);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: transform var(--drawer-dur) var(--drawer-ease), opacity .25s var(--ease-out) .22s, visibility 0s linear var(--drawer-dur);
+}
+.drawer-left .panel-left { transform: translate3d(var(--fold), 0, 0); transition: transform var(--drawer-dur) var(--drawer-ease); }
+body.left-open .drawer-left {
+  transform: none; opacity: 1; visibility: visible; pointer-events: auto;
+  transition: transform var(--drawer-dur) var(--drawer-ease), opacity .1s var(--ease-out), visibility 0s;
+}
+body.left-open .drawer-left .panel-left { transform: none; }
+body:not(.left-open) .panel-left > * { opacity: 0; }
+body.drawer-moving .drawer-left { will-change: transform; }
+.drawer-right { right: var(--panel-inset); transform: translateX(calc(var(--panel-right-w) + var(--panel-inset) + 2px)); }
+body.right-open .drawer-right { transform: none; }
+
+.drawer-tab {
+  position: relative; overflow: hidden; flex: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  width: var(--tab-w); height: 132px; padding: 0; cursor: pointer;
+  background: var(--noise), var(--glass-fill);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  border: 1px solid var(--glass-edge); box-shadow: var(--glass-shine); color: var(--text-subtle);
+  transition: color var(--dur-base) var(--ease-out), width var(--dur-base) var(--drawer-ease), background-color var(--dur-base) var(--ease-out);
+}
+.drawer-left .drawer-tab { border-left: 0; border-radius: 0 12px 12px 0; }
+.drawer-right .drawer-tab { border-right: 0; border-radius: 12px 0 0 12px; }
+.drawer-tab .ic { width: 12px; height: 12px; transition: transform var(--drawer-dur) var(--drawer-ease); }
+.drawer-tab[aria-expanded="true"] .ic { transform: rotate(180deg); }
+.tab-label {
+  writing-mode: vertical-rl; font: 500 9.5px/1 var(--font-mono); letter-spacing: .22em; text-transform: uppercase;
+  transition: letter-spacing var(--dur-base) var(--ease-out);
+}
+.drawer-left .tab-label { transform: rotate(180deg); }
+/* accent line along the inner edge: grows on hover, stays lit while the drawer is out */
+.drawer-tab::before {
+  content: ""; position: absolute; top: 16%; bottom: 16%; width: 2px; border-radius: 1px;
+  background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
+  transform: scaleY(0); transition: transform .45s var(--drawer-ease), opacity var(--dur-base) var(--ease-out); opacity: .9;
+}
+.drawer-left .drawer-tab::before { right: 0; }
+.drawer-right .drawer-tab::before { left: 0; }
+@media (hover: hover) {
+  .drawer-tab:hover { color: var(--text-strong); width: calc(var(--tab-w) + 6px); }
+  .drawer-tab:hover .tab-label { letter-spacing: .3em; }
+  .drawer-tab:hover::before { transform: scaleY(1); }
+}
+.drawer-tab[aria-expanded="true"] { color: var(--text); }
+.drawer-tab[aria-expanded="true"]::before { transform: scaleY(1); opacity: .55; }
+
+/* the drawer's inner edge: drag to resize */
+.drawer-resize { position: absolute; top: 0; bottom: 0; z-index: 2; width: 10px; cursor: ew-resize; touch-action: none; display: none; }
+.drawer-left .drawer-resize { left: calc(var(--panel-left-w) - 5px); }
+.drawer-right .drawer-resize { right: calc(var(--panel-right-w) - 5px); }
+body.left-open .drawer-left .drawer-resize, body.right-open .drawer-right .drawer-resize { display: block; }
+.drawer-resize::after {
+  content: ""; position: absolute; top: 18%; bottom: 18%; left: 4px; width: 2px; border-radius: 1px;
+  background: var(--accent); opacity: 0; transform: scaleY(.6); transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-base) var(--drawer-ease);
+}
+.drawer-resize:hover::after, body.resizing .drawer-resize::after { opacity: .8; transform: none; }
+/* while resizing, everything follows the edge directly */
+body.resizing { cursor: ew-resize; }
+body.resizing :is(.drawer, .dial-wrap, .calendar-view, .globe-wrap) { transition: none; }
+body.resizing .panel > * { animation: none; }

@@ -1,9 +1,9 @@
-import { icon } from '../ui/icons';
-import { type Block, type Category, CATEGORIES, CATEGORY_KEYS, labelOf, passedOf, statusOf } from './model';
-import { CATEGORY_ICON } from './overview';
-import { addBlock, cycleStatus, openDraft, state } from './state';
-import { DAY, SNAP, formatDuration, hhmm, mod, nowMinutes } from './time';
-import { resetAt } from './day-reset';
+import { icon } from '../../ui/icons';
+import { type Block, type Category, CATEGORIES, CATEGORY_KEYS, labelOf, passedOf, statusOf } from '../model';
+import { CATEGORY_ICON } from '../overview';
+import { addBlock, cycleStatus, openDraft, state } from '../state';
+import { DAY, SNAP, formatDuration, hhmm, mod, nowMinutes } from '../time';
+import { resetAt } from '../day-reset';
 
 /**
  * Flow: the day as a diagram — each task a card, in time order from the New day time, wired to the next one.

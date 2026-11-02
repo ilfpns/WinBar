@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.87',
+    date: '2026-11-02',
+    items: [
+      '내부 정리(화면은 그대로): 스타일을 부분별 파일 34개로 나누고, Today의 보조 화면을 한 폴더로 모으고, 코드 지도(STRUCTURE.md)를 추가했어요. 다음 수정이 더 빠르고 안전해져요.',
+    ],
+  },
+  {
     version: '1.86',
     date: '2026-11-02',
     items: [

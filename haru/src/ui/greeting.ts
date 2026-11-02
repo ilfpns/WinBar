@@ -1,14 +1,14 @@
 import { onSession, session } from '../cloud/session';
 import { icon } from './icons';
 import { onStreaks, todayRun } from '../timetable/streaks';
-import { mountPlanAhead } from '../timetable/plan-ahead';
+import { mountPlanAhead } from '../timetable/views/plan-ahead';
 
 /**
  * Today's greeting, top left: one line for the time of day with your name in it ("Good morning, Public"),
  * picked at random from twenty per part of the day (a new one when the part of the day changes). The name is the one set in
  * Settings → Account, or your account's first name; without either the line simply has none. Under it, how many
  * days running Today has been kept (timetable/streaks.ts), from two on, and the chip that plans tomorrow and the
- * days after (timetable/plan-ahead.ts).
+ * days after (timetable/views/plan-ahead.ts).
  */
 const NAME_KEY = 'haru:greet-name';
 type Part = 'owl' | 'morning' | 'afternoon' | 'evening' | 'night';

@@ -1,0 +1,81 @@
+/* ---------- Today → Flow (timetable/views/flow.ts): tasks as cards wired in time order */
+.dial-wrap.flowing { width: min(100%, 1180px); max-width: none; aspect-ratio: auto; height: calc(100svh - var(--tb, 0px) - 2 * var(--greet-room, 0px) - 2 * var(--bar-room, 0px) - 40px); }
+.today-chart .flow { position: absolute; inset: 0; pointer-events: auto; display: flex; flex-direction: column; }
+.flow-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); mask-image: linear-gradient(180deg, transparent, #000 18px, #000 calc(100% - 18px), transparent); }
+.flow-canvas { position: relative; min-height: 100%;
+  background-image: radial-gradient(rgb(var(--ink) / .07) 1px, transparent 1.2px); background-size: 22px 22px; }
+.flow-wires { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.flow-wire { fill: none; stroke: rgb(var(--ink) / .22); stroke-width: 1.6; }
+.flow-wire.soft { stroke-dasharray: 4 6; }
+.flow-wire.lit { stroke: var(--accent); }
+.flow-wire-glow { fill: none; stroke: transparent; stroke-width: 7; }
+.flow-wire-glow.lit { stroke: color-mix(in srgb, var(--accent) 22%, transparent); filter: blur(3px); }
+.flow-wire.into { stroke: color-mix(in srgb, var(--accent) 70%, white 10%); }
+.flow-pulse { fill: none; stroke: #eafff0; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 10 220; animation: flow-pulse 2.2s linear infinite; filter: drop-shadow(0 0 4px var(--accent)); }
+@keyframes flow-pulse { from { stroke-dashoffset: 230; } to { stroke-dashoffset: 0; } }
+.flow-node {
+  position: absolute; left: 0; top: 0; width: 208px; height: 104px; box-sizing: border-box;
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 10px; padding: 14px 34px 14px 12px;
+  border-radius: 18px; color: var(--text-strong); cursor: pointer; outline: none; text-align: left; font: inherit;
+  background: linear-gradient(160deg, rgb(255 255 255 / .075), rgb(255 255 255 / .02)), rgb(10 10 12 / .55);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .09), inset 0 1px 0 rgb(255 255 255 / .08), 0 16px 34px -18px rgb(0 0 0 / .9);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: box-shadow var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.flow.enter .flow-node { animation: flow-in .45s var(--ease-out) both; animation-delay: calc(min(var(--i), 12) * 30ms); }
+@keyframes flow-in { from { opacity: 0; scale: .94; } }
+.flow-node:hover, .flow-node:focus-visible { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .2), 0 18px 40px -18px rgb(0 0 0 / .9); }
+.flow-node.past:not(.done) { opacity: .7; }
+.flow-node.live {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 46%, #0b0b0d), color-mix(in srgb, var(--accent) 16%, #0b0b0d));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 65%, transparent), 0 0 0 1px rgb(0 0 0 / .4), 0 18px 50px -14px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.flow-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--c); }
+.flow-node.live .flow-ic { background: rgb(0 0 0 / .25); color: var(--text-strong); }
+.flow-ic .ic { width: 17px; height: 17px; }
+.flow-text { display: grid; gap: 3px; min-width: 0; }
+.flow-text strong { font-size: 15px; font-weight: 600; letter-spacing: -.01em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.flow-sub { font: 11.5px var(--font-mono); color: rgb(255 255 255 / .55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.flow-check { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--text-subtle); cursor: pointer; }
+.flow-check:hover { background: rgb(255 255 255 / .08); color: var(--text-strong); }
+.flow-check.done { color: var(--accent); }
+.flow-node.live .flow-check.done, .flow-node.live .flow-check { color: var(--text-strong); }
+.flow-check.doing { color: #f2c46a; }
+.flow-check .ic { width: 16px; height: 16px; }
+.flow-port { position: absolute; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: #1a1a1e; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .25); }
+.flow-port.in { left: -4px; }
+.flow-port.out { right: -4px; }
+.flow-node.past .flow-port, .flow-node.live .flow-port.in { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.flow-progress { position: absolute; left: 14px; right: 14px; bottom: 9px; height: 3px; border-radius: 2px; background: rgb(0 0 0 / .3); overflow: hidden; }
+.flow-progress::after { content: ""; position: absolute; inset: 0; background: var(--text-strong); transform-origin: left; transform: scaleX(var(--p)); }
+.flow-left { position: absolute; right: 14px; bottom: 15px; font: 10.5px var(--font-mono); color: rgb(255 255 255 / .75); }
+.flow-label { position: absolute; left: 0; top: 0; padding: 3px 9px; border-radius: 10px; background: rgb(10 10 12 / .8); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08); font: 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; pointer-events: none; }
+.flow-label.tight { color: var(--text-subtle); }
+.flow-plus { position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: #1b1b1f; color: var(--text-muted); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18), 0 0 0 3px rgb(0 0 0 / .5); cursor: pointer; transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
+.flow-plus:hover { color: #06130b; background: var(--accent); }
+.flow-plus .ic { width: 14px; height: 14px; }
+.flow-end { display: flex; justify-content: center; gap: 8px; color: var(--text-muted); border: 0; background: rgb(255 255 255 / .02); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12); }
+.flow-end:not(:disabled):hover { color: var(--text-strong); background: rgb(255 255 255 / .06); }
+.flow-end:disabled { opacity: .4; cursor: default; }
+.flow-end .ic { width: 16px; height: 16px; }
+.flow-new { display: flex; flex-direction: column; align-items: stretch; gap: 7px; height: auto; min-height: 104px; width: 260px; padding: 12px; cursor: default; z-index: 2;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent), 0 20px 50px -16px rgb(0 0 0 / .9); background: rgb(14 14 17 / .92); }
+.flow-new-top { display: flex; gap: 6px; }
+.flow-new input { flex: 1; min-width: 0; height: 32px; padding: 0 10px; border: 0; border-radius: 10px; background: rgb(255 255 255 / .06); color: var(--text-strong); font: inherit; font-size: 14px; outline: none; }
+.flow-mini { height: 32px; padding: 0 10px; border: 0; border-radius: 10px; background: rgb(255 255 255 / .06); color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.flow-mini:hover { color: var(--text-strong); }
+.flow-lens, .flow-cats { display: flex; flex-wrap: wrap; gap: 4px; }
+.flow-len { height: 24px; padding: 0 8px; border: 0; border-radius: 12px; background: rgb(255 255 255 / .05); color: var(--text-muted); font: 11.5px var(--font-mono); cursor: pointer; }
+.flow-len[aria-pressed="true"] { background: var(--text-strong); color: var(--bg); }
+.flow-cat { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--text-subtle); cursor: pointer; }
+.flow-cat:hover { color: var(--c); }
+.flow-cat[aria-pressed="true"] { background: color-mix(in srgb, var(--c) 24%, transparent); color: var(--c); }
+.flow-cat .ic { width: 14px; height: 14px; }
+.flow-time { font: 11px var(--font-mono); color: var(--text-muted); }
+.flow-err { font-size: 11.5px; color: #f0a08f; }
+.flow-hint { margin: 6px 0 0; text-align: center; font: 12px var(--font-mono); color: var(--text-subtle); }
+@media (max-width: 640px) {
+  .dial-wrap.flowing { height: calc(100svh - 250px); }
+  .flow.one .flow-port { display: none; }
+}

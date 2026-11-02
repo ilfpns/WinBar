@@ -1,0 +1,26 @@
+/* ---------- buttons */
+.btn-solid, .btn-ghost, .btn-sm {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; border-radius: var(--radius-sm); cursor: pointer;
+  font: 500 13px/1 var(--font-sans);
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.btn-solid { height: 32px; padding: 0 14px; background: var(--text); color: var(--bg); }
+.btn-solid:hover { background: var(--text-strong); }
+.btn-ghost { height: 32px; padding: 0 12px; background: var(--gray-btn); color: var(--text); }
+.btn-ghost:hover { background: var(--gray-btn-hover); color: var(--text-strong); }
+.btn-sm { height: 28px; padding: 0 10px 0 8px; background: var(--gray-btn); color: var(--text); }
+.btn-sm:hover { background: var(--gray-btn-hover); color: var(--text-strong); }
+.btn-sm:disabled { opacity: .4; cursor: default; }
+.btn-sm .ic { width: 14px; height: 14px; }
+.btn-text {
+  padding: 6px 8px; border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer;
+  font: 400 13px/1 var(--font-sans); color: var(--text-subtle);
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.btn-text:hover { color: var(--text-strong); background: var(--surface-2); }
+.btn-text.danger:hover { color: var(--danger); }
+.badge {
+  display: inline-block; padding: 1px 6px; border: 1px solid rgb(var(--ink) / 0.1); border-radius: var(--radius-sm);
+  font: 400 11px/16px var(--font-mono); color: var(--text-muted);
+}

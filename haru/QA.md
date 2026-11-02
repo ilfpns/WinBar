@@ -3,6 +3,12 @@
 Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호를 붙이고, 처리 결과(고침 / 보류 / 사양대로)를 함께 적는다.
 점검은 사용자의 브라우저가 아니라 별도의 헤드리스 브라우저(gstack browse, `http://localhost:5288`)에서 한다.
 
+## 2026-11-02 (v1.87) — 파일 구조 정리
+
+- `app.css`(3,412줄)를 순서 그대로 `src/styles/app/01…34-*.css`로 나누고 `app.css`는 `@import` 목록으로 바꿈. 나누기 전후 빌드 CSS가 바이트 단위로 같음(cmp)을 확인.
+- Today 보조 화면 6개를 `src/timetable/views/`로 옮기고 상대 import를 스크립트로 고침(타입 검사 통과). `library.ts`에서 `askForm`은 `ui/modal.ts`로, 노트 텍스트 처리는 `note-text.ts`, 최근 연 노트는 `opened.ts`로 분리. 서랍의 페이지 목록은 `VIEW_ORDER`·`TEXT_PAGES`로 통일.
+- 다시 확인: 전체 페이지 8개·Today 보기 7개(데스크톱·폰) 콘솔 오류 0, Library(GitHub 공개 레포·가짜 Notion·가짜 GitHub 쓰기), Flow(데스크톱·폰), 멤버 Today, days 읽기, Glass 모두 통과.
+
 ## 2026-11-02 (v1.86) — Library, Today Flow, Glass
 
 - Library(별도 헤드리스 컨텍스트, 1440×900·390×844): 소스 없을 때 시작 화면(세 가지 선택), GitHub 공개 레포 `ilfpns/WinBar`의 `haru` 경로를 토큰 없이 읽기(카드 8장, 폴더 들어가기·경로로 나오기, Notes 필터, 노트 읽기). Notion은 가짜 API(page.route)로 확인: 하위 페이지가 있는 페이지는 폴더 + 자기 노트, Recent에서 열면 그 폴더로 이동, 할 일 블록이 체크박스로 보임, 읽기 전용.

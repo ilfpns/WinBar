@@ -1,0 +1,4 @@
+/* ---------- features switched off in Settings: out of the rail and the overview */
+body.off-calendar [data-view="calendar"], body.off-news [data-view="news"], body.off-words [data-view="words"],
+body.off-journal [data-view="journal"], body.off-archive [data-view="archive"], body.off-board [data-view="board"], body.off-library [data-view="library"] { display: none !important; }
+/* (the rule between the swipe pages and the rest hides itself when one side is all off: ui/page-order.ts) */

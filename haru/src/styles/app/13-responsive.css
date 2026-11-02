@@ -1,0 +1,39 @@
+/* ---------- responsive
+   ≥1280  desktop: drawers push the dial aside (JS)       1001–1279  laptop: slimmer drawers
+   641–1000 tablet: drawers overlay the dial              ≤640  phone: near full-width drawers, bigger touch targets */
+@media (max-width: 1279px) {
+  :root { --panel-left-w: 248px; --panel-right-w: 312px; }
+}
+@media (max-width: 1000px) {
+  :root { --panel-left-w: min(280px, calc(100vw - 64px)); --panel-right-w: min(360px, calc(100vw - 64px)); }
+  .stage { padding: 16px 40px; }
+  /* an open drawer dims what's behind it */
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 15; background: rgb(var(--shade) / .45); pointer-events: none;
+    opacity: 0; transition: opacity var(--dur-base) var(--ease-out);
+  }
+  body.left-open::after, body.right-open::after { opacity: 1; }
+  /* overlaying drawers are solid so the dial underneath never shows through the text */
+  .panel, .drawer-tab { background: var(--popover); }
+  /* only the open drawer's tab stays; the other one would sit right next to it */
+  body.right-open .drawer-left, body.left-open .drawer-right, body.right-open .rail { opacity: 0; pointer-events: none; }
+  .drawer-right { transition: transform var(--drawer-dur) var(--drawer-ease), opacity var(--dur-fast) var(--ease-out); }
+}
+@media (max-width: 640px) {
+  :root {
+    --panel-inset: 8px; --tab-w: 22px; --rail-w: 48px; --rail-btn: 36px; --rail-room: calc(var(--rail-w) + var(--panel-inset) + 12px);
+    --panel-left-w: calc(100vw - 2 * var(--panel-inset) - var(--tab-w) - 12px);
+    --panel-right-w: calc(100vw - 2 * var(--panel-inset) - var(--tab-w) - 12px);
+  }
+  .stage { padding: max(12px, env(safe-area-inset-top)) 30px max(12px, env(safe-area-inset-bottom)); }
+  .dial-wrap { width: min(100%, calc(100svh - 40px)); }
+  .drawer { top: max(var(--panel-inset), env(safe-area-inset-top)); bottom: max(var(--panel-inset), env(safe-area-inset-bottom)); }
+  .drawer-tab { height: 120px; }
+  .nav-item, #list .row { height: 44px; }
+  .chip, .seg button, .time-pop button { height: 36px; }
+  .time-field { height: 40px; }
+  #list .check { width: 28px; height: 28px; }
+  #list li { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
+  #list .row { grid-template-columns: auto 6px minmax(0, 1fr) auto; gap: 8px; }
+  .time-pop { width: min(300px, calc(100vw - 24px)); }
+}

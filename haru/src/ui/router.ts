@@ -2,6 +2,13 @@ export type View = 'today' | 'calendar' | 'news' | 'words' | 'journal' | 'archiv
 
 /** Views are stacked like pages: Today on top, then Calendar, News, Words, Journal, Archive, the Dot board and the Library. */
 export const VIEW_ORDER: View[] = ['today', 'calendar', 'news', 'words', 'journal', 'archive', 'board', 'library'];
+/** Pages laid out as a title over cards (`.text-page`): only their margins count as background. */
+export const TEXT_PAGES: readonly View[] = ['words', 'journal', 'archive', 'board', 'library'];
+/*
+ * A new page touches: View and VIEW_ORDER (here), TEXT_PAGES if it is one, Feature and FEATURES (features.ts),
+ * its <main class="… page" id="…"> and the three page lists in index.html (title bar, rail, overview), the
+ * view-swipe map and its mount in main.ts, and `body.off-<id>` in styles/app/21-features.css. See STRUCTURE.md.
+ */
 
 
 type Listener = (view: View, prev: View | null) => void;

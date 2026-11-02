@@ -1,0 +1,39 @@
+/* ---------- phones: the rail becomes a tab bar along the bottom, so every page has the whole width */
+@media (max-width: 640px) {
+  :root {
+    --nav-h: 54px;
+    --nav-room: calc(var(--nav-h) + max(var(--panel-inset), env(safe-area-inset-bottom)) + 10px);
+    --rail-room: 16px;
+  }
+  .rail {
+    top: auto; right: var(--panel-inset); bottom: max(var(--panel-inset), env(safe-area-inset-bottom)); width: auto; height: var(--nav-h);
+    flex-direction: row; justify-content: space-around; gap: 0; padding: 0 4px;
+  }
+  .rail .rail-rule, .rail .rail-fill, .rail .rail-brand { display: none; }
+  /* the buttons share the bar's width (eight of them fit a 320px screen) */
+  .rail .rail-btn { flex: 1 1 0; width: auto; min-width: 0; max-width: 48px; height: 40px; }
+  /* the overview opens upward from the bar */
+  .rail [data-drawer="left"] .ic { transform: rotate(-90deg); }
+  /* the current page's bar lies along the top edge instead of the side */
+  .rail-btn[aria-current="page"]::before { left: 10px; right: 10px; top: -8px; bottom: auto; width: auto; height: 3px; border-radius: 0 0 3px 3px; }
+  /* everything stays clear of the bar */
+  .stage { padding-bottom: calc(var(--nav-room) + 4px); padding-left: 16px; padding-right: 30px; }
+  .calendar-view, .text-page { padding-bottom: var(--nav-room); }
+  .news-view { padding-bottom: var(--nav-room); padding-left: 16px; }
+  .today-views { bottom: calc(var(--nav-room) + 4px); }
+  .toast-stack { bottom: calc(var(--nav-room) + 6px); right: 12px; left: 12px; }
+  .who-card { bottom: calc(var(--nav-room) + 56px); }
+  .drawer-tab { height: 110px; }
+  /* a page's title with its summary: the summary goes under the title instead of squeezing beside it */
+  .pg-head { flex-wrap: wrap; row-gap: 2px; }
+}
+/* short windows (a phone on its side, a small laptop window): the rail packs closer, and scrolls if it must */
+@media (max-height: 560px) and (min-width: 641px) {
+  .rail { gap: 2px; padding: 6px 0; overflow-y: auto; scrollbar-width: none; }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail .rail-btn { width: 34px; height: 32px; }
+  .rail .rail-rule { display: none; }
+  /* News: the globe keeps a size worth looking at; the page scrolls to the attendance under it */
+  .news-view { overflow-y: auto; grid-template-rows: min(calc(100svh - 48px), 760px) auto; }
+  #globe { width: min(100%, calc(100svh - 48px), 760px); }
+}

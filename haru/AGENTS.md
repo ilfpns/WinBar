@@ -11,6 +11,8 @@ WinBar 저장소 루트의 `AGENTS.md`는 C# 메뉴바 앱 규칙이고, 이 파
 
 ## 기술과 구조
 
+- 어디에 무엇이 있는지, 새 페이지·보기·설정을 넣을 때 고칠 곳은 `STRUCTURE.md`에 있다. 파일을 옮기거나 만들면 같이 고친다.
+- CSS는 `src/styles/app/NN-이름.css`에 부분별로 있고 번호가 적용 순서다(`app.css`는 `@import` 목록).
 - Vite + TypeScript(strict), 아이콘은 `lucide`만 쓴다. 새 프레임워크·라이브러리는 먼저 이유를 설명하고 허락을 받는다.
 - `src/timetable/`: Today 다이얼, 할 일 목록, 편집기 / `src/calendar/`: 달력, 날짜 메모 / `src/news/`: 지구본, 뉴스 서랍
 - `src/ui/`: 페이지 전환(router, view-swipe), 서랍(drawers), 공통 UI / `src/storage/`: IndexedDB, 백업

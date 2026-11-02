@@ -1,0 +1,132 @@
+/* ---------- <md-editor>: Markdown that formats itself as you type (the marks stay, dimmed) */
+md-editor { display: block; position: relative; min-height: 0; overflow-y: auto; overscroll-behavior: contain; outline: none; cursor: text;
+  white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; caret-color: var(--accent); }
+md-editor:focus-visible { outline: none; }
+/* the placeholder sits out of the text's flow (where the first line starts, as nothing): taking it away moves no
+   line, so the browser can't leave it painted behind the first letter (it did, under a Korean IME, as a float) */
+md-editor.empty::before { content: attr(data-placeholder); position: absolute; max-width: calc(100% - 8px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; pointer-events: none; color: var(--text-subtle); }
+md-editor { --md-fs: 15px; }
+.cal-note { --md-fs: 14px; }
+.j-editor .j-text { --md-fs: 15.5px; }
+md-editor .md-l { position: relative; min-height: 1.6em; padding-left: calc(var(--ind, 0) * 1.5em); }
+/* block marks (# , - , - [ ] , > , ---) stay in the text but take no room: what shows is the result */
+md-editor :is(.mk-ind, .mk-h, .mk-li, .mk-task, .mk-q, .mk-hr, .mk-img, .mk-callout) { font-size: 0; }
+/* inline marks (** ` ~~ [ ]( )) show only on the line being edited */
+md-editor .md-l:not(.active) .mk-in { font-size: 0; }
+md-editor .mk-in { color: var(--text-subtle); font-weight: 400; font-style: normal; text-decoration: none; }
+md-editor .md-l:is(.h1, .h2, .h3) { font-weight: 650; letter-spacing: -.02em; line-height: 1.3; color: var(--text-strong); margin: .4em 0 .15em; }
+md-editor .md-l.h1 { font-size: 1.6em; }
+md-editor .md-l.h2 { font-size: 1.32em; }
+md-editor .md-l.h3 { font-size: 1.14em; }
+/* a bullet: a dot where the dash was */
+md-editor .mk-li::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 calc(1.3 * var(--md-fs) - 6px) 0 calc(.35 * var(--md-fs));
+  border-radius: 50%; background: var(--text-muted); vertical-align: middle; position: relative; top: -1px;
+}
+md-editor .md-l[style*="--ind: 1"] .mk-li::before { background: none; box-shadow: inset 0 0 0 1.5px var(--text-muted); }
+md-editor .mk-ol { color: var(--text-muted); font-variant-numeric: tabular-nums; padding-right: .15em; }
+/* a to-do: a box you can tick */
+md-editor .mk-task { cursor: pointer; }
+md-editor .mk-task::before {
+  content: ""; display: inline-block; width: 15px; height: 15px; margin: 0 9px 0 2px; box-sizing: border-box; vertical-align: -2px;
+  border: 1.5px solid var(--text-muted); border-radius: 4px; transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+md-editor .mk-task:hover::before { border-color: var(--accent); }
+md-editor .md-l.task.done .mk-task::before {
+  border-color: var(--accent);
+  background: var(--accent) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23062312' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>") center / 11px no-repeat;
+}
+md-editor .md-l.task.done { color: var(--text-subtle); text-decoration: line-through; text-decoration-color: var(--text-subtle); }
+/* a quote: a bar on the left */
+md-editor .md-l.quote { padding-left: calc(var(--ind, 0) * 1.5em + 14px); color: var(--text-muted); }
+/* a callout: a tinted box with its icon; a run of callout lines reads as one box */
+md-editor .md-l.callout {
+  margin-left: calc(var(--ind, 0) * 1.5em); padding: 4px 12px 4px 38px; background: color-mix(in srgb, var(--accent) 11%, transparent);
+  border-radius: 10px; color: var(--text-strong);
+}
+md-editor .md-l.callout.co-up { border-top-left-radius: 0; border-top-right-radius: 0; }
+md-editor .md-l.callout.co-down { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+md-editor .md-l.callout:not(.co-up) { margin-top: 4px; padding-top: 8px; }
+md-editor .md-l.callout:not(.co-down) { margin-bottom: 4px; padding-bottom: 8px; }
+md-editor .md-l.callout[class*="warning"], md-editor .md-l.callout:has(.md-callout-ic[data-kind="warning"]) { background: color-mix(in srgb, #f2b13a 12%, transparent); }
+md-editor .md-l.callout:has(.md-callout-ic[data-kind="info"]) { background: color-mix(in srgb, #6ab0ff 12%, transparent); }
+md-editor .md-callout-ic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); display: grid; width: 18px; height: 18px; color: var(--accent); user-select: none; }
+md-editor .md-l.callout.co-up .md-callout-ic { visibility: hidden; }
+md-editor .md-callout-ic .ic { width: 18px; height: 18px; }
+md-editor .md-callout-ic[data-kind="warning"] { color: #f2b13a; }
+md-editor .md-callout-ic[data-kind="info"] { color: #6ab0ff; }
+.md-callout { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 .7em; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 11%, transparent); }
+.md-callout-ic { flex: none; display: grid; color: var(--accent); }
+.md-callout-ic .ic { width: 18px; height: 18px; }
+.md-callout[data-kind="warning"] { background: color-mix(in srgb, #f2b13a 12%, transparent); }
+.md-callout[data-kind="info"] { background: color-mix(in srgb, #6ab0ff 12%, transparent); }
+.md-callout[data-kind="warning"] .md-callout-ic { color: #f2b13a; }
+.md-callout[data-kind="info"] .md-callout-ic { color: #6ab0ff; }
+.chat-md .md-callout { background: rgb(0 0 0 / .1); margin: 2px 0; }
+md-editor .md-l.quote::before { content: ""; position: absolute; left: calc(var(--ind, 0) * 1.5em + 2px); top: 3px; bottom: 3px; width: 3px; border-radius: 2px; background: var(--line-strong); }
+/* a photo in the text: the picture where its line is; click opens it large, copy / remove on hover */
+md-editor .md-l.img { padding: 6px 0; }
+/* its source line takes no line box of its own (the caret parks at its end, on the photo's line) */
+md-editor .md-l.img .mk-img { position: absolute; left: 0; top: 0; }
+md-editor .md-img { position: relative; display: block; width: fit-content; max-width: 100%; user-select: none; cursor: zoom-in; }
+md-editor .md-img img { display: block; max-width: 100%; max-height: 460px; border-radius: 10px; border: 1px solid var(--line); background: rgb(var(--ink) / .04); }
+md-editor .md-img.missing { width: 220px; height: 120px; border-radius: 10px; border: 1px dashed var(--line-strong); background: rgb(var(--ink) / .04); cursor: default; }
+md-editor .md-img.missing img { display: none; }
+md-editor .md-img-bar { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+md-editor .md-img:hover .md-img-bar, md-editor .md-img-btn:focus-visible { opacity: 1; }
+md-editor .md-img.missing .md-img-btn[data-act="copy"] { display: none; }
+@media (hover: none) { md-editor .md-img-bar { opacity: 1; } }
+md-editor .md-img-btn {
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px; cursor: pointer;
+  background: rgb(0 0 0 / .62); color: #fff; backdrop-filter: blur(6px);
+}
+md-editor .md-img-btn:hover { background: rgb(0 0 0 / .8); }
+md-editor .md-img-btn .ic { width: 14px; height: 14px; }
+/* a photo given a width keeps its shape at that width (no height cap squeezing it) */
+md-editor .md-img.sized img { max-height: none; height: auto; }
+/* resize: drag the bottom-right corner; double-click it for the photo's own size */
+md-editor .md-img-grip {
+  position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 6px; cursor: nwse-resize; touch-action: none;
+  background: var(--popover); box-shadow: 0 0 0 1px var(--line-strong), 0 2px 6px rgb(0 0 0 / .3); opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+md-editor .md-img-grip::after { content: ""; position: absolute; inset: 5px; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); border-radius: 0 0 2px 0; }
+md-editor .md-img:hover .md-img-grip, md-editor .md-img.resizing .md-img-grip { opacity: 1; }
+md-editor .md-img.resizing img { outline: 2px solid var(--accent); outline-offset: 2px; }
+md-editor .md-img.missing .md-img-grip { display: none; }
+@media (hover: none) { md-editor .md-img-grip { opacity: 1; } }
+.md-view .md-img, .pr-body .md-img { margin: 8px 0; }
+.md-view .md-img img, .pr-body .md-img img { display: block; max-width: 100%; border-radius: 8px; }
+/* a divider: only the line */
+md-editor .md-l.hr { background: linear-gradient(var(--line-strong), var(--line-strong)) center / 100% 1px no-repeat; }
+md-editor :is(.md-l.code, .md-l.fence) { font: 400 .88em/1.7 var(--font-mono); background: rgb(var(--ink) / .05); padding: 0 10px; }
+md-editor .md-l.fence { color: var(--text-subtle); }
+md-editor code { padding: 1px 4px; border-radius: 5px; background: rgb(var(--ink) / .08); font: 400 .9em var(--font-mono); color: var(--text-strong); }
+md-editor strong { font-weight: 650; color: var(--text-strong); }
+/* a mention: @name as a chip */
+.md-mention { padding: 0 5px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 600; white-space: nowrap; }
+/* @ALL: everyone, in the warm tone that says "this is for you too" */
+.md-mention.all { background: color-mix(in srgb, #f2b13a 18%, transparent); color: #f2b13a; }
+md-editor .md-mention .mk { font-weight: 400; }
+/* in the editor the @ is drawn (the text keeps only @[name](user:uid), shown while its line is edited) */
+md-editor .md-l:not(.active) .md-mention::before { content: "@"; }
+/* the @ menu: people's faces where the blocks have icons */
+.slash-face { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; overflow: hidden; background: var(--gray-btn); font: 600 11px var(--font-sans); color: var(--text-strong); }
+.slash-face img { width: 100%; height: 100%; object-fit: cover; }
+/* Archive has a page that names you, unread: a dot that bounces on its button */
+:is([data-view="archive"].has-mention, [data-view="chat"].has-unread) { position: relative; }
+:is([data-view="archive"].has-mention, [data-view="chat"].has-unread)::after {
+  content: ""; position: absolute; top: 7px; right: 7px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--surface), 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent);
+  animation: mention-bounce 1.6s cubic-bezier(.3, 0, .3, 1) infinite;
+}
+:is(.nav-item[data-view="archive"].has-mention, .nav-item[data-view="chat"].has-unread)::after { top: 50%; right: 12px; margin-top: -4px; }
+/* the overview's Chat line also says how many */
+.nav-item[data-view="chat"].has-unread::before {
+  content: attr(data-unread); position: absolute; top: 50%; right: 26px; transform: translateY(-50%);
+  font: 600 10.5px var(--font-mono); color: var(--accent);
+}
+@keyframes mention-bounce { 0%, 60%, 100% { transform: translateY(0); } 20% { transform: translateY(-5px); } 40% { transform: translateY(0) scale(1.15, .85); } 50% { transform: translateY(-2px); } }
+.a-mention-tag { flex: none; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); font: 600 10.5px var(--font-sans); }
+.j-item.mentioned { box-shadow: inset 2px 0 0 var(--accent); }
+@media (prefers-reduced-motion: reduce) { :is([data-view="archive"].has-mention, [data-view="chat"].has-unread)::after { animation: none; } }

@@ -1,0 +1,287 @@
+/* ---------- stage: the dial alone. An open drawer slides and shrinks it with a compositor-only
+   transform (--dial-x / --dial-s are set from JS), so nothing is re-laid out mid-animation. */
+.stage { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px 56px; }
+.dial-wrap {
+  position: relative;
+  width: min(100%, calc(100svh - 60px), 860px); aspect-ratio: 1;
+  /* kept clear of Today's greeting at every size: centred, a dial this big starts below it (--greet-room, from ui/greeting) */
+  max-width: calc(100svh - var(--tb, 0px) - 2 * var(--greet-room, 0px) - 2 * var(--bar-room, 0px));
+  transform: translate3d(var(--dial-x, 0px), 0, 0) scale(var(--dial-s, 1));
+  transition: transform var(--drawer-dur) var(--drawer-ease);
+  will-change: transform;
+}
+
+/* Today's other views: a chart takes the dial's box; the dial fades out underneath */
+.dial-wrap > #dial, .dial-wrap > #orb-canvas, .dial-wrap > #orb-layer { transition: opacity .3s var(--ease-out); }
+.dial-wrap.alt > #dial, .dial-wrap.alt > #orb-canvas, .dial-wrap.alt > #orb-layer { opacity: 0; visibility: hidden; pointer-events: none; }
+.today-chart { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+/* rings on Today are interactive: hover a ring or legend row, click to select its tasks */
+.today-chart [data-cat] { pointer-events: visiblePainted; cursor: pointer; transition: opacity var(--dur-base) var(--ease-out); }
+.today-chart .tt-legend { pointer-events: bounding-box; }
+.today-chart [data-cat].dim { opacity: .28; }
+.today-chart-sub { position: absolute; left: 0; right: 0; bottom: 6%; margin: 0; text-align: center; font: 400 13px var(--font-mono); color: var(--text-muted); pointer-events: none; }
+/* slices (Today's second view): a numbered donut on a black disk — the day so far lit in its colours,
+   names around the rim, the now edge glowing, the current task as the title */
+#dial.thin { overflow: visible; }
+:is(#dial, .peek-dial) .disk { fill: var(--disk); }
+#dial.thin .layer-blocks { clip-path: url(#ring-clip); }
+#dial.thin .ring-bg { fill: rgb(var(--ink) / 0.018); }
+/* slices have no outline: tasks that follow one another meet edge to edge (a seam marks the joins that need one) */
+:is(#dial, .peek-dial) .slice { fill: var(--slice); transition: fill var(--dur-fast) var(--ease-out); }
+:is(#dial, .peek-dial) .slice.sel { fill: var(--slice-sel); }
+:is(#dial, .peek-dial) .slice-past { fill: color-mix(in srgb, var(--c) 66%, var(--slice-base)); pointer-events: none; }
+:is(#dial, .peek-dial) .seam { stroke: color-mix(in srgb, var(--bg) 70%, transparent); stroke-width: 1.5; pointer-events: none; }
+:is(#dial, .peek-dial) .seam.gray { stroke: var(--slice-gap); stroke-width: 2; }
+:is(#dial, .peek-dial) .slice-glow { fill: var(--c); opacity: .22; pointer-events: none; }
+/* the lit slices' glow (dial.ts gHalo) */
+#dial .layer-halo { display: none; pointer-events: none; }
+#dial.thin .layer-halo { display: inline; filter: blur(16px); opacity: .6; }
+#dial.thin .halo-clip { clip-path: url(#ring-clip); }
+#dial .halo { fill: var(--c); }
+:root[data-theme="light"] #dial.thin .layer-halo { opacity: .3; }
+/* tasks named outside the ring on leader lines */
+:is(#dial, .peek-dial) .callout { pointer-events: none; }
+/* phones: no room beside the ring for names (they would run off the screen); the middle names the current task */
+@media (max-width: 640px) { :is(#dial, .peek-dial) .callout { display: none; } }
+:is(#dial, .peek-dial) .callout-line { fill: none; stroke: color-mix(in srgb, var(--c) 65%, var(--text-subtle)); stroke-width: 1.6; }
+:is(#dial, .peek-dial) .callout-dot { fill: var(--c); }
+:is(#dial, .peek-dial) .callout-name { font: 500 22px var(--font-sans); fill: var(--text-strong); }
+:is(#dial, .peek-dial) .callout-detail { font: 400 15px var(--font-mono); fill: var(--text-muted); }
+:is(#dial, .peek-dial) .callout.done .callout-name { fill: var(--text-strong); }
+:is(#dial, .peek-dial) .callout.now .callout-name, :is(#dial, .peek-dial) .callout.sel .callout-name { fill: var(--accent); }
+:is(#dial, .peek-dial) .now-edge { stroke: color-mix(in srgb, var(--accent) 55%, #b8fff0); stroke-width: 3; stroke-linecap: round; pointer-events: none;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 80%, transparent)); }
+:is(#dial, .peek-dial) .slice-sub { font: 400 15px var(--font-mono); fill: var(--text-muted); pointer-events: none; }
+:is(#dial, .peek-dial) .slice-sub.on { font-family: var(--font-sans); font-weight: 500; fill: var(--text-strong); }
+/* slices: the dot emblem sits small in the middle of the hole (its dots carry the slices' colours inward) */
+.dial-wrap.thin > #orb-canvas { left: 31%; top: 31%; width: 38%; height: 38%; }
+:is(#dial, .peek-dial) .hover-label.drag-time { font-size: 20px; fill: var(--accent); }
+.today-chart .cal-tt-dial { width: 100%; height: 100%; }
+.today-chart-empty { margin: 0; font-size: 15px; color: var(--text-subtle); }
+/* Today's modes (timetable/views/today-modes.ts): one SVG each in the dial's box; Today's tasks in them select on click */
+.today-chart .today-mode { width: 100%; height: 100%; overflow: visible; }
+.today-mode.enter { animation: tm-in .45s var(--ease-out) both; }
+@keyframes tm-in { from { opacity: 0; transform: scale(.97); } }
+@media (prefers-reduced-motion: reduce) { .today-mode.enter { animation: none; } }
+.today-mode [data-id] { pointer-events: visiblePainted; cursor: pointer; transition: opacity var(--dur-fast) var(--ease-out); }
+.today-mode [data-id]:hover { opacity: .8; }
+.today-mode text { font-family: var(--font-sans); }
+/* focus */
+.tm-focus .tm-track { fill: none; stroke: var(--surface-solid); stroke-width: 30; }
+.tm-focus .tm-task path { stroke: var(--bg); stroke-width: 2; }
+.tm-focus .tm-name { font-size: 22px; font-weight: 500; fill: var(--text); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.tm-focus .tm-name.lit { fill: #fff; }
+.tm-focus .tm-hour { font: 400 15px var(--font-mono); fill: var(--text-subtle); text-anchor: middle; dominant-baseline: central; }
+.tm-focus .tm-hour.wide { font-size: 18px; fill: var(--text-muted); }
+.tm-focus .tm-now { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.tm-focus .tm-now-dot { fill: var(--accent); }
+.tm-focus .tm-kicker { font: 500 16px var(--font-mono); letter-spacing: .16em; fill: var(--accent); }
+.tm-focus .tm-title { font-size: 60px; font-weight: 500; letter-spacing: -.02em; fill: var(--text-strong); }
+.tm-focus .tm-sub { font: 400 22px var(--font-mono); fill: var(--text-muted); }
+.tm-focus .tm-next { font-size: 22px; fill: var(--text-subtle); }
+.tm-focus .tm-bar { fill: var(--surface-3); }
+/* week */
+.tm-week .tm-grid { stroke: rgb(var(--ink) / .05); stroke-width: 1; }
+.tm-week .tm-tick { font: 400 15px var(--font-mono); fill: var(--text-subtle); text-anchor: middle; }
+.tm-week .tm-dow { font: 500 15px var(--font-mono); letter-spacing: .1em; fill: var(--text-subtle); }
+.tm-week .tm-dow.sun { fill: #e26d5c; }
+.tm-week .tm-dow.sat { fill: var(--cat-study); }
+.tm-week .tm-dow.today { fill: var(--accent); }
+.tm-week .tm-date { font-size: 34px; font-weight: 500; fill: var(--text); }
+.tm-week .tm-date.past { fill: var(--text-muted); }
+.tm-week .tm-date.today { fill: var(--text-strong); }
+.tm-week .tm-lane { fill: rgb(var(--ink) / .03); stroke: var(--line); stroke-width: 1; }
+.tm-week .tm-lane.today { fill: color-mix(in srgb, var(--accent) 6%, transparent); stroke: color-mix(in srgb, var(--accent) 35%, transparent); }
+.tm-week .tm-empty { font-size: 18px; fill: var(--text-subtle); text-anchor: middle; }
+.tm-week .tm-seg rect { fill: var(--f); stroke: color-mix(in srgb, var(--c) 45%, transparent); stroke-width: 1.5; }
+.tm-week .tm-seg.done rect { fill: color-mix(in srgb, var(--c) 72%, var(--bg)); stroke: none; }
+.tm-week .tm-seg.missed rect { fill: color-mix(in srgb, var(--c) 8%, transparent); stroke: color-mix(in srgb, var(--c) 60%, transparent); stroke-dasharray: 5 4; }
+.tm-week .tm-seg text { font-size: 19px; fill: var(--text); pointer-events: none; }
+.tm-week .tm-seg.done text { fill: #fff; }
+.tm-week .tm-seg.missed text { fill: var(--text-muted); }
+.tm-week .tm-now { stroke: var(--accent); stroke-width: 3; }
+.tm-week .tm-now-chip { fill: var(--accent); }
+.tm-week .tm-now-text { font: 500 16px var(--font-mono); fill: #04120a; text-anchor: middle; }
+/* dots */
+.tm-dots .tm-month { font-size: 30px; font-weight: 500; fill: var(--text-strong); }
+.tm-dots .tm-month.small { font: 400 17px var(--font-mono); fill: var(--text-muted); }
+.tm-dots .tm-wd { font: 500 14px var(--font-mono); letter-spacing: .1em; fill: var(--text-subtle); text-anchor: middle; }
+.tm-dots .tm-wd.sun { fill: #e26d5c; }
+.tm-dots .tm-wd.sat { fill: var(--cat-study); }
+.tm-dots .tm-cell { fill: rgb(var(--ink) / .03); stroke: var(--line); stroke-width: 1; }
+.tm-dots .tm-cell.today { fill: color-mix(in srgb, var(--accent) 7%, transparent); stroke: color-mix(in srgb, var(--accent) 45%, transparent); }
+.tm-dots .tm-num { font-size: 20px; font-weight: 500; fill: var(--text); }
+.tm-dots .tm-num.today { fill: var(--accent); }
+.tm-dots .tm-dot.free { fill: rgb(var(--ink) / .06); }
+.tm-dots .tm-dot.ahead { opacity: .6; }
+.today-mode :is([data-action], [data-date], .movable) { pointer-events: visiblePainted; cursor: pointer; }
+.today-mode .tm-day { pointer-events: bounding-box; }
+.today-mode :is([data-action], [data-date]):focus-visible { outline: none; }
+.today-mode :is([data-action], .tm-day):focus-visible rect { stroke: var(--text-muted); stroke-width: 2; }
+.today-mode .tm-day:hover .tm-cell { fill: rgb(var(--ink) / .07); }
+.today-mode .tm-lane[data-date]:hover { fill: rgb(var(--ink) / .06); }
+/* buttons drawn in the modes */
+.tm-btn rect { fill: var(--surface-3); stroke: var(--line); stroke-width: 1; transition: fill var(--dur-fast) var(--ease-out); }
+.tm-btn:hover rect { fill: rgb(var(--ink) / .2); }
+.tm-btn text { font-size: 22px; font-weight: 500; fill: var(--text-strong); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.tm-btn.on rect { fill: color-mix(in srgb, var(--accent) 22%, transparent); stroke: color-mix(in srgb, var(--accent) 55%, transparent); }
+.tm-btn.on text { fill: var(--accent); }
+/* week: a task being dragged, and where it would go */
+.tm-week .movable { cursor: grab; }
+.tm-week .tm-seg.lifted { opacity: .35; }
+.tm-week .tm-seg.ghost { pointer-events: none; filter: drop-shadow(0 8px 18px rgb(0 0 0 / .55)); }
+.tm-week .tm-seg.ghost rect { stroke: #fff; stroke-width: 2; stroke-dasharray: none; }
+.tm-week .tm-seg.ghost.bad { opacity: .45; }
+.tm-week .tm-drag-label { pointer-events: none; }
+.tm-week .tm-drag-label rect { fill: #fff; }
+.tm-week .tm-drag-label text { font: 500 18px var(--font-mono); fill: #0b0b0d; transform: translateX(12px); }
+/* on a narrow screen the box is drawn smaller: the type comes out larger, a little lighter set */
+.today-mode.compact .tm-name { font-size: 33px; }
+.today-mode.compact .tm-hour { font-size: 22px; }
+.today-mode.compact .tm-hour.wide { font-size: 26px; }
+.today-mode.compact .tm-kicker { font-size: 22px; }
+.today-mode.compact .tm-title { font-size: 84px; }
+.today-mode.compact .tm-sub, .today-mode.compact .tm-next { font-size: 30px; }
+.today-mode.compact .tm-btn text { font-size: 31px; }
+.tm-week.compact .tm-tick { font-size: 15px; }
+.tm-week.compact .tm-dow { font-size: 13px; }
+.tm-week.compact .tm-date { font-size: 26px; }
+.tm-week.compact .tm-seg text { font-size: 17px; }
+.tm-week.compact .tm-empty { font-size: 16px; }
+.tm-dots.compact .tm-wd { font-size: 18px; }
+.tm-dots.compact .tm-num { font-size: 22px; }
+.tm-dots.compact .tm-month { font-size: 34px; }
+.tm-dots.compact .tm-month.small { font-size: 20px; }
+/* under the mode: what just happened (Undo), and yesterday's unfinished tasks over the week */
+.today-flash { position: absolute; left: 50%; bottom: 2%; z-index: 3; translate: -50% 0; display: flex; align-items: center; gap: 8px; max-width: 92%; padding: 8px 10px 8px 14px; border-radius: 12px;
+  background: var(--surface-solid); border: 1px solid var(--line); box-shadow: 0 10px 30px rgb(0 0 0 / .4); font-size: 13px; color: var(--text);
+  opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+/* it lies over the mode's bottom: only its Undo takes clicks */
+.today-flash.on { opacity: 1; transform: none; }
+.today-flash.on .btn-text { pointer-events: auto; }
+.today-flash .btn-text { height: 26px; padding: 0 8px; font-size: 12px; color: var(--accent); }
+/* a mode's own bar (the week's carry-over, focus's reminders) sits just above its box, never over it */
+/* a mode's bar above the box takes its room from the dial's size, so on a low window it never sits on the greeting */
+.dial-wrap:has(.today-remind, .today-carry) { --bar-room: 48px; }
+.today-carry, .today-remind { position: absolute; left: 50%; bottom: calc(100% + 8px); translate: -50% 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px;
+  width: max-content; max-width: 100%; box-sizing: border-box; padding: 6px 8px 6px 12px; border-radius: 12px; background: var(--surface-solid); border: 1px solid var(--line);
+  pointer-events: auto; animation: tm-in .35s var(--ease-out) both; }
+.today-remind { gap: 8px; padding: 0 12px; height: 34px; border-radius: 17px; color: var(--text-muted); font: inherit; font-size: 13px; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+.today-remind:hover { color: var(--text-strong); }
+.today-remind[aria-pressed="true"] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.today-remind .ic { width: 15px; height: 15px; }
+.today-carry > .ic { width: 15px; height: 15px; color: var(--accent); }
+.today-carry-text { font-size: 13px; font-weight: 500; color: var(--text-strong); }
+.today-carry .btn-text, .today-carry .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+.today-views {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 5; display: flex; gap: 2px; padding: 3px;
+  border: 1px solid var(--glass-edge); border-radius: 12px; background: var(--noise), var(--glass-fill);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%); box-shadow: var(--glass-shine), var(--glass-drop);
+}
+.today-view { display: grid; place-items: center; width: 32px; height: 28px; padding: 0; border: 0; border-radius: 9px; background: none; color: var(--text-subtle); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.today-view .ic { width: 15px; height: 15px; }
+.today-view:hover { color: var(--text-strong); }
+.today-view[aria-pressed="true"] { background: var(--gray-btn-hover); color: var(--text-strong); }
+
+/* the centre emblem sits in its own svg layer so its idle motion never repaints the whole dial */
+/* the emblem's dots: a small canvas over the hole (280 of the dial's 1040 units), painted per frame */
+#orb-canvas { position: absolute; left: 36.5385%; top: 36.5385%; width: 26.923%; height: 26.923%; pointer-events: none; }
+#orb-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; will-change: transform; }
+#dial { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
+:is(#dial, .peek-dial) .ring-bg { fill: var(--surface-solid); }
+:is(#dial, .peek-dial) .tick { stroke: var(--line); stroke-width: 1.5; }
+:is(#dial, .peek-dial) .tick.major { stroke: var(--line-strong); }
+:is(#dial, .peek-dial) .edge { fill: none; stroke: var(--line); stroke-width: 1.5; }
+:is(#dial, .peek-dial) .hour { font: 400 17px var(--font-mono); fill: var(--text-subtle); }
+:is(#dial, .peek-dial) .hour.major { font-size: 20px; fill: var(--text); }
+:is(#dial, .peek-dial) .block {
+  fill: var(--cf); cursor: pointer;
+  transition: fill var(--dur-fast) var(--ease-out);
+}
+:is(#dial, .peek-dial) .block:hover { fill: color-mix(in srgb, var(--c) 22%, var(--cf)); }
+:is(#dial, .peek-dial) .block.sel { fill: color-mix(in srgb, var(--c) 45%, var(--cf)); }
+:is(#dial, .peek-dial) .block-arc { fill: none; stroke: var(--c); stroke-width: 5; pointer-events: none; opacity: .5; }
+/* done: filled in its colour, a heavier rim, a check badge — readable at a glance */
+:is(#dial, .peek-dial) .block.done { fill: color-mix(in srgb, var(--c) 34%, var(--cf)); }
+:is(#dial, .peek-dial) .block.done:hover { fill: color-mix(in srgb, var(--c) 42%, var(--cf)); }
+:is(#dial, .peek-dial) .block-arc.done { opacity: 1; stroke-width: 8; }
+/* in progress: the rim in dashes, more present than a task not started */
+:is(#dial, .peek-dial) .block-arc.doing { opacity: .95; stroke-width: 6; stroke-dasharray: 14 8; }
+:is(#dial, .peek-dial) .done-badge { pointer-events: none; }
+/* a task with a note: a small dot by its name */
+:is(#dial, .peek-dial) .note-dot { fill: var(--accent); pointer-events: none; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent)); }
+:is(#dial, .peek-dial) .done-badge circle { fill: var(--c); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c) 55%, transparent)); }
+:is(#dial, .peek-dial) .done-badge .done-ic { color: var(--bg); stroke-width: 3; }
+:is(#dial, .peek-dial) .status-badge { pointer-events: none; }
+/* in progress: an hourglass on the in-progress blue; not started: a faint dashed ring */
+:is(#dial, .peek-dial) .status-badge.doing circle { fill: color-mix(in srgb, var(--status-doing) 26%, var(--bg)); stroke: var(--status-doing); stroke-width: 1.5; }
+:is(#dial, .peek-dial) .status-badge.doing .doing-ic { color: var(--status-doing); stroke-width: 2.4; }
+:is(#dial, .peek-dial) .status-badge.yet circle { fill: none; stroke: var(--text-subtle); stroke-width: 1.6; stroke-dasharray: 3 3; opacity: .8; }
+/* a status just changed: the badge changes in place, quietly — a soft swell, then the icon settles in: the
+   hourglass turns over, the check draws itself, the dashed ring turns a little. Everything turns about its own
+   centre (fill-box on <g> and <circle>; the icon's own nested <svg> is never transformed) */
+#dial .status-badge, #dial .status-badge :is(circle, .ic-wrap) { transform-box: fill-box; transform-origin: center; }
+#dial .status-badge.pop { animation: badge-swell .4s var(--ease-out) var(--pop-at, 0ms); }
+#dial .status-badge.pop .ic-wrap { animation: badge-icon-in .32s var(--ease-out) var(--pop-at, 0ms) both; }
+#dial .status-badge.doing.pop .ic-wrap { animation: badge-turn .5s cubic-bezier(.3, 1.2, .5, 1) var(--pop-at, 0ms) both; }
+#dial .done-badge.pop .done-ic * { stroke-dasharray: 1; animation: ic-draw .4s var(--ease-out) calc(var(--pop-at, 0ms) + 80ms) both; }
+#dial .status-badge.yet.pop circle { animation: badge-ring .5s var(--ease-out) var(--pop-at, 0ms); }
+@keyframes badge-swell { 45% { transform: scale(1.12); } }
+@keyframes badge-icon-in { from { opacity: 0; transform: scale(.6); } }
+@keyframes badge-turn { from { opacity: 0; transform: rotate(-180deg) scale(.7); } 40% { opacity: 1; } }
+@keyframes badge-ring { from { transform: rotate(-90deg); opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { #dial .status-badge.pop, #dial .status-badge.pop * { animation: none; } }
+:is(#dial, .peek-dial) .block-label { font: 500 21px var(--font-sans); letter-spacing: -.01em; fill: var(--text); pointer-events: none; }
+:is(#dial, .peek-dial) .block-label.done { fill: var(--text-strong); }
+:is(#dial, .peek-dial) .block-label.now, :is(#dial, .peek-dial) .block-label.sel { fill: var(--text-strong); }
+:is(#dial, .peek-dial) .block-time { font: 400 14px var(--font-mono); fill: color-mix(in srgb, var(--text) 55%, transparent); pointer-events: none; }
+:is(#dial, .peek-dial) .ghost { fill: color-mix(in srgb, var(--text) 10%, transparent); stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 6 6; pointer-events: none; }
+:is(#dial, .peek-dial) .hover-tick { stroke: var(--text-muted); stroke-width: 1.5; pointer-events: none; }
+/* the hovered task's whole name, just above its name on the ring */
+#dial .dial-tip { pointer-events: none; animation: dial-tip-in .16s var(--ease-out) both; }
+#dial .dial-tip-box { fill: var(--popover); stroke: color-mix(in srgb, var(--c) 55%, transparent); stroke-width: 1.5; filter: drop-shadow(0 6px 14px rgb(0 0 0 / .35)); }
+#dial .dial-tip-name { font: 600 16px var(--font-sans); fill: var(--text-strong); }
+#dial .dial-tip-time { font: 400 12px var(--font-mono); fill: var(--text-muted); }
+@keyframes dial-tip-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { #dial .dial-tip { animation: none; } }
+:is(#dial, .peek-dial) .hover-label {
+  font: 500 16px var(--font-mono); fill: var(--text-strong); pointer-events: none;
+  stroke: var(--surface-solid); stroke-width: 6px; stroke-linejoin: round; paint-order: stroke;
+}
+:is(#dial, .peek-dial) .hover-label.now { fill: var(--accent); }
+:is(#dial, .peek-dial) .now-hand { stroke: var(--accent); stroke-width: 2.5; pointer-events: none; }
+:is(#dial, .peek-dial) .now-dot { fill: var(--accent); pointer-events: none; }
+/* where a new day begins: a dashed cut through the ring, a small ↺ badge just past the rim */
+:is(#dial, .peek-dial) .layer-reset { pointer-events: none; }
+:is(#dial, .peek-dial) .reset-cut { stroke: var(--text-muted); stroke-width: 2; stroke-dasharray: 5 7; stroke-linecap: round; }
+:is(#dial, .peek-dial) .reset-badge { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 1.5; }
+:is(#dial, .peek-dial) .reset-ic { color: var(--text-muted); }
+#orb-layer .orb-core { transition: fill var(--dur-fast) var(--ease-out); transform-box: fill-box; transform-origin: center; }
+#orb-layer .orb-core.pulse { animation: core-pulse .6s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes core-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.08); } 100% { transform: scale(1); } }
+#orb-layer .orb-core { fill: var(--accent); }
+#orb-layer .orb-pct { font: 600 25px var(--font-mono); letter-spacing: -.03em; fill: var(--bg); font-variant-numeric: tabular-nums; }
+
+/* ---------- views: Today (the dial) and Calendar share the page */
+/* pages: only the current one (and, mid-turn, the one sliding away) is on screen */
+/* off-screen pages stay laid out (just invisible), so switching never re-measures or re-allocates them */
+.page:not(.current):not(.leaving) { visibility: hidden; pointer-events: none; }
+/* during a page turn both pages are on screen; the leaving one stays below the drawers */
+/* each page keeps its own compositor layer, so a turn never starts by building one */
+.page { will-change: transform; }
+/* while pages slide, a backdrop blur would be recomputed over the whole moving page every frame:
+   swap it for a near-identical solid fill for those 0.38 s */
+/* (the glass is nearly opaque, so dropping the blur doesn't change its colour: no darkening mid-turn) */
+body.switching :is(.panel, .drawer-tab, .rail) { backdrop-filter: none; }
+/* the same while a drawer slides: its blur would be redone over the whole panel every frame of the move */
+body.drawer-moving :is(.panel, .drawer-tab) { backdrop-filter: none; }
+.leaving { pointer-events: none; }
+
+.icon-btn {
+  display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-sm);
+  background: var(--gray-btn); color: var(--text); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.icon-btn:hover { background: var(--gray-btn-hover); color: var(--text-strong); }

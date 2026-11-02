@@ -1,10 +1,10 @@
-import { type Block, contains, labelOf, newId, passedOf, statusOf } from './model';
-import { centeredText, svgEl } from './svg';
-import { DAY, SNAP, formatDuration, hhmm, mod } from './time';
-import { setState, state } from './state';
-import { type PlanBlock, clearPlan, planOn, setPlan } from './plans';
-import { templateBlock } from './templates';
-import { type WeekDay, loadDay, weekDates, weekStart } from '../calendar/week';
+import { type Block, contains, labelOf, newId, passedOf, statusOf } from '../model';
+import { centeredText, svgEl } from '../svg';
+import { DAY, SNAP, formatDuration, hhmm, mod } from '../time';
+import { setState, state } from '../state';
+import { type PlanBlock, clearPlan, planOn, setPlan } from '../plans';
+import { templateBlock } from '../templates';
+import { type WeekDay, loadDay, weekDates, weekStart } from '../../calendar/week';
 
 /**
  * Three more ways Today shows the day, each one SVG in the dial's own box, drawn in place of the dial like By

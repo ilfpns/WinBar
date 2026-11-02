@@ -1,5 +1,5 @@
 import { state, subscribe, toggleDrawer } from '../timetable/state';
-import { type View, currentView, onView } from './router';
+import { TEXT_PAGES, type View, VIEW_ORDER, currentView, onView } from './router';
 
 const WIDE = 1000;   // above this the dial makes room for open drawers; below, drawers overlay it
 const GUTTER = 40;   // space kept between an open drawer and the dial
@@ -13,7 +13,7 @@ type Side = 'left' | 'right';
 
 /** Which drawer lives on which side of which page. The open/closed state is per side. */
 const DRAWERS: { id: string; side: Side; views: View[] }[] = [
-  { id: 'drawer-left', side: 'left', views: ['today', 'calendar', 'news', 'words', 'journal', 'archive', 'board', 'library'] },
+  { id: 'drawer-left', side: 'left', views: VIEW_ORDER },
   { id: 'drawer-right', side: 'right', views: ['today'] },  // tasks
   { id: 'drawer-news', side: 'right', views: ['news'] },    // news feed (empty for now)
 ];
@@ -113,7 +113,7 @@ export function mountDrawers(dialWrap: HTMLElement): void {
     // controls and cards (the attendance bar, menus) are not background; nor is the rail's rule (it is dragged)
     if (t.closest('.drawer, .time-pop, .plan-pop, .ahead-pop, button, input, textarea, select, a, .cal-day, .attend, .glass-card, .logo-menu, dialog, .split, [data-split]')) return;
     const view = currentView();
-    if (view === 'words' || view === 'journal' || view === 'archive' || view === 'board' || view === 'library') {
+    if (TEXT_PAGES.includes(view)) {
       // text pages: only the margin around the content pulls the overview out
       if (t.closest('.pg-body')) return;
       pull(e.clientX < innerWidth / 2 ? 'left' : 'right');

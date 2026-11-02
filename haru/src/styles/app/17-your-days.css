@@ -1,0 +1,141 @@
+/* ---------- Your days: Today's history at the top of Journal */
+/* the pages keep a usable height under an opened Your days; past that the page scrolls */
+.journal-view { grid-template-rows: auto auto minmax(min(520px, 80svh), 1fr); }
+/* no grid gap: each block brings its own space on top, so the folded charts leave none behind */
+.insights { display: grid; padding: 14px 18px; }
+.insights > .ins-tiles { margin-top: 14px; }
+.ins-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: left; }
+.ins-head > .ic { width: 14px; height: 14px; color: var(--text-muted); transition: transform var(--dur-base) var(--ease-out); }
+.ins-toggle { margin-left: auto; text-transform: none; color: var(--text-muted); }
+.ins-head:hover .ins-toggle { color: var(--text-strong); }
+.insights.open .ins-head > .ic { transform: rotate(180deg); }
+.ins-since { text-transform: none; }
+
+/* the four numbers: an icon (the done one in a ring that fills), what it is, the number, a line under it */
+.ins-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.ins-tile {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
+  background: rgb(var(--shade) / 0.22); box-shadow: inset 0 0 0 1px rgb(var(--ink) / 0.04);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.ins-tile:hover { background: rgb(var(--shade) / 0.32); }
+.ins-tile.rise { animation: ins-rise .5s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes ins-rise { from { opacity: 0; transform: translateY(8px); } }
+.ins-ic { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: rgb(var(--ink) / 0.05); color: var(--text-muted); }
+.ins-ic > .ic { width: 17px; height: 17px; }
+.ins-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ins-ring circle { fill: none; stroke-width: 3; }
+.ins-ring-track { stroke: rgb(var(--ink) / 0.08); }
+.ins-ring-arc { stroke: var(--chart-bar); stroke-linecap: round; stroke-dasharray: 100; transition: stroke-dashoffset 1s var(--ease-out); }
+.ins-tile-text { display: grid; gap: 1px; min-width: 0; }
+.ins-label { display: flex; align-items: center; gap: 5px; text-transform: none; font-size: 11.5px; }
+.ins-num { font-size: 22px; font-weight: 600; letter-spacing: -.02em; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.ins-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--text-muted); }
+
+/* what a number or chart means: a small (i), its text on hover or focus */
+.ins-info { position: relative; display: inline-grid; place-items: center; width: 15px; height: 15px; color: var(--text-subtle); cursor: help; outline: none; }
+.ins-info .ic { width: 12px; height: 12px; }
+.ins-info:hover, .ins-info:focus-visible { color: var(--text-strong); }
+:is(.ins-info, .ins-row, .ins-col)[data-tip]:is(:hover, :focus-visible)::after {
+  content: attr(data-tip); position: absolute; z-index: 5; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%);
+  width: max-content; max-width: 260px; padding: 6px 9px; border-radius: var(--radius-sm); white-space: normal; text-align: left; pointer-events: none;
+  background: var(--popover); border: 1px solid rgb(var(--ink) / 0.08); box-shadow: 0 8px 22px rgb(0 0 0 / .35);
+  font: 400 11.5px/1.45 var(--font-sans); letter-spacing: 0; text-transform: none; color: var(--text-strong);
+  animation: ins-tip .14s var(--ease-out);
+}
+@keyframes ins-tip { from { opacity: 0; transform: translate(-50%, 3px); } }
+
+/* opened, the charts fold down under the numbers; closed, they fold back up (no gap left behind) */
+.ins-fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .45s var(--ease-out), opacity .3s var(--ease-out); }
+.insights.open .ins-fold { grid-template-rows: 1fr; opacity: 1; }
+.ins-more { display: grid; gap: 18px; min-height: 0; overflow: hidden; }
+/* the space over the charts sits inside the fold, so a closed fold takes none */
+.ins-more > :first-child { margin-top: 16px; }
+.ins-fold.settled > .ins-more { overflow: visible; }
+.ins-group-title { display: flex; align-items: center; gap: 6px; }
+.ins-legend { display: flex; gap: 12px; font-size: 11.5px; color: var(--text-muted); }
+.ins-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.ins-legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+.sw.done, .ins-bar.done, .ins-col-fill.done { background: var(--chart-bar); }
+.sw.plan, .ins-bar.plan, .ins-col-fill.plan { background: color-mix(in srgb, var(--chart-bar) 30%, transparent); }
+
+/* the last two weeks: a column a day, planned faint behind the done part */
+.ins-recent { display: grid; gap: 8px; }
+.ins-recent-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 10px; }
+.ins-recent-head > .ins-group-title { white-space: nowrap; }
+.ins-cols { display: grid; grid-template-columns: repeat(var(--n, 14), minmax(0, 1fr)); gap: 6px; height: 120px; }
+/* every week: thin columns, a month name under each month's first week (it may run past its column) */
+.ins-cols.weeks { gap: 3px; }
+.ins-cols.weeks .ins-col { padding: 0; border-radius: 4px; }
+.ins-cols.weeks .ins-col-bar { border-radius: 3px 3px 2px 2px; }
+.ins-cols.weeks .ins-col-label { overflow: visible; white-space: nowrap; text-align: left; }
+.ins-head-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.ins-seg button { height: 24px; padding: 0 10px; font-size: 12px; }
+.ins-col { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; padding: 0 1px; border-radius: 8px; cursor: default; }
+.ins-col:hover { background: rgb(var(--ink) / 0.04); }
+.ins-col-bar { position: relative; border-radius: 6px 6px 3px 3px; background: rgb(var(--ink) / 0.035); overflow: hidden; }
+.ins-col-fill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 4px 4px 0 0; transition: height .7s var(--ease-out); transition-delay: calc(var(--i, 0) * 30ms); }
+.ins-col-label { min-height: 1.4em; text-align: center; font: 400 10.5px/1.4 var(--font-mono); color: var(--text-subtle); }
+.ins-col.today .ins-col-label { color: var(--accent); font-weight: 600; }
+.ins-col.today .ins-col-bar { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* by category, most time on, by weekday: named rows, planned faint with the done part solid */
+.ins-groups { display: grid; gap: 10px; }
+/* the one view shown: its rows down two columns where there is room (first column first) */
+.ins-rows { display: grid; gap: 4px; }
+.ins-groups .ins-rows { display: block; columns: 2; column-gap: 28px; }
+.ins-groups .ins-rows > .ins-row { break-inside: avoid; margin-bottom: 4px; }
+.ins-val-sub { margin-left: 8px; color: var(--text-subtle); }
+/* the switch above names the view: its own title would only say it again */
+.ins-groups .ins-group-title { display: none; }
+.ins-group { display: grid; gap: 4px; align-content: start; min-width: 0; }
+.ins-group .card-title { margin-bottom: 4px; }
+.ins-row { position: relative; display: grid; grid-template-columns: minmax(64px, 32%) minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; font-size: 12.5px; }
+.ins-row:hover { background: rgb(var(--ink) / 0.05); }
+.ins-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--text); }
+.ins-name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ins-name .dot { flex: none; }
+.ins-track { position: relative; height: 8px; border-radius: 4px; background: rgb(var(--ink) / 0.05); overflow: hidden; }
+.ins-bar { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0; transition: width .7s var(--ease-out); transition-delay: calc(var(--i, 0) * 45ms); }
+.ins-val { font: 400 11.5px var(--font-mono); color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ins-empty { margin: 0; text-transform: none; }
+@media (max-width: 1000px) {
+  .ins-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ins-groups .ins-rows { columns: 1; }
+}
+@media (max-width: 640px) {
+  .ins-cols { gap: 3px; height: 96px; }
+  .ins-tile { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ins-tile.rise, .ins-info::after { animation: none; }
+  .ins-fold { transition: none; }
+  .ins-bar, .ins-col-fill, .ins-ring-arc { transition: none; }
+}
+/* a narrowed editor wraps its head instead of pushing the buttons out of the card */
+.j-ed-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.j-ed-head .j-folder { min-width: 0; max-width: 100%; }
+.j-ed-head .j-folder-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.j-date { font: 400 12.5px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+.j-head-fill { flex: 1; }
+.j-del[hidden] { display: none; }
+.j-editor input.j-title { height: auto; padding: 0; border: 0; background: none; font-size: 28px; font-weight: 500; letter-spacing: -.02em; color: var(--text-strong); }
+/* the text's row keeps its own minimum (the pad would otherwise spill over the photos row under it) */
+.j-editor .j-pad { min-height: 0; }
+.j-editor .j-text { height: 100%; min-height: 0; padding: 0 0 24px; border: 0; background: none; font-size: 15.5px; line-height: 1.75; color: var(--text); }
+.j-foot { text-transform: none; }
+
+@media (max-width: 1000px) {
+  .text-page { display: flex; flex-direction: column; padding: 20px 36px; }
+  .words-body, .journal-body { display: flex; flex-direction: column; flex: none; }
+  .w-study { min-height: 520px; }
+  .j-side { flex: none; max-height: 320px; }
+  .j-editor { min-height: 480px; }
+  /* the chat takes the rest of the screen under its title */
+  .chat-view > .chat-body { flex: 1 1 auto; min-height: 360px; }
+  .chat-body > .chat { height: 100%; }
+}
+@media (max-width: 640px) {
+  .text-page { padding: max(16px, env(safe-area-inset-top)) 16px 16px; }
+  .w-btn kbd { display: none; }
+}

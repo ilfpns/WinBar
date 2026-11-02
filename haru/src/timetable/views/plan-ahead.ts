@@ -1,15 +1,15 @@
-import { CATEGORIES, type Block, labelOf } from './model';
-import { allTemplates } from './templates';
-import { type PlanBlock, clearPlan, onPlans, planOn, setPlan } from './plans';
-import { planEditable, planForm } from './plan-form';
-import { dayOf, onDaySaved } from './history';
-import { state } from './state';
-import { DAY, SNAP, formatDuration, hhmm, mod, snap } from './time';
-import { R_IN, R_OUT, polarOf, sectorPath } from './geometry';
-import { drawReadOnlyDial } from './dial';
-import { svgEl } from './svg';
-import { icon } from '../ui/icons';
-import { onView } from '../ui/router';
+import { CATEGORIES, type Block, labelOf } from '../model';
+import { allTemplates } from '../templates';
+import { type PlanBlock, clearPlan, onPlans, planOn, setPlan } from '../plans';
+import { planEditable, planForm } from '../plan-form';
+import { dayOf, onDaySaved } from '../history';
+import { state } from '../state';
+import { DAY, SNAP, formatDuration, hhmm, mod, snap } from '../time';
+import { R_IN, R_OUT, polarOf, sectorPath } from '../geometry';
+import { drawReadOnlyDial } from '../dial';
+import { svgEl } from '../svg';
+import { icon } from '../../ui/icons';
+import { onView } from '../../ui/router';
 
 /**
  * Planning a day ahead from Today: the "Tomorrow" chip under the greeting turns the dial into tomorrow's plan,

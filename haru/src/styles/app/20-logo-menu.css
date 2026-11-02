@@ -1,0 +1,27 @@
+/* ---------- the logo's menu */
+.brand-mark-btn { display: grid; padding: 0; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
+.brand-mark-btn:hover .brand-mark { background: radial-gradient(circle at 35% 28%, rgb(var(--ink) / 0.28), rgb(var(--ink) / 0.07) 70%); }
+.logo-menu {
+  position: fixed; z-index: 70; display: grid; gap: 2px; min-width: 180px; padding: 6px;
+  border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--noise), var(--sheet); box-shadow: var(--glass-shine), var(--glass-drop);
+  transform-origin: top left; animation: menu-in .18s var(--ease-out) both;
+}
+.logo-menu[hidden] { display: none; }
+.logo-menu.closing { animation: menu-out .14s var(--ease-out) both; }
+@keyframes menu-in { from { opacity: 0; transform: scale(.94) translate3d(-4px, 0, 0); } }
+@keyframes menu-out { to { opacity: 0; transform: scale(.96); } }
+.logo-menu button {
+  display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border: 0; border-radius: 9px; background: none; cursor: pointer;
+  font: 400 13.5px/1 var(--font-sans); color: var(--text); text-align: left;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.logo-menu button:is(:hover, :focus-visible) { background: var(--surface-2); color: var(--text-strong); outline: none; }
+.logo-menu .ic { width: 16px; height: 16px; color: var(--text-muted); }
+.logo-menu [data-menu="settings"] { font-weight: 500; }
+/* settings: segmented pickers and notes */
+.set-seg { grid-auto-columns: auto; }
+.set-seg button { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; font-family: var(--font-sans); }
+.set-seg button .ic { width: 13px; height: 13px; }
+.set-seg button[aria-checked="true"] { background: var(--gray-btn-hover); color: var(--text-strong); }
+.set-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
+.settings .acct-foot { justify-self: start; }

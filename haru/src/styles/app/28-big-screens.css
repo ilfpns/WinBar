@@ -1,0 +1,6 @@
+/* ---------- big screens: the pages use more of the width, and the dial and globe grow with it */
+@media (min-width: 1800px) {
+  .calendar-view, .news-view, .text-page { max-width: min(1680px, 80vw); }
+  .dial-wrap { width: min(100%, calc(100svh - 60px), 1100px); }
+  #globe { width: min(100%, calc(100svh - 330px), 1000px); }
+}

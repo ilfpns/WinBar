@@ -92,6 +92,79 @@ export function askConfirm(opts: Base & { danger?: boolean }): Promise<boolean> 
   return open(opts, (yes) => yes);
 }
 
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text) e.textContent = text;
+  return e;
+}
+
+/** A small form in Haru's dialog (a few labelled fields; `secret` ones hidden as typed): the values, or null when cancelled. */
+export function askForm(opts: { title: string; icon: IconName; body?: string; ok: string; fields: { key: string; label: string; value?: string; placeholder?: string; secret?: boolean; required?: boolean; hint?: string }[] }): Promise<Record<string, string> | null> {
+  return new Promise((resolve) => {
+    const dlg = el('dialog', 'modal');
+    const form = el('form', 'modal-card modal-form');
+    form.method = 'dialog';
+    const head = el('div', 'modal-head');
+    const ic = el('span', 'modal-icon');
+    ic.append(icon(opts.icon));
+    head.append(ic, el('h2', 'modal-title', opts.title));
+    form.append(head);
+    if (opts.body) form.append(el('p', 'modal-body', opts.body));
+    const inputs = opts.fields.map((f) => {
+      const label = el('label', 'modal-field');
+      const input = el('input', 'modal-input');
+      input.name = f.key;
+      input.value = f.value ?? '';
+      input.placeholder = f.placeholder ?? '';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      if (f.secret) input.type = 'password';
+      label.append(el('span', 'modal-label', f.label), input);
+      if (f.hint) label.append(el('span', 'modal-hint', f.hint));
+      form.append(label);
+      return { f, input };
+    });
+    const actions = el('div', 'modal-actions');
+    const cancel = el('button', 'btn-sm modal-cancel', 'Cancel');
+    cancel.type = 'button';
+    const ok = el('button', 'modal-ok btn-accent', opts.ok);
+    ok.type = 'submit';
+    actions.append(cancel, ok);
+    form.append(actions);
+    dlg.append(form);
+    const sync = () => (ok.disabled = inputs.some(({ f, input }) => f.required && !input.value.trim()));
+    form.addEventListener('input', sync);
+    sync();
+    let result: Record<string, string> | null = null;
+    const finish = () => {
+      dlg.classList.add('closing');
+      setTimeout(() => {
+        dlg.close();
+        dlg.remove();
+        resolve(result);
+      }, 150);
+    };
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (ok.disabled) return;
+      result = Object.fromEntries(inputs.map(({ f, input }) => [f.key, input.value.trim()]));
+      finish();
+    });
+    cancel.addEventListener('click', finish);
+    dlg.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      finish();
+    });
+    dlg.addEventListener('click', (e) => {
+      if (e.target === dlg) finish();
+    });
+    document.body.append(dlg);
+    dlg.showModal();
+    inputs[0]?.input.focus();
+  });
+}
+
 /** A small menu of actions beside `anchor` (a ⋯ button, or where a right-click landed). */
 export function showMenu(anchor: HTMLElement | { x: number; y: number }, items: { label: string; icon: IconName; danger?: boolean; run: () => void }[]): void {
   document.querySelector('.pop-menu')?.remove();

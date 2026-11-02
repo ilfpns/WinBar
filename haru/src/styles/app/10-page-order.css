@@ -1,0 +1,57 @@
+/* ---------- pages dragged into another order (ui/page-drag.ts); the rule between swipe pages and the rest
+   gets a taller grip so it can be picked up too */
+.rail-rule[data-split] { height: 11px; margin: 1px 0; background: none; position: relative; cursor: grab; }
+.rail-rule[data-split]::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 1px; background: var(--glass-edge); transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.rail-rule[data-split]:hover::before { background: var(--text-muted); transform: scaleX(1.2); }
+.nav-rule[data-split] { height: 9px; margin: 0 10px; background: none; position: relative; cursor: grab; }
+.nav-rule[data-split]::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 1px; background: var(--glass-edge); }
+.nav-rule[data-split]:hover::before { background: var(--text-muted); }
+:is(.rail, .nav) > :is([data-view], [data-split]) { touch-action: none; -webkit-user-drag: none; user-select: none; }
+.sorting { cursor: grabbing; }
+/* the rail's hint stays away while something is dragged */
+#rail.sorting ~ .rail-tip { display: none; }
+.sorting > :is([data-view], [data-split]) { cursor: grabbing; transition: transform .22s cubic-bezier(.22, 1, .36, 1); }
+.sorting > .dragging { position: relative; z-index: 2; transition: none; }
+.rail.sorting > .rail-btn.dragging { color: var(--text-strong); background: var(--surface-2); box-shadow: 0 8px 22px rgb(0 0 0 / .45), inset 0 0 0 1px var(--glass-edge); scale: 1.06; }
+.nav.sorting > .nav-item.dragging { background: var(--surface-2); box-shadow: 0 8px 22px rgb(0 0 0 / .45), inset 0 0 0 1px var(--glass-edge); }
+.sorting > [data-split].dragging::before { background: var(--accent); height: 2px; }
+@media (prefers-reduced-motion: reduce) { .sorting > :is([data-view], [data-split]) { transition: none; } }
+/* pages leave room for the rail on the left */
+:root { --rail-room: calc(var(--rail-w) + var(--panel-inset) + 24px); }
+
+.panel {
+  align-self: stretch; height: 100%;
+  display: flex; flex-direction: column; gap: 14px; padding: 10px;
+  overflow-y: auto; overscroll-behavior: contain;
+  background: var(--noise), var(--glass-fill);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  border: 1px solid var(--glass-edge); border-radius: var(--radius-panel);
+  box-shadow: var(--glass-shine), var(--glass-drop);
+}
+.panel-left { width: var(--panel-left-w); gap: 16px; }
+.panel-right { width: var(--panel-right-w); }
+.panel > * { flex-shrink: 0; }
+
+/* rings: a stat is how full the circle around its icon is; the exact value is in the tooltip */
+.rings { display: grid; gap: 10px 8px; padding: 0 4px; }
+.rings-lg { grid-template-columns: repeat(3, 1fr); }
+.rings-sm { grid-template-columns: repeat(3, 1fr); padding: 0 14px; gap: 8px 18px; }
+.ring { display: grid; justify-items: center; gap: 6px; margin: 0; }
+.ring figcaption { font: 400 11px/1 var(--font-mono); letter-spacing: .02em; color: var(--text-subtle); white-space: nowrap; }
+.ring-dial { position: relative; width: 100%; max-width: 60px; aspect-ratio: 1; display: grid; place-items: center; }
+.rings-sm .ring-dial { max-width: 42px; }
+.ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-track { fill: none; stroke: var(--well); stroke-width: 7; }
+.ring-fill {
+  fill: none; stroke: var(--rc); stroke-width: 7; stroke-linecap: round;
+  transition: stroke-dashoffset .8s var(--drawer-ease), stroke var(--dur-base) var(--ease-out);
+}
+.ring-ic { width: 38%; height: 38%; color: var(--rc); transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out); }
+.ring.empty .ring-ic { color: var(--text-subtle); opacity: .6; }
+.ring-dial:hover .ring-ic { transform: scale(1.1); }
+.ring-dial[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; z-index: 2; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%);
+  padding: 4px 8px; border-radius: var(--radius-sm); white-space: nowrap; pointer-events: none;
+  background: var(--popover); border: 1px solid rgb(var(--ink) / 0.08);
+  font: 400 11px/1.4 var(--font-mono); color: var(--text-strong);
+}

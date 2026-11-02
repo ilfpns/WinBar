@@ -1,0 +1,11 @@
+/* ---------- Glass (Settings → Appearance): see-through panels and cards, blurred behind */
+:root[data-glass="clear"] { --glass-fill: linear-gradient(180deg, rgba(44, 44, 50, .6) 0%, rgba(26, 26, 31, .6) 55%, rgba(19, 19, 23, .64) 100%); --popover: rgba(22, 22, 24, .9); }
+:root[data-glass="glass"] { --glass-fill: linear-gradient(180deg, rgba(44, 44, 50, .32) 0%, rgba(26, 26, 31, .3) 55%, rgba(19, 19, 23, .34) 100%); --popover: rgba(22, 22, 24, .82); }
+:root[data-theme="light"][data-glass="clear"] { --glass-fill: linear-gradient(180deg, rgba(255, 255, 255, .62) 0%, rgba(250, 250, 252, .6) 55%, rgba(244, 245, 248, .64) 100%); }
+:root[data-theme="light"][data-glass="glass"] { --glass-fill: linear-gradient(180deg, rgba(255, 255, 255, .38) 0%, rgba(250, 250, 252, .36) 55%, rgba(244, 245, 248, .4) 100%); }
+:root[data-glass] :is(.today-views, .cal-main, .attend, .cal-day, .drawer-tab, .rail, .panel, .glass-card, .peek-btn, .peek-bar, .globe-heat, .lib-reader, .pop-menu) {
+  -webkit-backdrop-filter: blur(22px) saturate(1.35); backdrop-filter: blur(22px) saturate(1.35);
+}
+:root[data-glass] .lib-reader { background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--accent) 6%, transparent) 70%); }
+:root[data-glass] .lib-reader.idle { background: linear-gradient(165deg, color-mix(in srgb, var(--accent) 12%, transparent), rgb(var(--shade) / .2) 80%); }
+:root[data-glass="glass"] .flow-node:not(.live):not(.flow-new) { background: linear-gradient(160deg, rgb(255 255 255 / .06), rgb(255 255 255 / .01)), rgb(10 10 12 / .28); }

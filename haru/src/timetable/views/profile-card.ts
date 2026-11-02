@@ -1,10 +1,10 @@
-import { avatar, session, type Profile } from '../cloud/session';
-import { onViewing, watchTheirToday, watchTheirs } from '../cloud/viewing';
-import { dayKey, dayOf } from './history';
-import { type Block, isBlock, labelOf } from './model';
-import { formatDuration, hhmm, mod, nowMinutes } from './time';
-import { icon } from '../ui/icons';
-import { lang } from '../ui/i18n';
+import { avatar, session, type Profile } from '../../cloud/session';
+import { onViewing, watchTheirToday, watchTheirs } from '../../cloud/viewing';
+import { dayKey, dayOf } from '../history';
+import { type Block, isBlock, labelOf } from '../model';
+import { formatDuration, hhmm, mod, nowMinutes } from '../time';
+import { icon } from '../../ui/icons';
+import { lang } from '../../ui/i18n';
 
 /**
  * Looking at someone else's Today (the switcher at the top right): beside their dial, a card with what there is to

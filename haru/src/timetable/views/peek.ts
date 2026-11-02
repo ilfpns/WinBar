@@ -1,7 +1,7 @@
-import { onViewing, watchTheirToday } from '../cloud/viewing';
-import { drawReadOnlyDial } from './dial';
-import { type Block } from './model';
-import { svgEl } from './svg';
+import { onViewing, watchTheirToday } from '../../cloud/viewing';
+import { drawReadOnlyDial } from '../dial';
+import { type Block } from '../model';
+import { svgEl } from '../svg';
 
 /**
  * Today, while someone else's Haru is on screen (see viewing): their day is laid over yours as the same

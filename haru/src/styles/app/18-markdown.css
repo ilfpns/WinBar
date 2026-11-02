@@ -1,0 +1,41 @@
+/* ---------- Markdown pads: the textarea while writing, the rendered page (same box) once you click away */
+.md-pad { position: relative; display: grid; min-height: 0; }
+.md-pad > md-editor { grid-area: 1 / 1; }
+.md-view { grid-area: 1 / 1; display: none; overflow-y: auto; overscroll-behavior: contain; cursor: text; outline: none; min-height: 0;
+  font-size: 14px; line-height: 1.65; color: var(--text); overflow-wrap: anywhere; }
+.cal-pad .md-view { padding: 10px 12px; border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: rgb(var(--shade) / .25); }
+.cal-pad .md-view:hover { border-color: var(--line-strong); }
+/* the memo's PDF export sits in its bottom-right corner */
+.pad-pdf {
+  position: absolute; right: 8px; bottom: 8px; z-index: 1; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px;
+  border: 1px solid var(--glass-edge); border-radius: 13px; background: var(--popover); color: var(--text-muted); cursor: pointer;
+  font: 500 11px/1 var(--font-mono); letter-spacing: .04em; opacity: .75;
+  transition: opacity var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.pad-pdf .ic { width: 13px; height: 13px; }
+.md-pad:hover .pad-pdf, .pad-pdf:focus-visible { opacity: 1; }
+.pad-pdf:hover { color: var(--text-strong); }
+.cal-pad > md-editor { padding-bottom: 40px; }
+.j-pad .md-view { font-size: 15.5px; line-height: 1.75; }
+.md-view > :first-child { margin-top: 0; }
+.md-view > :last-child { margin-bottom: 0; }
+.md-view :is(h1, h2, h3, h4, h5, h6) { margin: 1em 0 .4em; line-height: 1.25; letter-spacing: -.02em; color: var(--text-strong); font-weight: 600; }
+.md-view h1 { font-size: 1.55em; }
+.md-view h2 { font-size: 1.3em; }
+.md-view h3 { font-size: 1.12em; }
+.md-view :is(h4, h5, h6) { font-size: 1em; }
+.md-view p { margin: 0 0 .7em; }
+.md-view :is(ul, ol) { margin: 0 0 .7em; padding-left: 1.3em; }
+.md-view li { margin: .15em 0; }
+.md-view li::marker { color: var(--text-subtle); }
+.md-view .md-task { list-style: none; margin-left: -1.3em; display: flex; align-items: flex-start; gap: 8px; }
+.md-view .md-task input { flex: none; width: 15px; height: 15px; margin: .3em 0 0; accent-color: var(--accent); cursor: pointer; }
+.md-view .md-task.done span { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--text-subtle); }
+.md-view strong { color: var(--text-strong); font-weight: 600; }
+.md-view del { color: var(--text-muted); }
+.md-view a { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
+.md-view code { padding: .1em .35em; border-radius: 5px; background: rgb(var(--ink) / 0.07); font: .88em var(--font-mono); }
+.md-view pre { margin: 0 0 .7em; padding: 10px 12px; border-radius: 10px; background: rgb(var(--shade) / 0.35); overflow-x: auto; }
+.md-view pre code { padding: 0; background: none; }
+.md-view blockquote { margin: 0 0 .7em; padding: 2px 0 2px 12px; border-left: 2px solid var(--accent); color: var(--text-muted); }
+.md-view hr { margin: 1em 0; border: 0; border-top: 1px solid var(--line-strong); }

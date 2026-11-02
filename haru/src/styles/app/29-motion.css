@@ -1,0 +1,59 @@
+/* ---------- Motion: Less (Settings → Appearance): decoration stops, drawers and pages move briefly and plainly */
+html.calm {
+  --drawer-dur: .2s; --drawer-ease: cubic-bezier(.2, 0, 0, 1); --drawer-pop: cubic-bezier(.2, 0, 0, 1);
+}
+html.calm *, html.calm *::before, html.calm *::after {
+  animation-duration: 1ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+}
+html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animation: none !important; }
+
+/* Ctrl+Z with nothing left to take back: a small note at the bottom, gone in a moment */
+.undo-tip {
+  position: fixed; left: 50%; bottom: 72px; z-index: 70; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px;
+  background: var(--popover); color: var(--text-muted); font-size: 12.5px; box-shadow: 0 6px 18px rgb(0 0 0 / .3);
+  opacity: 0; pointer-events: none;
+}
+.undo-tip.on { animation: undo-tip 1.4s var(--ease-out) both; }
+@keyframes undo-tip { 0% { opacity: 0; transform: translate(-50%, 6px); } 12%, 75% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+@media (max-width: 640px) { .undo-tip { bottom: calc(var(--nav-room) + 56px); } }
+
+/* a change request's state, under the message */
+.chat-cr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+.chat-cr-tag { padding: 1px 8px; border-radius: 999px; font: 500 11px var(--font-mono); background: rgb(var(--ink) / 0.06); }
+.chat-cr.done .chat-cr-tag { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.chat-cr.declined .chat-cr-tag { color: var(--text-subtle); }
+.chat-cr-sum { min-width: 0; overflow-wrap: anywhere; }
+
+/* a command in the / menu with its example on a second line (the chat's commands) */
+.slash-menu:has(.has-example) { width: 300px; max-height: 360px; }
+.slash-menu button.has-example { height: auto; min-height: 46px; padding: 6px 8px; grid-template-rows: auto auto; row-gap: 1px; }
+.slash-menu button.has-example .slash-ic { grid-row: 1 / 3; }
+.slash-example { grid-column: 2 / 4; font: 400 11px var(--font-mono); color: var(--text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Settings → Account → Members: name and mail, and Kick */
+.acct-list li.acct-member { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 10px; white-space: normal; }
+.acct-member-who { display: grid; min-width: 0; flex: 1; }
+.acct-member-who strong { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-member-who .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: none; }
+.acct-kick { flex: none; height: 26px; padding: 0 10px; color: var(--danger); }
+.acct-kick:hover { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+
+/* Settings → Today: the "Every day" switch beside a row's Apply */
+.set-auto { display: inline-flex; align-items: center; gap: 6px; font: 400 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; cursor: pointer; }
+
+/* a picker where the browser has no popover: fixed on top, the same look (see ui/popover.ts) */
+.pop-fb { position: fixed; z-index: 1000; margin: 0; }
+.pop-fb[hidden] { display: none !important; }
+
+/* a new version while Haru is open (ui/pwa.ts): the card to reload, and Later */
+.toast-update {
+  position: fixed; z-index: 61; top: max(14px, env(safe-area-inset-top)); left: 50%; translate: -50% 0;
+  grid-template-columns: minmax(0, 1fr) auto; padding: 6px 6px 6px 14px; cursor: default;
+}
+.toast-update.out { animation: update-out .26s var(--ease-out) forwards; }
+@keyframes update-out { to { opacity: 0; transform: translateY(-16px); } }
+.toast-go { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 6px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.toast-go > .ic { width: 20px; height: 20px; color: var(--accent); }
+.toast-go:hover .toast-text strong { text-decoration: underline; text-underline-offset: 3px; }
+.toast-x { width: 32px; height: 32px; }
+@media (prefers-reduced-motion: reduce) { .toast-update.out { animation: none; } }

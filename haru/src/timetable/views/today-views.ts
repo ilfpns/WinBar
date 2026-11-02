@@ -1,16 +1,16 @@
-import { LARGE, ringsChart } from '../calendar/day-charts';
-import type { Dial } from './dial';
-import { CATEGORIES, type Category, contains } from './model';
-import { select, setStatus, state, subscribe } from './state';
+import { LARGE, ringsChart } from '../../calendar/day-charts';
+import type { Dial } from '../dial';
+import { CATEGORIES, type Category, contains } from '../model';
+import { select, setStatus, state, subscribe } from '../state';
 import { carryOver, dragWeek, focusDial, moveTask, monthDots, shiftDate, undoMove, unfinishedYesterday, weekStrips } from './today-modes';
-import { remindersOn, toggleReminders } from './reminders';
-import { currentView, goTo, onView } from '../ui/router';
-import { onResetAt, resetAt } from './day-reset';
-import { dayOf } from './history';
-import { onPlans } from './plans';
-import { nowMinutes } from './time';
-import { DAY, formatDuration } from './time';
-import { icon, type IconName } from '../ui/icons';
+import { remindersOn, toggleReminders } from '../reminders';
+import { currentView, goTo, onView } from '../../ui/router';
+import { onResetAt, resetAt } from '../day-reset';
+import { dayOf } from '../history';
+import { onPlans } from '../plans';
+import { nowMinutes } from '../time';
+import { DAY, formatDuration } from '../time';
+import { icon, type IconName } from '../../ui/icons';
 import { createFlow, type Flow } from './flow';
 
 /**

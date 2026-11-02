@@ -1,0 +1,47 @@
+/* ---------- PDF export: only the print layer goes to paper */
+#print-root { display: none; }
+@media print {
+  /* no page margin: the browser then prints no header or footer (date, title, address) of its own */
+  @page { margin: 0; }
+  .pr-frame { width: 100%; border-collapse: collapse; }
+  .pr-frame td { padding: 0 16mm; vertical-align: top; }
+  .pr-gap { height: 16mm; }
+  body.printing { background: #fff !important; color: #111; min-height: 0; overflow: visible; }
+  body.printing > :not(#print-root) { display: none !important; }
+  body.printing #print-root { display: block; font: 400 11.5pt/1.65 var(--font-sans); color: #111; }
+  .pr-head { display: flex; justify-content: flex-start; padding-bottom: 8pt; margin-bottom: 18pt; border-bottom: 1px solid #ddd; font: 500 9pt var(--font-mono); color: #666; letter-spacing: .04em; text-transform: uppercase; }
+  .pr-entry { break-inside: auto; margin-bottom: 26pt; }
+  .pr-entry + .pr-entry { padding-top: 18pt; border-top: 1px solid #eee; }
+  .pr-entry > h1 { margin: 0 0 2pt; font-size: 20pt; font-weight: 600; letter-spacing: -.02em; color: #000; }
+  .pr-meta { margin: 0 0 12pt; font: 400 9.5pt var(--font-mono); color: #777; }
+  .pr-body :is(h1, h2, h3, h4) { margin: 14pt 0 5pt; color: #000; break-after: avoid; }
+  .pr-body h1 { font-size: 16pt; } .pr-body h2 { font-size: 13.5pt; } .pr-body h3 { font-size: 12pt; }
+  .pr-body p { margin: 0 0 8pt; }
+  .pr-body :is(ul, ol) { margin: 0 0 8pt; padding-left: 16pt; }
+  .pr-body .md-task { list-style: none; margin-left: -16pt; }
+  .pr-body .md-task.done span { text-decoration: line-through; color: #888; }
+  .pr-body a { color: #111; }
+  .pr-body code { font: 9.5pt var(--font-mono); background: #f2f2f2; padding: 0 3pt; border-radius: 3pt; }
+  .pr-body pre { background: #f6f6f6; padding: 8pt; border-radius: 4pt; white-space: pre-wrap; }
+  .pr-body pre code { background: none; }
+  .pr-body blockquote { margin: 0 0 8pt; padding-left: 10pt; border-left: 2pt solid #4fbf7a; color: #555; }
+  .pr-body hr { border: 0; border-top: 1px solid #ddd; }
+}
+
+/* every page keeps clear of the rail (an open overview pushes further, above) */
+.stage, .calendar-view, .news-view, .text-page { padding-left: var(--rail-room); }
+/* the globe and the attendance bar sit on the screen's centre line: the same room on the right */
+@media (min-width: 761px) { .news-view { padding-right: var(--rail-room); } }
+
+/* landscape phones: keep the dial inside the short side */
+@media (max-height: 520px) and (orientation: landscape) {
+  .dial-wrap { width: min(100%, calc(100svh - 24px)); }
+}
+/* touch screens: no hover-only effects that would stick after a tap */
+@media (hover: none) {
+  .ring-dial:hover .ring-ic { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
