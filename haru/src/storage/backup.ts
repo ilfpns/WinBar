@@ -68,6 +68,9 @@ interface Stash { data: BackupFile; stamps: { blocks: number; templates: number;
 const LISTS = { words: wordsStore, journal: journalStore, journalFolders: folderStore, checkins: checkinStore } as const;
 type ListKey = keyof typeof LISTS;
 
+/** Set while a switch is under way, once the previous account's data is put aside (`from>to`). */
+const SWITCHING_KEY = 'haru:switching';
+
 /**
  * One device, several accounts: when another account signs in, everything on the device is put aside for
  * the account that used it, and the newcomer's own comes in — what it left here earlier, or nothing (its
@@ -76,10 +79,23 @@ type ListKey = keyof typeof LISTS;
  */
 export async function switchAccountData(from: string | null, to: string): Promise<void> {
   if (from === to) return;
-  if (from) {
+  // a switch cut short (and tried again) must not put aside a half-switched device over the real copy
+  const mark = `${from}>${to}`;
+  let stashed = false;
+  try {
+    stashed = localStorage.getItem(SWITCHING_KEY) === mark;
+  } catch {
+    // ignore
+  }
+  if (from && !stashed) {
     const lists = Object.fromEntries((Object.keys(LISTS) as ListKey[]).map((k) => [k, LISTS[k].updated()]));
     const stash: Stash = { data: await snapshot(), stamps: { blocks: blocksUpdated(), templates: templatesUpdated(), plans: plansUpdated(), lists } };
     await kvSet(`stash:${from}`, stash);
+    try {
+      localStorage.setItem(SWITCHING_KEY, mark);
+    } catch {
+      // ignore
+    }
   }
   const back = await kvGet<Stash | null>(`stash:${to}`).catch(() => undefined);
   const d = back?.data;
@@ -96,6 +112,11 @@ export async function switchAccountData(from: string | null, to: string): Promis
   for (const i of d?.images ?? []) imgs.push({ id: i.id, date: i.date, created: i.created, blob: await fromDataUrl(i.data) });
   imagesStore()?.replace(imgs);
   if (back) await kvSet(`stash:${to}`, null);
+  try {
+    localStorage.removeItem(SWITCHING_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function mountBackup(refs: BackupRefs): void {

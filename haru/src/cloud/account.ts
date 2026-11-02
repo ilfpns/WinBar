@@ -77,7 +77,12 @@ export function mountAccount(refs: AccountRefs): void {
   const connectMsg = connect.querySelector<HTMLElement>('.connect-msg')!;
 
   let retry: (() => void) | null = null;
+  // the connecting screen never stays for good: past STALL_MS it turns into the sign-in card with Try again
+  const STALL_MS = 15_000;
+  let stallTimer = 0;
+  let onStall: () => void = () => showGate('This is taking longer than usual.', false, false, () => location.reload());
   const showGate = (text: string, canSignIn: boolean, canSwitch = false, onRetry: (() => void) | null = null) => {
+    clearTimeout(stallTimer);
     connect.hidden = true;
     gate.hidden = false;
     document.body.classList.add('gated');
@@ -89,12 +94,15 @@ export function mountAccount(refs: AccountRefs): void {
   };
   retryBtn.addEventListener('click', () => retry?.());
   const showConnecting = (text = 'Connecting…') => {
+    clearTimeout(stallTimer);
+    stallTimer = window.setTimeout(() => onStall(), STALL_MS);
     gate.hidden = true;
     connect.hidden = false;
     document.body.classList.add('gated');
     connectMsg.textContent = text;
   };
   const hideGate = () => {
+    clearTimeout(stallTimer);
     document.body.classList.remove('gated');
     for (const el of [gate, connect]) {
       if (el.hidden) continue;
@@ -112,8 +120,11 @@ export function mountAccount(refs: AccountRefs): void {
   } catch {
     // unknown: the sign-in card
   }
+  // Google refuses to sign in inside apps' own browsers (KakaoTalk, Instagram, …): say so before anyone tries
+  const inApp = /KAKAOTALK|Instagram|FBAN|FBAV|Line\/|NAVER\(inapp|DaumApps|everytimeApp|; wv\)/i.test(navigator.userAgent);
+  const inAppNote = 'Google sign-in doesn’t work in this app’s browser. Open Haru in Chrome or Safari.';
   if (known) showConnecting();
-  else showGate('', false);
+  else showGate(inApp ? inAppNote : '', false);
 
   // ---------- the section in Settings
   const who = document.createElement('div');
@@ -141,10 +152,26 @@ export function mountAccount(refs: AccountRefs): void {
     const { auth, authMod, fs, db } = fb;
     const provider = new authMod.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    const signIn = () => void authMod.signInWithPopup(auth, provider).catch((e: { code?: string }) => {
-      if (e?.code !== 'auth/popup-closed-by-user' && e?.code !== 'auth/cancelled-popup-request') showGate('Sign-in failed. Try again.', true);
-    });
+    const SIGN_IN_ERRORS: Record<string, string> = {
+      'auth/popup-blocked': 'The sign-in window was blocked. Allow pop-ups for this site and try again.',
+      'auth/network-request-failed': 'No connection. Check the connection and try again.',
+      'auth/too-many-requests': 'Too many tries. Wait a minute and try again.',
+      'auth/web-storage-unsupported': 'This browser blocks the storage sign-in needs. Allow site data or use another browser.',
+      'auth/operation-not-supported-in-this-environment': inAppNote,
+      'auth/internal-error': 'Sign-in failed. Reload the page and try again.',
+    };
+    const signIn = () => {
+      if (signInBtn.disabled) return;
+      signInBtn.disabled = true;
+      authMod.signInWithPopup(auth, provider).catch((e: { code?: string }) => {
+        const code = e?.code ?? '';
+        if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/user-cancelled') return;
+        showGate(SIGN_IN_ERRORS[code] ?? (inApp ? inAppNote : `Sign-in failed (${code || 'unknown'}). Try again.`), true, !!auth.currentUser);
+      }).finally(() => (signInBtn.disabled = false));
+    };
     signInBtn.addEventListener('click', signIn);
+    // loaded, but the account isn't answering: offer signing in again (or a reload)
+    onStall = () => showGate('This is taking longer than usual.', true, false, () => location.reload());
     otherBtn.addEventListener('click', () => void authMod.signOut(auth));
     signOut.addEventListener('click', () => void authMod.signOut(auth));
 
@@ -155,7 +182,9 @@ export function mountAccount(refs: AccountRefs): void {
     const askInvited = async (email: string): Promise<'yes' | 'no' | 'unknown'> => {
       for (let i = 0; i < 3; i++) {
         try {
-          return (await fs.getDocFromServer(fs.doc(db, 'allow', email))).exists() ? 'yes' : 'no';
+          const ask = fs.getDocFromServer(fs.doc(db, 'allow', email));
+          const late = new Promise<never>((_, no) => setTimeout(() => no(new Error('slow')), 4000));
+          return (await Promise.race([ask, late])).exists() ? 'yes' : 'no';
         } catch (e) {
           // refused (signed in, but not invited): the rules deny reading no entry but one's own
           if ((e as { code?: string })?.code === 'permission-denied') return 'no';
@@ -171,6 +200,21 @@ export function mountAccount(refs: AccountRefs): void {
 
     let checking = 0;
     const onUser = async (user: import('firebase/auth').User | null) => {
+      const run = checking + 1;
+      onStall = () => {
+        if (run === checking) showGate('This is taking longer than usual.', true, !!user, () => void onUser(auth.currentUser));
+      };
+      try {
+        await checkUser(user);
+      } catch (e) {
+        if (run !== checking) return;
+        console.error('Haru sign-in', e);
+        if (document.body.classList.contains('gated')) {
+          showGate(`Something went wrong while signing in (${(e as { code?: string; message?: string })?.code ?? (e as Error)?.message ?? 'unknown'}). Try again.`, true, !!user, () => void onUser(auth.currentUser));
+        }
+      }
+    };
+    const checkUser = async (user: import('firebase/auth').User | null) => {
       const run = ++checking;
       stopSync?.();
       stopSync = null;
@@ -186,17 +230,26 @@ export function mountAccount(refs: AccountRefs): void {
         } catch {
           // ignore
         }
-        showGate('Sign in with an invited Google account.', true);
+        showGate(inApp ? inAppNote : 'Sign in with an invited Google account.', true);
         return;
       }
-      const email = (user.email ?? '').toLowerCase();
+      const email = (user.email ?? '').trim().toLowerCase();
+      if (!email) {
+        showGate('This Google account has no email address Haru can check. Use another account.', false, true);
+        return;
+      }
       // invited? (the owners always are, by the rules; reading one's own allow entry is permitted to everyone)
       showConnecting(known ? 'Connecting…' : 'Checking access…');
       const owner = OWNERS.includes(email);
       const answer = owner ? 'yes' : await askInvited(email);
       if (run !== checking) return;
       // the server can't be reached: an account confirmed on this device before goes on (offline), any other waits
-      const before = confirmedHere().includes(user.uid) || localStorage.getItem(INVITED_KEY) === user.uid;
+      let before = confirmedHere().includes(user.uid);
+      try {
+        before ||= localStorage.getItem(INVITED_KEY) === user.uid;
+      } catch {
+        // ignore
+      }
       const allowed = answer === 'yes' || (answer === 'unknown' && before);
       if (!allowed) {
         try {
@@ -225,7 +278,14 @@ export function mountAccount(refs: AccountRefs): void {
       }
       if (dataOwner && dataOwner !== user.uid) {
         showConnecting('Getting your Haru ready…');
-        await switchAccountData(dataOwner, user.uid);
+        try {
+          await switchAccountData(dataOwner, user.uid);
+        } catch (e) {
+          // nothing is lost: the other account's data was put aside first (or not touched), and this one's is in the cloud
+          console.error('Haru account switch', e);
+          if (run === checking) showGate("Couldn't get this account's Haru ready on this device. Try again.", false, true, () => void onUser(user));
+          return;
+        }
         if (run !== checking) return;
       }
       try {
@@ -259,7 +319,13 @@ export function mountAccount(refs: AccountRefs): void {
       }
       const name = user.displayName ?? email;
       renderWho(name, email, user.photoURL);
-      stopSync = startSync(fb, user.uid, (s) => (status.textContent = labels[s]));
+      try {
+        stopSync = startSync(fb, user.uid, (s) => (status.textContent = labels[s]));
+      } catch (e) {
+        // signed in all the same: the planner keeps working on this device
+        console.error('Haru sync', e);
+        status.textContent = labels.error;
+      }
       if (owner) mountInvites(fb, email);
       // how the others see this account (the Today switcher, the Archive)
       // (merged, so anything else the profile holds stays)
@@ -267,10 +333,18 @@ export function mountAccount(refs: AccountRefs): void {
       setSession({ fb, uid: user.uid, email, name, photo: user.photoURL ?? null, owner });
     };
     authMod.onAuthStateChanged(auth, (user) => void onUser(user));
-  }).catch(() => {
-    // Firebase couldn't load (offline on first visit): keep working locally
-    hideGate();
-    refs.section.hidden = true;
+  }).catch((e) => {
+    console.error('Haru sign-in load', e);
+    // offline: keep working locally (what's on this device stays usable)
+    if (!navigator.onLine) {
+      hideGate();
+      refs.section.hidden = true;
+      return;
+    }
+    // online, yet sign-in couldn't load (most often an open page from before a new version): reload, never go on
+    // quietly without the account
+    showGate("Sign-in couldn't load. Reload Haru to continue.", false, false, () => location.reload());
+    retryBtn.textContent = 'Reload';
   });
 
   function renderWho(name: string, email: string, photo: string | null): void {

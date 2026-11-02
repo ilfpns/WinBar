@@ -160,7 +160,7 @@ const KO: Record<string, string> = {
   'Sign-in is off for now. Everything stays on this device; use Backup to keep a copy.': '지금은 로그인이 꺼져 있어요. 모든 데이터는 이 기기에만 있으니 백업으로 사본을 남기세요.',
   'Sign out': '로그아웃', 'Sign in with Google': 'Google로 로그인', 'Use another account': '다른 계정 사용', Synced: '동기화됨',
   'Syncing…': '동기화 중…', Offline: '오프라인', 'Sync error': '동기화 오류', 'Checking access…': '접근 권한 확인 중…',
-  'Sign in with an invited Google account.': '초대된 Google 계정으로 로그인하세요.', 'Sign-in failed. Try again.': '로그인에 실패했어요. 다시 시도하세요.',
+  'Sign in with an invited Google account.': '초대된 Google 계정으로 로그인하세요.', 'Try again': '다시 시도', Reload: '새로고침', 'This is taking longer than usual.': '평소보다 오래 걸리고 있어요.', "Couldn't reach Haru to check your invitation. Check the connection and try again.": '초대 여부를 확인하지 못했어요. 연결을 확인하고 다시 시도하세요.', "Sign-in couldn't load. Reload Haru to continue.": '로그인을 불러오지 못했어요. Haru를 새로고침하세요.', "Couldn't get this account's Haru ready on this device. Try again.": '이 기기에서 이 계정의 Haru를 준비하지 못했어요. 다시 시도하세요.', 'This Google account has no email address Haru can check. Use another account.': '이 Google 계정에는 확인할 수 있는 이메일이 없어요. 다른 계정을 사용하세요.', 'Google sign-in doesn’t work in this app’s browser. Open Haru in Chrome or Safari.': '이 앱 안의 브라우저에서는 Google 로그인이 안 돼요. Chrome이나 Safari에서 Haru를 여세요.', 'The sign-in window was blocked. Allow pop-ups for this site and try again.': '로그인 창이 차단됐어요. 이 사이트의 팝업을 허용하고 다시 시도하세요.', 'No connection. Check the connection and try again.': '연결이 없어요. 연결을 확인하고 다시 시도하세요.', 'Too many tries. Wait a minute and try again.': '시도가 너무 많았어요. 잠시 뒤 다시 시도하세요.', 'This browser blocks the storage sign-in needs. Allow site data or use another browser.': '이 브라우저가 로그인에 필요한 저장소를 막고 있어요. 사이트 데이터를 허용하거나 다른 브라우저를 쓰세요.', 'Sign-in failed. Reload the page and try again.': '로그인에 실패했어요. 페이지를 새로고침하고 다시 시도하세요.', 'Sign-in failed. Try again.': '로그인에 실패했어요. 다시 시도하세요.',
   Invites: '초대', 'Only you so far': '아직 나만 있어요',
   // sharing and other people's Today
   Archive: '아카이브', 'Archive · pages everyone shared': '아카이브 · 모두가 공유한 페이지', 'Journal pages everyone shared': '모두가 공유한 일기 페이지',
@@ -211,6 +211,11 @@ const t = (s: string) => KO[s] ?? s;
 /** Strings with numbers or names in them. */
 const ST: Record<string, string> = { Yet: '시작 전', 'In progress': '진행 중', Done: '완료' };
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
+  // the sign-in card (cloud/account.ts)
+  [/^Sign-in failed \((.+)\)\. Try again\.$/, (_, c) => `로그인에 실패했어요(${c}). 다시 시도하세요.`],
+  [/^Something went wrong while signing in \((.+)\)\. Try again\.$/, (_, c) => `로그인 중 문제가 생겼어요(${c}). 다시 시도하세요.`],
+  [/^(\S+@\S+) isn't invited to Haru yet\.$/, (_, m) => `${m}은(는) 아직 Haru에 초대되지 않았어요.`],
+  [/^(\S+@\S+) was removed from Haru\.$/, (_, m) => `${m}은(는) Haru에서 제외됐어요.`],
   // task status: the list's status button
   [/^(.+): (Yet|In progress|Done)\. Press for (Yet|In progress|Done)$/, (_, n, a, b) => `${n}: ${ST[a]!} · 누르면 ${ST[b]!}`],
   [/^(Yet|In progress|Done) → (Yet|In progress|Done)$/, (_, a, b) => `${ST[a]!} → ${ST[b]!}`],

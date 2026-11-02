@@ -51,6 +51,19 @@ import { anyPopOpen } from './ui/popover';
 
 hydrateIcons();
 // Korean labels (if picked) go on before the pages render, and follow everything they render later
+// a part of the build gone after a deploy (a page left open since the old version): load the new build, once a minute
+// at most so a part that's really missing can't reload forever
+window.addEventListener('vite:preloadError', (e) => {
+  try {
+    const last = Number(sessionStorage.getItem('haru:preload-reload')) || 0;
+    if (Date.now() - last < 60_000) return;
+    sessionStorage.setItem('haru:preload-reload', String(Date.now()));
+  } catch {
+    return;
+  }
+  e.preventDefault();
+  location.reload();
+});
 mountI18n();
 mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal'), archive: byIdEarly('archive'), board: byIdEarly('board'), library: byIdEarly('library') });
 mountRouter();
