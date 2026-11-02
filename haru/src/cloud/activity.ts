@@ -12,7 +12,7 @@ const IDLE_MS = IDLE_DAYS * 86_400_000;
 /** When the rule began: nobody already invited counts as idle from before it (local midnight, 2026-10-25). */
 const RULE_START = new Date(2026, 9, 25).getTime();
 /** The owners never expire (they aren't on the invitations anyway). */
-const OWNERS = ['publicclaude223@gmail.com', 'yeomsh09@gmail.com'];
+export const OWNERS = ['publicclaude223@gmail.com', 'yeomsh09@gmail.com'];
 /** The account whose Settings show the expired members. */
 export const EXPIRED_VIEWER = 'yeomsh09@gmail.com';
 

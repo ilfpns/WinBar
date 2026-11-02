@@ -4,7 +4,7 @@ import { setSession } from './session';
 import { icon } from '../ui/icons';
 import { askConfirm } from '../ui/modal';
 import { switchAccountData } from '../storage/backup';
-import { EXPIRED_VIEWER, IDLE_DAYS, sweepIdle, type Expired } from './activity';
+import { EXPIRED_VIEWER, IDLE_DAYS, OWNERS, sweepIdle, type Expired } from './activity';
 
 /**
  * Sign-in with Google, invite-only. Who may use Haru is the `allow/{email}` collection (the owners manage it;
@@ -13,6 +13,25 @@ import { EXPIRED_VIEWER, IDLE_DAYS, sweepIdle, type Expired } from './activity';
  * data aside first. Without a Firebase config the app stays local and none of this appears.
  */
 const INVITED_KEY = 'haru:invited';
+/** Every account confirmed invited on this device (uids). Kept through Sign out, so signing back in while the
+ *  server can't be reached isn't taken for "not invited"; an account drops off only when the server says so. */
+const CONFIRMED_KEY = 'haru:invited-uids';
+const confirmedHere = (): string[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(CONFIRMED_KEY) ?? '[]') as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+const setConfirmed = (uid: string, yes: boolean) => {
+  try {
+    const rest = confirmedHere().filter((x) => x !== uid);
+    localStorage.setItem(CONFIRMED_KEY, JSON.stringify(yes ? [...rest, uid] : rest));
+  } catch {
+    // ignore
+  }
+};
 /** Whose data this device holds (a uid); the first account to sign in takes over what was here. */
 const DATA_OWNER_KEY = 'haru:data-owner';
 
@@ -38,6 +57,7 @@ export function mountAccount(refs: AccountRefs): void {
       <div class="brand"><span class="gate-mark"></span><span class="brand-name">Haru</span></div>
       <p class="gate-msg"></p>
       <button type="button" class="btn-solid gate-google">Sign in with Google</button>
+      <button type="button" class="btn-solid gate-google gate-retry" hidden>Try again</button>
       <button type="button" class="btn-text gate-out" hidden>Use another account</button>
     </div>`;
   gate.querySelector('.gate-mark')!.append(icon('circle-dot'));
@@ -45,6 +65,7 @@ export function mountAccount(refs: AccountRefs): void {
   const msg = gate.querySelector<HTMLElement>('.gate-msg')!;
   const signInBtn = gate.querySelector<HTMLButtonElement>('.gate-google')!;
   const otherBtn = gate.querySelector<HTMLButtonElement>('.gate-out')!;
+  const retryBtn = gate.querySelector<HTMLButtonElement>('.gate-retry')!;
   // reconnecting a known session (a reload): its own quiet screen, not the sign-in card
   const connect = document.createElement('div');
   connect.className = 'connect';
@@ -55,14 +76,18 @@ export function mountAccount(refs: AccountRefs): void {
   document.body.append(connect);
   const connectMsg = connect.querySelector<HTMLElement>('.connect-msg')!;
 
-  const showGate = (text: string, canSignIn: boolean, canSwitch = false) => {
+  let retry: (() => void) | null = null;
+  const showGate = (text: string, canSignIn: boolean, canSwitch = false, onRetry: (() => void) | null = null) => {
     connect.hidden = true;
     gate.hidden = false;
     document.body.classList.add('gated');
     msg.textContent = text;
     signInBtn.hidden = !canSignIn;
     otherBtn.hidden = !canSwitch;
+    retry = onRetry;
+    retryBtn.hidden = !onRetry;
   };
+  retryBtn.addEventListener('click', () => retry?.());
   const showConnecting = (text = 'Connecting…') => {
     gate.hidden = true;
     connect.hidden = false;
@@ -123,7 +148,30 @@ export function mountAccount(refs: AccountRefs): void {
     otherBtn.addEventListener('click', () => void authMod.signOut(auth));
     signOut.addEventListener('click', () => void authMod.signOut(auth));
 
-    authMod.onAuthStateChanged(auth, async (user) => {
+    /**
+     * Is `email` invited? Asked of the server itself (a cached answer can be old, or missing for an account new to
+     * this device), a few times over a few seconds; 'unknown' when the server can't be reached at all.
+     */
+    const askInvited = async (email: string): Promise<'yes' | 'no' | 'unknown'> => {
+      for (let i = 0; i < 3; i++) {
+        try {
+          return (await fs.getDocFromServer(fs.doc(db, 'allow', email))).exists() ? 'yes' : 'no';
+        } catch (e) {
+          // refused (signed in, but not invited): the rules deny reading no entry but one's own
+          if ((e as { code?: string })?.code === 'permission-denied') return 'no';
+          await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+        }
+      }
+      try {
+        return (await fs.getDocFromCache(fs.doc(db, 'allow', email))).exists() ? 'yes' : 'unknown';
+      } catch {
+        return 'unknown';
+      }
+    };
+
+    let checking = 0;
+    const onUser = async (user: import('firebase/auth').User | null) => {
+      const run = ++checking;
       stopSync?.();
       stopSync = null;
       invites.hidden = true;
@@ -142,27 +190,27 @@ export function mountAccount(refs: AccountRefs): void {
         return;
       }
       const email = (user.email ?? '').toLowerCase();
-      // invited? (the owner is always allowed by the rules; reading the own allow entry is permitted to everyone)
+      // invited? (the owners always are, by the rules; reading one's own allow entry is permitted to everyone)
       showConnecting(known ? 'Connecting…' : 'Checking access…');
-      let allowed = false;
-      let owner = false;
-      try {
-        await fs.getDocs(fs.query(fs.collection(db, 'allow'), fs.limit(1)));
-        owner = true; // only the owner may list the invitations
-        allowed = true;
-      } catch {
-        try {
-          allowed = (await fs.getDoc(fs.doc(db, 'allow', email))).exists();
-        } catch {
-          // offline: trust the last confirmed answer for this account
-          allowed = localStorage.getItem(INVITED_KEY) === user.uid;
-        }
-      }
+      const owner = OWNERS.includes(email);
+      const answer = owner ? 'yes' : await askInvited(email);
+      if (run !== checking) return;
+      // the server can't be reached: an account confirmed on this device before goes on (offline), any other waits
+      const before = confirmedHere().includes(user.uid) || localStorage.getItem(INVITED_KEY) === user.uid;
+      const allowed = answer === 'yes' || (answer === 'unknown' && before);
       if (!allowed) {
-        localStorage.removeItem(INVITED_KEY);
-        showGate(`${user.email} isn't invited to Haru yet.`, false, true);
+        try {
+          localStorage.removeItem(INVITED_KEY);
+        } catch {
+          // ignore
+        }
+        if (answer === 'no') {
+          setConfirmed(user.uid, false);
+          showGate(`${user.email} isn't invited to Haru yet.`, false, true);
+        } else showGate("Couldn't reach Haru to check your invitation. Check the connection and try again.", false, true, () => void onUser(user));
         return;
       }
+      setConfirmed(user.uid, true);
       try {
         localStorage.setItem(INVITED_KEY, user.uid);
       } catch {
@@ -178,6 +226,7 @@ export function mountAccount(refs: AccountRefs): void {
       if (dataOwner && dataOwner !== user.uid) {
         showConnecting('Getting your Haru ready…');
         await switchAccountData(dataOwner, user.uid);
+        if (run !== checking) return;
       }
       try {
         localStorage.setItem(DATA_OWNER_KEY, user.uid);
@@ -187,8 +236,10 @@ export function mountAccount(refs: AccountRefs): void {
       hideGate();
       // taken off the invitations while signed in: locked out right away (the rules already refuse its data)
       if (!owner) {
-        const stopWatch = fs.onSnapshot(fs.doc(db, 'allow', email), (snap) => {
-          if (snap.exists()) return;
+        // only the server's word counts: this device's copy of the entry can be old (or never fetched)
+        const stopWatch = fs.onSnapshot(fs.doc(db, 'allow', email), { includeMetadataChanges: true }, (snap) => {
+          if (snap.exists() || snap.metadata.fromCache) return;
+          setConfirmed(user.uid, false);
           stopWatch();
           stopSync?.();
           stopSync = null;
@@ -214,7 +265,8 @@ export function mountAccount(refs: AccountRefs): void {
       // (merged, so anything else the profile holds stays)
       void fs.setDoc(fs.doc(db, 'profiles', user.uid), { uid: user.uid, name, email, photo: user.photoURL ?? null, updated: Date.now() }, { merge: true }).catch(() => {});
       setSession({ fb, uid: user.uid, email, name, photo: user.photoURL ?? null, owner });
-    });
+    };
+    authMod.onAuthStateChanged(auth, (user) => void onUser(user));
   }).catch(() => {
     // Firebase couldn't load (offline on first visit): keep working locally
     hideGate();

@@ -293,8 +293,10 @@ export function mountTours(): void {
     maybe();
   });
   // the gate going away (signed in) is the moment to start
+  // and the gate coming back (signed out) ends a tour on screen, so it never sits over the sign-in card
   new MutationObserver(() => {
     if (!document.body.classList.contains('gated')) maybe();
+    else running?.stop();
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   maybe();
 }

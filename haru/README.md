@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.93** (2026-11-02) — 로그아웃 후 다시 로그인할 때 초대 계정이 막히던 문제(서버에 다시 묻기·다시 시도 버튼·오래된 기록으로 제거 안 함)
 - **v1.92** (2026-11-02) — Library 카드 크기 맞춤·호 끝 정렬·가운데 카드 채움·Git 버튼·로딩 중 크기 조절 바 숨김
 - **v1.91** (2026-11-02) — Library Git(Add·Commit·Push), Notion 가져오기 개선(컬럼·토글·표·하위 목록·페이지 순서), 토큰 암호화 저장
 - **v1.90** (2026-11-02) — Library 호 위 점이 빠르게 넘겨도 호를 따라 움직임
