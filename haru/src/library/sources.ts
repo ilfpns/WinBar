@@ -40,6 +40,14 @@ export interface Driver {
   write?(item: Item, text: string): Promise<string>;
   /** Makes a new note in `folder` (null: the top); missing where notes can't be made. */
   create?(folder: Item | null, name: string): Promise<Item>;
+  /** Deletes the note (Notion: to its trash); resolves to what to tell. */
+  remove?(item: Item): Promise<string>;
+  /** Adds a picture to the note; resolves to the note's text with it in, and whether that is already saved. */
+  addImage?(item: Item, file: File, text: string): Promise<{ text: string; saved: boolean }>;
+  /** Takes a picture (as the text names it) out of the note and deletes it; resolves like addImage. */
+  removeImage?(item: Item, ref: string, text: string): Promise<{ text: string; saved: boolean }>;
+  /** An address a picture the text names can be shown from (null: none). */
+  imageUrl?(item: Item, ref: string): Promise<string | null>;
 }
 
 /** The source has to be allowed again (a folder's permission lapses when the browser restarts). */

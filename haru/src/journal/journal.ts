@@ -1,3 +1,4 @@
+import { onView } from '../ui/router';
 import { dayKey } from '../timetable/history';
 import { lang } from '../ui/i18n';
 import { icon } from '../ui/icons';
@@ -61,6 +62,7 @@ export function mountJournal(body: HTMLElement): void {
         <button type="button" class="icon-btn j-add-img" aria-label="Add photos" title="Add photos (or paste with Ctrl+V)"></button>
         <input type="file" class="j-img-file" accept="image/*" multiple hidden>
         <button type="button" class="icon-btn j-share" aria-label="Share to Archive" title="Share to Archive" hidden></button>
+        <button type="button" class="icon-btn j-full" aria-pressed="false" aria-label="Full view" title="Full view (Esc to come back)"></button>
         <button type="button" class="icon-btn j-pdf" aria-label="Export this page as PDF" title="Export as PDF"></button>
         <button type="button" class="icon-btn j-del" aria-label="Delete page" title="Delete page"></button>
       </div>
@@ -85,6 +87,25 @@ export function mountJournal(body: HTMLElement): void {
   const pad = mdPad(text, 'j-pad');
   const pdfOne = $<HTMLButtonElement>('.j-pdf');
   pdfOne.append(icon('file-down'));
+  // full view: the page fills Haru's window; the button again, Esc, or leaving Journal brings it back
+  const editor = $<HTMLElement>('.j-editor');
+  const fullBtn = $<HTMLButtonElement>('.j-full');
+  const setFull = (on: boolean) => {
+    editor.classList.toggle('full', on);
+    document.body.classList.toggle('j-full-open', on);
+    fullBtn.setAttribute('aria-pressed', String(on));
+    fullBtn.setAttribute('aria-label', on ? 'Exit full view' : 'Full view');
+    fullBtn.title = on ? 'Exit full view (Esc)' : 'Full view (Esc to come back)';
+    fullBtn.replaceChildren(icon(on ? 'minimize-2' : 'maximize-2'));
+  };
+  setFull(false);
+  fullBtn.addEventListener('click', () => setFull(!editor.classList.contains('full')));
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !editor.classList.contains('full') || document.querySelector('dialog[open], .pop-menu, .tour')) return;
+    e.preventDefault();
+    setFull(false);
+  });
+  onView((v) => v !== 'journal' && setFull(false));
   const asSection = (e: { date: string; title: string; body: string }) => ({
     title: e.title || 'Untitled',
     meta: new Date(`${e.date}T00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),

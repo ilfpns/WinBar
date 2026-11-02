@@ -17,6 +17,16 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.89',
+    date: '2026-11-02',
+    items: [
+      'Library ↔ Notion 연동: Haru에서 고친 글이 Notion 페이지에 그대로 저장돼요(바뀐 블록만 수정·추가·삭제). 새 페이지 만들기, 페이지 휴지통으로 보내기, 그림 올리기·지우기도 돼요. 하위 페이지·데이터베이스·표는 글을 지워도 지워지지 않게 보호해요.',
+      'Library ↔ Obsidian 보관함: 노트 삭제(파일 삭제), 그림 추가(노트 옆에 파일 저장 + ![[이름]]), 그림 삭제, 보관함 그림 보기. GitHub도 노트 삭제·그림 추가·삭제가 각각 커밋돼요.',
+      'Journal 편집기에 전체로 보기 버튼: 누르면 페이지가 Haru 창을 가득 채우고, 다시 누르거나 Esc로 돌아와요.',
+      'Library 노트 패널도 Esc로 닫혀요(크게 연 상태면 먼저 원래 크기로).',
+    ],
+  },
+  {
     version: '1.88',
     date: '2026-11-02',
     items: [

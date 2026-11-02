@@ -1,9 +1,9 @@
 import { icon, type IconName } from '../ui/icons';
 import { renderMarkdown } from '../ui/markdown';
 import { askConfirm, askForm, askText, showMenu } from '../ui/modal';
-import { onView } from '../ui/router';
+import { currentView, onView } from '../ui/router';
 import { GitHubError, githubDriver } from './github';
-import { WIKI, splitFrontMatter, wikiToMarkdown } from './note-text';
+import { WIKI, picturesIn, splitFrontMatter, wikiToMarkdown } from './note-text';
 import { noteOpened, openedIn, openedKey } from './opened';
 import { type MemoConf, memoConf, memoPath, memoToken, readMemo, saveMemoConf, writeMemo } from './memo';
 import { NotionError, notionDriver } from './notion';
@@ -21,13 +21,13 @@ import { type Driver, type Item, NeedsAccess, type SourceConf, type SourceKind, 
 const KIND: Record<SourceKind, { label: string; icon: IconName; hint: string }> = {
   obsidian: { label: 'Obsidian vault', icon: 'gem', hint: 'A folder on this computer' },
   github: { label: 'GitHub folder', icon: 'git-branch', hint: 'A repo and a path; saving commits' },
-  notion: { label: 'Notion workspace', icon: 'book-text', hint: 'Pages shared with an integration' },
+  notion: { label: 'Notion workspace', icon: 'book-text', hint: 'Pages shared with an integration; edits sync' },
 };
 const CURRENT = 'haru:library-current';
 /** Cards drawn either side of the one in the middle (the rest are off the fan). */
 const REACH = 14;
 /** Wait after the last keystroke before saving: a file is cheap, a commit is not. */
-const SAVE_AFTER: Record<SourceKind, number> = { obsidian: 900, github: 4000, notion: 0 };
+const SAVE_AFTER: Record<SourceKind, number> = { obsidian: 900, github: 4000, notion: 2500 };
 
 type Filter = 'all' | 'folder' | 'note';
 
@@ -615,7 +615,7 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     titles.append(el('h3', 'lib-r-title', open.name), el('p', 'lib-r-sub', open.path));
     const actions = el('div', 'lib-r-actions');
     if (status) actions.append(el('span', `lib-status${/fail|Changed|refused|No access|Not found/.test(status) ? ' bad' : ''}`, status));
-    if (d.write && s.kind !== 'notion') {
+    if (d.write) {
       const edit = iconBtn(editing ? 'eye' : 'pencil', editing ? 'Read' : 'Edit');
       edit.addEventListener('click', () => {
         flushSave();
@@ -634,6 +634,16 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
       out.title = 'Open in Notion';
       out.append(icon('arrow-up-right'));
       actions.append(out);
+    }
+    if (d.addImage) {
+      const pic = iconBtn('image-plus', 'Add a picture');
+      pic.addEventListener('click', () => pickPicture(s));
+      actions.append(pic);
+    }
+    if (d.remove) {
+      const del = iconBtn('trash', s.kind === 'notion' ? 'Move to Notion’s trash' : 'Delete note');
+      del.addEventListener('click', () => void deleteNote(s));
+      actions.append(del);
     }
     const memoBtn = iconBtn('message', memoShown ? 'Hide memo' : 'Memo');
     memoBtn.classList.toggle('has', !!memo?.text.trim());
@@ -685,7 +695,28 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
       reader.append(tags);
     }
     const doc = el('div', 'md-view lib-doc');
-    doc.innerHTML = renderMarkdown(wikiToMarkdown(md)) || '<p class="lib-none">Empty note</p>';
+    // pictures: shown from where the source keeps them (fetched once, then drawn again), each with its own delete
+    const { md: withPics, pics } = picturesIn(md);
+    const missing = pics.filter((p) => !picCache.has(`${s.id}|${p.ref}`));
+    if (missing.length && d.imageUrl) {
+      const item = open;
+      void Promise.all(missing.map(async (p) => picCache.set(`${s.id}|${p.ref}`, await d.imageUrl!(item, p.ref).catch(() => null)))).then(() => {
+        if (open === item && !editing) paintReader();
+      });
+    }
+    const BLANK = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+    doc.innerHTML = renderMarkdown(wikiToMarkdown(withPics), (k) => picCache.get(`${s.id}|${pics[Number(k.slice(1))]?.ref}`) ?? BLANK) || '<p class="lib-none">Empty note</p>';
+    doc.querySelectorAll<HTMLElement>('figure.md-img').forEach((fig, k) => {
+      const p = pics[k];
+      if (!p) return;
+      const img = fig.querySelector('img')!;
+      img.alt = p.ref;
+      if (img.src === BLANK) fig.classList.add('loading');
+      if (!d.removeImage) return;
+      const x = iconBtn('x', 'Delete this picture', 'lib-pic-del');
+      x.addEventListener('click', () => void deletePicture(s, p));
+      fig.append(x);
+    });
     doc.querySelectorAll<HTMLAnchorElement>(`a[href^="${WIKI}"]`).forEach((a) => {
       const target = decodeURIComponent(a.href.slice(WIKI.length)).toLowerCase();
       a.removeAttribute('target');
@@ -698,6 +729,89 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
     });
     reader.append(doc);
     if (memoShown) reader.append(memoPane(s));
+  }
+
+  // ---------- pictures and deleting
+  const picCache = new Map<string, string | null>();
+  function pickPicture(s: SourceConf): void {
+    const input = el('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      const item = open;
+      const d = driverOf(s);
+      if (!file || !item || !d.addImage) return;
+      flushSave();
+      status = 'Adding the picture…';
+      setStatus();
+      try {
+        const r = await d.addImage(item, file, text);
+        if (open !== item) return;
+        text = r.text;
+        status = r.saved ? 'Picture added' : '';
+        if (!r.saved) {
+          unsaved = { item, text };
+          await save();
+        }
+      } catch (e) {
+        status = tokenRefused(e) ? 'The token has expired — Settings on the source to update it' : e instanceof Error ? `Picture failed: ${e.message}` : 'Picture failed';
+      }
+      paintReader();
+    });
+    input.click();
+  }
+  async function deletePicture(s: SourceConf, p: { ref: string; line: string }): Promise<void> {
+    const d = driverOf(s);
+    const item = open;
+    if (!item || !d.removeImage) return;
+    if (!(await askConfirm({ title: 'Delete this picture?', body: s.kind === 'notion' ? 'It is deleted from the Notion page.' : 'Its file is deleted too.', danger: true, ok: 'Delete' }))) return;
+    flushSave();
+    try {
+      const r = await d.removeImage(item, p.ref, text);
+      if (open !== item) return;
+      // the line goes whichever way the picture was written
+      text = (r.text.includes(`${p.line}\n`) ? r.text.replace(`${p.line}\n`, '') : r.text.replace(p.line, '')).replace(/\n{3,}/g, '\n\n');
+      picCache.delete(`${s.id}|${p.ref}`);
+      if (!r.saved) {
+        unsaved = { item, text };
+        await save();
+      } else status = 'Picture deleted';
+    } catch (e) {
+      status = tokenRefused(e) ? 'The token has expired — Settings on the source to update it' : e instanceof Error ? `Delete failed: ${e.message}` : 'Delete failed';
+    }
+    paintReader();
+  }
+  async function deleteNote(s: SourceConf): Promise<void> {
+    const d = driverOf(s);
+    const item = open;
+    if (!item || !d.remove) return;
+    const body = s.kind === 'notion' ? 'The page goes to Notion’s trash (it can be restored there for 30 days).'
+      : s.kind === 'github' ? 'The file is deleted with a commit (it stays in the repo’s history).'
+        : 'The file is deleted from your computer.';
+    if (!(await askConfirm({ title: `Delete ${item.name}?`, body, danger: true, ok: 'Delete' }))) return;
+    unsaved = null;
+    clearTimeout(saveTimer);
+    try {
+      const said = await d.remove(item);
+      const data = loaded.get(s.id);
+      if (data) loaded.set(s.id, index(data.items.filter((i) => i.id !== item.id && i.id !== item.id.replace('#page', ''))));
+      open = null;
+      editing = false;
+      expanded = false;
+      status = '';
+      paint();
+      flashStatus(said);
+    } catch (e) {
+      status = tokenRefused(e) ? 'The token has expired — Settings on the source to update it' : e instanceof Error ? `Delete failed: ${e.message}` : 'Delete failed';
+      paintReader();
+    }
+  }
+  /** A short line over the cards after something with no note left open to say it (a delete). */
+  function flashStatus(msg: string): void {
+    const f = el('div', 'lib-flash', msg);
+    stage.append(f);
+    setTimeout(() => f.remove(), 3200);
   }
 
   // ---------- memos
@@ -945,7 +1059,7 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
       body: 'Make an internal integration at notion.so/profile/integrations, then share pages with it (a page’s ••• → Connections).',
       fields: [
         { key: 'name', label: 'Name', value: was?.name ?? 'Notion', required: true },
-        { key: 'token', label: 'Integration secret', value: was ? tokenOf(was.id) : '', placeholder: 'ntn_…', secret: true, required: true, hint: 'Kept in this browser only. Read only.' },
+        { key: 'token', label: 'Integration secret', value: was ? tokenOf(was.id) : '', placeholder: 'ntn_…', secret: true, required: true, hint: 'Kept in this browser only. Give the integration Read, Update and Insert content: edits, new pages and pictures made in Haru go to Notion.' },
       ],
     });
     return v ? { conf: { name: v.name! }, token: v.token! } : null;
@@ -1075,6 +1189,30 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
   });
 
   onSources(paint);
+  // Esc peels one layer: out of the editor's text, then the larger reader back to its place, then the note closed
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || currentView() !== 'library' || !open) return;
+    if (document.querySelector('dialog[open], .pop-menu, .tour')) return;
+    const t = e.target as Element;
+    if (t.closest('textarea, input')) {
+      (t as HTMLElement).blur();
+      flushSave();
+      flushMemo();
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    if (expanded) {
+      expanded = false;
+      paintReader();
+      return;
+    }
+    flushSave();
+    flushMemo();
+    open = null;
+    editing = false;
+    paint();
+  });
   // a source not loaded yet loads when the Library is opened; one loaded refreshes after a while away
   const seenAt = new Map<string, number>();
   onView((v) => {

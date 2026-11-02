@@ -252,3 +252,18 @@ body.splitting-y { cursor: row-resize; }
 .j-i-prev:empty { display: none; }
 .j-empty { padding: 10px 4px; font-size: 13px; color: var(--text-subtle); }
 .j-editor { display: grid; grid-template-rows: auto auto minmax(160px, 1fr) auto auto; gap: 12px; min-height: 0; min-width: 0; }
+/* Journal → full view: the page fills Haru's window (the button again or Esc brings it back) */
+.j-editor.full {
+  position: fixed; z-index: 300; inset: calc(var(--tb, 0px) + 16px) max(16px, calc(50vw - 560px)) 16px; min-height: 0;
+  background: var(--noise), var(--sheet);
+  animation: j-full-in .3s var(--ease-out) both;
+  /* the rest of the window dims around it (a shadow: the page is its own layer, so a cover behind can't reach) */
+  box-shadow: var(--glass-shine), 0 0 0 100vmax rgb(var(--shade) / .6), var(--glass-drop);
+}
+@keyframes j-full-in { from { opacity: .4; transform: scale(.97); } }
+.j-editor.full .j-pad { font-size: 16.5px; }
+@media (max-width: 640px) {
+  .j-editor.full { inset: max(8px, env(safe-area-inset-top)) 8px 8px; }
+}
+/* (the page's will-change makes it the box fixed things measure from: let it go while the page is full) */
+body.j-full-open #journal { will-change: auto; transform: none !important; max-width: none; }

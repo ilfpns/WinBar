@@ -3,7 +3,7 @@ import {
   CircleCheck, CircleDot, Clock, Coffee, Dumbbell, House, Moon, Newspaper, Plus, Search, Sparkles, X, ImagePlus, Image, Flame, ChartColumn, LogOut, ChartPie, Target, TrendingUp, TrendingDown,
   Languages, NotebookPen, Settings, RotateCcw, Shuffle, Volume2, FileDown, Sun, Monitor, PanelLeft,
   Palette, HardDrive, Eraser, Keyboard, Info, User, ChevronUp, Ellipsis, Pencil, Trash2, Share2, Archive, Users, Eye, GraduationCap, Utensils, Copy, Pin, Link, Folder, FolderOpen, FolderPlus, FolderTree, MessageSquare, MessagesSquare, Smile, ArrowUp, Brush, Lightbulb, TriangleAlert, Quote, Bell, BellOff, FileText, List, Heart, RefreshCw, Download, Asterisk, CircleDashed, Hourglass, EyeOff, Focus, ChartGantt, Grip, Hexagon,
-  Library, Gem, GitBranch, BookText, LoaderCircle, ArrowUpRight, Workflow,
+  Library, Gem, GitBranch, BookText, LoaderCircle, ArrowUpRight, Workflow, Maximize2, Minimize2,
   type IconNode, createElement,
 } from 'lucide';
 
@@ -17,7 +17,7 @@ const ICONS: Record<string, IconNode> = {
   languages: Languages, 'notebook-pen': NotebookPen, settings: Settings, 'rotate-ccw': RotateCcw, shuffle: Shuffle, 'volume-2': Volume2, 'file-down': FileDown, sun: Sun, monitor: Monitor, 'panel-left': PanelLeft,
   palette: Palette, 'hard-drive': HardDrive, eraser: Eraser, keyboard: Keyboard, info: Info, user: User, 'chevron-up': ChevronUp, ellipsis: Ellipsis, pencil: Pencil, trash: Trash2,
   heart: Heart, share: Share2, archive: Archive, users: Users, eye: Eye, 'graduation-cap': GraduationCap, utensils: Utensils, copy: Copy, pin: Pin, link: Link, folder: Folder, 'folder-open': FolderOpen, 'folder-plus': FolderPlus, message: MessageSquare, messages: MessagesSquare, smile: Smile, 'arrow-up': ArrowUp, brush: Brush, lightbulb: Lightbulb, 'triangle-alert': TriangleAlert, quote: Quote, bell: Bell, 'bell-off': BellOff, 'folder-tree': FolderTree, 'file-text': FileText, list: List, refresh: RefreshCw, download: Download, asterisk: Asterisk, 'circle-dashed': CircleDashed, hourglass: Hourglass, 'eye-off': EyeOff, focus: Focus, 'chart-gantt': ChartGantt, grip: Grip, hexagon: Hexagon,
-  library: Library, gem: Gem, 'git-branch': GitBranch, 'book-text': BookText, 'loader-circle': LoaderCircle, 'arrow-up-right': ArrowUpRight, workflow: Workflow,
+  library: Library, gem: Gem, 'git-branch': GitBranch, 'book-text': BookText, 'loader-circle': LoaderCircle, 'arrow-up-right': ArrowUpRight, workflow: Workflow, 'maximize-2': Maximize2, 'minimize-2': Minimize2,
 };
 
 export type IconName = keyof typeof ICONS;

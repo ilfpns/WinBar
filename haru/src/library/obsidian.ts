@@ -5,7 +5,8 @@ import { type Driver, type Item, NeedsAccess, type SourceConf } from './sources'
  * An Obsidian vault: a folder on this computer, opened with the browser's folder picker (Chrome, Edge). The
  * folder's handle is kept in IndexedDB, so the vault opens again on the next visit — after a browser restart
  * with one click to allow it again. Notes are the `.md` files; hidden folders (`.obsidian`, `.git`, `.trash`) are
- * left out. Saving writes the file itself, so Obsidian sees the change at once.
+ * left out. Saving writes the file itself, so Obsidian sees the change at once; deleting a note deletes its file. A
+ * picture added from Haru is saved next to the note and put in as `![[name]]`, the way Obsidian embeds one.
  *
  * Browsers without the picker (Safari, Firefox) pick the folder through a file input instead: read only, and
  * held for this visit only.
@@ -15,6 +16,7 @@ interface DirHandle {
   name: string;
   values(): AsyncIterable<DirHandle | FileHandle>;
   getFileHandle(name: string, o?: { create?: boolean }): Promise<FileHandle>;
+  removeEntry(name: string): Promise<void>;
   queryPermission(o: { mode: 'readwrite' }): Promise<PermissionState>;
   requestPermission(o: { mode: 'readwrite' }): Promise<PermissionState>;
 }
@@ -22,14 +24,17 @@ interface FileHandle {
   kind: 'file';
   name: string;
   getFile(): Promise<File>;
-  createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }>;
+  createWritable(): Promise<{ write(data: string | Blob): Promise<void>; close(): Promise<void> }>;
 }
 
 const picker = (window as unknown as { showDirectoryPicker?: (o?: { mode?: 'readwrite' }) => Promise<DirHandle> }).showDirectoryPicker;
 export const canPickFolder = !!picker;
 
 const handleKey = (id: string) => `library:vault:${id}`;
+/** The folders picked this visit (also kept in IndexedDB for the next one). */
+const held = new Map<string, DirHandle>();
 const NOTE = /\.md$/i;
+export const PICTURE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i;
 const hidden = (name: string) => name.startsWith('.');
 
 /** Asks for the vault folder; null when cancelled. */
@@ -37,7 +42,8 @@ export async function pickVault(id: string): Promise<string | null> {
   if (picker) {
     const dir = await picker({ mode: 'readwrite' }).catch(() => null);
     if (!dir) return null;
-    await kvSet(handleKey(id), dir);
+    held.set(id, dir);
+    await kvSet(handleKey(id), dir).catch(() => {});
     return dir.name;
   }
   const files = await pickFilesFallback();
@@ -70,6 +76,11 @@ function pickFilesFallback(): Promise<File[] | null> {
 
 export function obsidianDriver(conf: SourceConf): Driver {
   const files = new Map<string, FileHandle | File>();
+  /** The folder each note and picture is in (to delete it, or put a picture beside it). */
+  const dirs = new Map<string, DirHandle>();
+  /** Pictures by name (Obsidian finds an embed by its name alone), and their shown addresses. */
+  const pictures = new Map<string, { h: FileHandle | File; dir?: DirHandle }>();
+  const urls = new Map<string, string>();
   let root: DirHandle | null = null;
 
   async function walk(dir: DirHandle, parent: string | null, at: string, out: Item[]): Promise<void> {
@@ -78,10 +89,14 @@ export function obsidianDriver(conf: SourceConf): Driver {
       const path = at ? `${at}/${h.name}` : h.name;
       if (h.kind === 'directory') {
         out.push({ id: path, name: h.name, kind: 'folder', parent, path });
+        dirs.set(path, h);
         await walk(h, path, path, out);
+      } else if (PICTURE.test(h.name)) {
+        pictures.set(h.name, { h, dir });
       } else if (NOTE.test(h.name)) {
         const f = await h.getFile().catch(() => null);
         files.set(path, h);
+        dirs.set(path, dir);
         out.push({ id: path, name: h.name.replace(NOTE, ''), kind: 'note', parent, path, modified: f?.lastModified });
       }
     }
@@ -93,6 +108,7 @@ export function obsidianDriver(conf: SourceConf): Driver {
     for (const f of list) {
       // drop the vault's own name from the front
       const parts = f.webkitRelativePath.split('/').slice(1);
+      if (PICTURE.test(f.name)) pictures.set(f.name, { h: f });
       if (!NOTE.test(f.name) || parts.some(hidden)) continue;
       for (let k = 1; k < parts.length; k++) {
         const path = parts.slice(0, k).join('/');
@@ -110,9 +126,10 @@ export function obsidianDriver(conf: SourceConf): Driver {
   const driver: Driver = {
     async load() {
       files.clear();
+      pictures.clear();
       const list = loose.get(conf.id);
       if (list) return fromLoose(list);
-      root = (await kvGet<DirHandle>(handleKey(conf.id))) ?? null;
+      root = held.get(conf.id) ?? (await kvGet<DirHandle>(handleKey(conf.id)).catch(() => undefined)) ?? null;
       if (!root || (await root.queryPermission({ mode: 'readwrite' })) !== 'granted') throw new NeedsAccess();
       const out: Item[] = [];
       await walk(root, null, '', out);
@@ -123,6 +140,17 @@ export function obsidianDriver(conf: SourceConf): Driver {
       if (!h) return '';
       return (h instanceof File ? h : await h.getFile()).text();
     },
+    async imageUrl(_item, ref) {
+      const name = ref.split('/').pop()!.split('|')[0]!.trim();
+      if (urls.has(name)) return urls.get(name)!;
+      const p = pictures.get(name);
+      if (!p) return null;
+      const file = p.h instanceof File ? p.h : await p.h.getFile().catch(() => null);
+      if (!file) return null;
+      const url = URL.createObjectURL(file);
+      urls.set(name, url);
+      return url;
+    },
   };
   if (picker) {
     driver.write = async (item, text) => {
@@ -132,6 +160,39 @@ export function obsidianDriver(conf: SourceConf): Driver {
       await w.write(text);
       await w.close();
       return 'Saved to the vault';
+    };
+    driver.remove = async (item) => {
+      const dir = dirs.get(item.id);
+      if (!dir) throw new Error('Not found in the vault');
+      await dir.removeEntry(item.path.split('/').pop()!);
+      files.delete(item.id);
+      return 'Deleted from the vault';
+    };
+    driver.addImage = async (item, file, text) => {
+      const dir = dirs.get(item.id) ?? root;
+      if (!dir) throw new NeedsAccess();
+      // a name not taken yet, kept readable
+      const ext = (file.name.match(/\.\w+$/)?.[0] ?? `.${(file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`).toLowerCase();
+      const base = (file.name.replace(/\.\w+$/, '') || 'Pasted image').replace(/[\\/:*?"<>|#^[\]]/g, ' ').trim();
+      let name = `${base}${ext}`;
+      for (let k = 1; pictures.has(name); k++) name = `${base} ${k}${ext}`;
+      const h = await dir.getFileHandle(name, { create: true });
+      const w = await h.createWritable();
+      await w.write(file);
+      await w.close();
+      pictures.set(name, { h, dir });
+      return { text: `${text.replace(/\s*$/, '')}\n\n![[${name}]]\n`, saved: false };
+    };
+    driver.removeImage = async (_item, ref, text) => {
+      const name = ref.split('/').pop()!.split('|')[0]!.trim();
+      const p = pictures.get(name);
+      if (p?.dir) await p.dir.removeEntry(name);
+      pictures.delete(name);
+      const url = urls.get(name);
+      if (url) URL.revokeObjectURL(url);
+      urls.delete(name);
+      const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return { text: text.replace(new RegExp(`^[ \\t]*!\\[\\[${esc}(\\|[^\\]]*)?\\]\\][ \\t]*\\n?`, 'm'), ''), saved: false };
     };
     driver.create = async (folder, name) => {
       if (!root) throw new NeedsAccess();
@@ -146,6 +207,7 @@ export function obsidianDriver(conf: SourceConf): Driver {
       const h = await dir.getFileHandle(file, { create: true });
       const path = folder ? `${folder.path}/${file}` : file;
       files.set(path, h);
+      dirs.set(path, dir);
       return { id: path, name: file.replace(NOTE, ''), kind: 'note', parent: folder?.id ?? null, path, modified: Date.now() };
     };
   }

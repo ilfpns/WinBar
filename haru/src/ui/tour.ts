@@ -88,8 +88,8 @@ export const TOURS: Record<View, { name: [string, string]; steps: Step[] }> = {
       ko: ['카드 넘기기', '폴더는 겹친 카드, 노트는 한 장이에요. 휠·드래그·← →로 넘기고, 가운데 카드를 열면 폴더로 들어가거나 노트를 읽어요.'] },
     { target: '.lib-crumbs', en: ['Where you are', 'The path steps back out of folders. New note makes one in the open folder.'],
       ko: ['지금 위치', '경로를 눌러 폴더 밖으로 나가요. New note로 열린 폴더에 노트를 만들어요.'] },
-    { target: '.lib-reader', en: ['Read, edit and memo', 'Vault and GitHub notes can be edited (GitHub commits by itself). A memo on any note goes to your memo repo on GitHub.'],
-      ko: ['읽기·편집·메모', '보관함과 GitHub 노트는 바로 고칠 수 있어요(GitHub는 자동 커밋). 어떤 노트든 메모를 남기면 설정한 GitHub 메모 레포에 커밋돼요.'] },
+    { target: '.lib-reader', en: ['Read, edit and memo', 'Edit any note — it saves back to the vault file, a GitHub commit, or the Notion page. Add or delete pictures and pages here too. A memo on any note goes to your memo repo on GitHub. Esc closes.'],
+      ko: ['읽기·편집·메모', '어떤 노트든 바로 고치면 보관함 파일, GitHub 커밋, Notion 페이지에 그대로 저장돼요. 그림과 페이지 추가·삭제도 여기서 해요. 메모는 설정한 GitHub 메모 레포에 커밋돼요. Esc로 닫아요.'] },
   ] },
 };
 
