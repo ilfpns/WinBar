@@ -73,7 +73,13 @@
 .lib-arc { position: absolute; left: 50%; top: 14px; z-index: 200; display: flex; align-items: center; gap: 10px; transform: translateX(-50%); }
 .lib-arc[hidden] { display: none; }
 .lib-arc-track { position: relative; width: 220px; height: 22px; border-top: 1px solid rgb(var(--ink) / .16); border-radius: 50% 50% 0 0 / 100% 100% 0 0; }
-.lib-arc-dot { position: absolute; top: -4px; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); transition: left .4s cubic-bezier(.2, .8, .2, 1), top .4s cubic-bezier(.2, .8, .2, 1); }
+.lib-arc-dot {
+  position: absolute; left: 0; top: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent);
+  /* the same half ellipse the track's top edge draws (220 × 22, centred on its 1px line) */
+  offset-path: path('M 0 22 A 110 22 0 0 1 220 22'); offset-rotate: 0deg; offset-anchor: center; offset-distance: 50%;
+  translate: 0 -.5px;
+  transition: offset-distance .4s cubic-bezier(.2, .8, .2, 1);
+}
 .lib-step { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: rgb(var(--ink) / .06); color: var(--text-muted); cursor: pointer; }
 .lib-step:hover:not(:disabled) { color: var(--text-strong); background: rgb(var(--ink) / .12); }
 .lib-step:disabled { opacity: .3; cursor: default; }

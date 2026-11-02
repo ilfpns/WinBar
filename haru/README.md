@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v1.90** (2026-11-02) — Library 호 위 점이 빠르게 넘겨도 호를 따라 움직임
 - **v1.89** (2026-11-02) — Library 쓰기 연동(Notion 블록 단위 저장·페이지·그림, 보관함·GitHub 삭제·그림), Journal 전체로 보기, Esc로 닫기
 - **v1.88** (2026-11-02) — 페이지별 첫 안내(Archive → 사용 안내에서 다시 보기), Library 메모(GitHub 자동 커밋)·토큰 만료 안내·처음 화면·카드 애니메이션·크기 조절, Notion 부모 찾기 수정
 - **v1.87** (2026-11-02) — 내부 정리: CSS 부분별 분리, Today 보조 화면 폴더, STRUCTURE.md

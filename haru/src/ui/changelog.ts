@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.90',
+    date: '2026-11-02',
+    items: [
+      'Library 카드 위 호의 점이 빠르게 넘길 때 선을 벗어나 순간이동하던 문제를 고쳤어요. 이제 점이 호를 따라서만 움직여요.',
+    ],
+  },
+  {
     version: '1.89',
     date: '2026-11-02',
     items: [

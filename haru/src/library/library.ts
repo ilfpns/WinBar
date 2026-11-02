@@ -479,10 +479,9 @@ export function mountLibrary(body: HTMLElement, sum: HTMLElement): void {
       keep.add(item.id);
     }
     for (const [id, c] of have) if (!keep.has(id)) c.remove();
-    // the dot rides the arc (the track's top edge is half an ellipse, 22px tall)
+    // the dot rides the arc: it moves along the track's own curve (offset-path), so even a fast run stays on it
     const u = list.length > 1 ? p.focus / (list.length - 1) : 0.5;
-    arcDot.style.left = `${u * 100}%`;
-    arcDot.style.top = `${22 * (1 - Math.sqrt(Math.max(0, 1 - (2 * u - 1) ** 2))) - 4}px`;
+    arcDot.style.offsetDistance = `${u * 100}%`;
     prev.disabled = p.focus === 0;
     next.disabled = p.focus >= list.length - 1;
   }
