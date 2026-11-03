@@ -103,6 +103,20 @@ service cloud.firestore {
       allow delete: if isInvited() && resource.data.from == request.auth.uid;
     }
 
+    // cheers: a heart on someone's task or day, one document per (date, sender, receiver, task), written by the sender
+    // as themselves. Only the two of them read it; the sender takes it back, the receiver clears it
+    match /cheers/{id} {
+      allow read: if isInvited() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+      allow create: if isInvited() && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string && request.resource.data.to != request.auth.uid
+        && request.resource.data.date is string && request.resource.data.date.size() == 10
+        && request.resource.data.key is string && request.resource.data.key.size() > 0 && request.resource.data.key.size() <= 40
+        && request.resource.data.title is string && request.resource.data.title.size() <= 80
+        && request.resource.data.fromName is string && request.resource.data.fromName.size() <= 60
+        && id == request.resource.data.date + '_' + request.auth.uid + '_' + request.resource.data.to + '_' + request.resource.data.key;
+      allow delete: if isInvited() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+    }
+
     // the Updates notice pinned on top of the Archive: everyone invited reads it, only the admin writes it
     match /notices/{doc} {
       allow read: if isInvited();

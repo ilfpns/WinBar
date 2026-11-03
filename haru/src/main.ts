@@ -46,6 +46,8 @@ import { mountInsights } from './journal/insights';
 import { addSplit } from './ui/splitter';
 import { mountPeek } from './timetable/views/peek';
 import { mountProfileCard } from './timetable/views/profile-card';
+import { mountBrief } from './timetable/views/brief';
+import { mountCheers } from './cloud/cheers';
 import { mountViewing, viewing } from './cloud/viewing';
 import { anyPopOpen } from './ui/popover';
 
@@ -103,6 +105,8 @@ mountTodayViews(document.querySelector<HTMLElement>('.dial-wrap')!, byId('stage'
 mountReminders();
 mountStreaks();
 mountReview();
+mountBrief();
+mountCheers();
 mountGreeting(byId('stage'));
 mountTemplates({ list: byId('tpl-list'), form: byId<HTMLFormElement>('tpl-save'), status: byId('tpl-status') });
 mountTitlebar();

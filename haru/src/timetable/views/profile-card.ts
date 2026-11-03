@@ -5,12 +5,14 @@ import { type Block, isBlock, labelOf } from '../model';
 import { formatDuration, hhmm, mod, nowMinutes } from '../time';
 import { icon } from '../../ui/icons';
 import { lang } from '../../ui/i18n';
+import { DAY, cheered, onCheers, setCheer } from '../../cloud/cheers';
 
 /**
  * Looking at someone else's Today (the switcher at the top right): beside their dial, a card with what there is to
  * know about them — today (share done, time planned, what they're on now and next), attendance (streak, best,
- * the last ten weeks) and the last seven days (planned, the part done). Read only and live; it goes when you
- * come back to your own.
+ * the last ten weeks) and the last seven days (planned, the part done), and their tasks today with a heart each to
+ * cheer them on (cloud/cheers.ts: the only thing written, and as yourself). Live; it goes when you come back to
+ * your own.
  */
 /** Weeks of attendance shown: as many as fill the card in squares about 20px wide. */
 const WEEKS = 10;
@@ -144,8 +146,69 @@ export function mountProfileCard(stage: HTMLElement): void {
     });
     week.append(cols);
 
-    card.append(head, today, att, week);
+    card.append(head, today, ...(started ? [cheerSec(who)] : []), att, week);
   }
+
+  /** Their tasks today, each with a heart, and one for the whole day. */
+  function cheerSec(p: Profile): HTMLElement {
+    const sec = document.createElement('section');
+    sec.className = 'who-sec who-cheer';
+    const top = document.createElement('div');
+    top.className = 'who-row';
+    top.append(Object.assign(document.createElement('span'), { className: 'card-title', textContent: ko() ? '응원하기' : 'Cheer on' }));
+    top.append(heart(p, DAY, ko() ? '오늘 하루' : 'Their day', true));
+    sec.append(top);
+    const list = document.createElement('ul');
+    list.className = 'who-cheers';
+    for (const b of [...blocks].sort((x, y) => x.start - y.start)) {
+      const li = document.createElement('li');
+      li.style.setProperty('--c', `var(--cat-${b.cat})`);
+      li.classList.toggle('done', b.done);
+      li.innerHTML = '<i class="dot"></i><span class="t"></span><span class="n"></span>';
+      li.querySelector('.t')!.textContent = hhmm(b.start);
+      li.querySelector('.n')!.textContent = labelOf(b);
+      li.append(heart(p, b.id, labelOf(b)));
+      list.append(li);
+    }
+    if (!blocks.length) list.append(Object.assign(document.createElement('li'), { className: 'who-cheers-empty', textContent: ko() ? '오늘 할 일이 아직 없어요. 하루 전체를 응원할 수 있어요.' : 'No tasks yet today. You can still cheer their day.' }));
+    sec.append(list);
+    return sec;
+  }
+
+  function heart(p: Profile, key: string, title: string, day = false): HTMLButtonElement {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `cheer-btn${day ? ' day' : ''}`;
+    const on = cheered(p.uid, dayOf(), key);
+    b.setAttribute('aria-pressed', String(on));
+    const label = on ? (ko() ? `${title} 응원 취소` : `Take back the cheer on ${title}`) : (ko() ? `${title} 응원하기` : `Cheer ${title}`);
+    b.setAttribute('aria-label', label);
+    b.title = label;
+    b.append(icon('heart'), ...(day ? [ko() ? (on ? '응원했어요' : '하루 응원') : (on ? 'Cheered' : 'Cheer day')] : []));
+    b.addEventListener('animationend', () => b.classList.remove('pop'));
+    b.addEventListener('click', async () => {
+      const want = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', String(want));
+      if (want) {
+        b.classList.remove('pop');
+        void b.offsetWidth;
+        b.classList.add('pop');
+      }
+      const err = await setCheer(p, key, title, want);
+      if (err) {
+        b.setAttribute('aria-pressed', String(!want));
+        b.title = err;
+        const note = Object.assign(document.createElement('p'), { className: 'who-cheer-err', textContent: err });
+        card.querySelector('.who-cheer-err')?.remove();
+        card.querySelector('.who-cheer')?.append(note);
+      }
+    });
+    return b;
+  }
+  // a heart sent (here or on another device) shows at once; paint() rebuilds the card, so only between clicks
+  onCheers(() => {
+    if (who && !card.querySelector('.cheer-btn.pop')) paint();
+  });
 
   async function loadRecent(p: Profile): Promise<void> {
     const s = session();

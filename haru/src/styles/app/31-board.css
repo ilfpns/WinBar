@@ -66,9 +66,9 @@
 .greet-streak .ic { width: 13px; height: 13px; color: var(--c); }
 .greet-streak[hidden] { display: none; }
 /* the chip that plans tomorrow, and its picker (timetable/views/plan-ahead.ts) */
-.greet-ahead { border: 0; cursor: pointer; background: rgb(var(--shade) / .3); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-muted);
+:is(.greet-ahead, .greet-brief) { border: 0; cursor: pointer; background: rgb(var(--shade) / .3); box-shadow: inset 0 0 0 1px var(--line); color: var(--text-muted);
   transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
-.greet-ahead:is(:hover, :focus-visible, [aria-expanded="true"]) { background: rgb(var(--shade) / .55); color: var(--text-strong); outline: none; }
+:is(.greet-ahead, .greet-brief):is(:hover, :focus-visible, [aria-expanded="true"]) { background: rgb(var(--shade) / .55); color: var(--text-strong); outline: none; }
 .ahead-pop {
   position: fixed; inset: auto; margin: 0; width: min(320px, calc(100vw - 16px)); max-height: calc(100svh - 16px); overflow-y: auto; padding: 8px;
   border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--noise), var(--sheet); color: var(--text); box-shadow: var(--glass-shine), var(--glass-drop);

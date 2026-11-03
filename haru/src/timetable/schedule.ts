@@ -3,6 +3,7 @@ import { type Block, STATUS_LABEL, STATUSES, contains, firstFreeSlot, labelOf, s
 import { cycleStatus, openDraft, select, state, subscribe, toggleSelected } from './state';
 import { setHover } from './hover';
 import { icon } from '../ui/icons';
+import { cheersFor, onCheers } from '../cloud/cheers';
 
 export interface ScheduleRefs {
   list: HTMLElement;
@@ -142,12 +143,22 @@ export function mountSchedule(refs: ScheduleRefs): void {
         n.append(mark);
         row.title = b.note;
       }
+      // hearts from the others on this task today
+      const got = cheersFor(b.id);
+      if (got.length) {
+        const h = document.createElement('span');
+        h.className = 'row-cheers';
+        h.title = got.map((c) => c.fromName).filter(Boolean).join(', ');
+        h.append(icon('heart'), ...(got.length > 1 ? [String(got.length)] : []));
+        row.querySelector('.d')!.prepend(h);
+      }
       li.append(check, row);
       return li;
     }));
   }
 
   subscribe(render);
+  onCheers(render);
   render();
   setInterval(render, 60_000);
 }

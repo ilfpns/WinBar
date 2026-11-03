@@ -15,7 +15,7 @@
 | 폴더 | 무엇 | 주요 파일 |
 |---|---|---|
 | `src/timetable/` | Today의 데이터와 다이얼 | `state.ts`(앱 상태·할 일 추가/수정/상태 변경, `openDraft`·`addBlock`·`cycleStatus`), `model.ts`(Block·카테고리·`passedOf`), `time.ts`, `dial.ts`(다이얼 SVG), `orb.ts`(가운데 점), `editor.ts`(오른쪽 서랍 편집기), `schedule.ts`(할 일 목록), `history.ts`(지난 날 스냅숏·`dayOf`), `day-reset.ts`(새 날 시각), `plans.ts`·`plan-form.ts`(미리 계획), `templates*.ts`, `streaks.ts`, `review.ts`, `school*.ts`, `reminders.ts` |
-| `src/timetable/views/` | Today의 다른 보기와 겹쳐 보는 화면 | `today-views.ts`(아래쪽 보기 전환 바, 보기 추가는 여기), `today-modes.ts`(Next 3 hours·This week·dots), `flow.ts`(Flow 다이어그램), `plan-ahead.ts`(Tomorrow 칩), `peek.ts`·`profile-card.ts`(다른 멤버 Today) |
+| `src/timetable/views/` | Today의 다른 보기와 겹쳐 보는 화면 | `today-views.ts`(아래쪽 보기 전환 바, 보기 추가는 여기), `today-modes.ts`(Next 3 hours·This week·dots), `flow.ts`(Flow 다이어그램), `plan-ahead.ts`(Tomorrow 칩), `brief.ts`(아침 브리핑: 하루 한 번 뜨는 카드, 인사말 옆 Brief 칩), `peek.ts`·`profile-card.ts`(다른 멤버 Today, 응원하기 하트) |
 | `src/calendar/` | Calendar 페이지 | `calendar.ts`(월 그리드·날짜 패널), `week.ts`, `stats.ts`, `notes.ts`·`images.ts`(메모), `quick-add.ts`(`!` 문법), `attendance.ts`(News 페이지의 출석), `day-charts.ts` |
 | `src/news/` | News 지구본 | `globe*.ts`, `news.ts` |
 | `src/words/` | Words | `words.ts` |
@@ -23,7 +23,7 @@
 | `src/archive/` | Archive(공유 페이지)·고정 항목 | `archive.ts`, `updates.ts`(업데이트 공지), `guide.ts`(사용 안내: 투어 다시 보기) |
 | `src/board/` | Dot board | `board.ts` |
 | `src/library/` | Library(Obsidian·GitHub·Notion) | `library.ts`(화면: 카드 부채·경로·Recent·읽기/편집), `sources.ts`(소스 목록·토큰 저장, Driver 인터페이스), `obsidian.ts`·`github.ts`·`notion.ts`(소스별 읽기·쓰기·삭제·그림), `notion-blocks.ts`(Notion 블록 ↔ 마크다운, 바뀐 블록만 고르는 비교), `note-text.ts`(앞머리·`[[링크]]`), `opened.ts`(최근 연 노트), `memo.ts`(노트 메모를 GitHub 메모 레포에 커밋), `git.ts`(Add·Commit·Push: 스테이징·커밋 대기열·Git 데이터 API로 푸시), `secrets.ts`(토큰 암호화 저장: 꺼낼 수 없는 AES 키) |
-| `src/cloud/` | 로그인·동기화·멤버 | `sync.ts`(Firestore 구조 표가 맨 위에 있다), `merge.ts`(목록 합치기), `account.ts`, `session.ts`, `viewing.ts`(다른 멤버 보기, `watchTheirToday`), `log.ts`, `activity.ts`, `firebase.ts` |
+| `src/cloud/` | 로그인·동기화·멤버 | `sync.ts`(Firestore 구조 표가 맨 위에 있다), `merge.ts`(목록 합치기), `account.ts`, `session.ts`, `viewing.ts`(다른 멤버 보기, `watchTheirToday`), `cheers.ts`(응원 하트: `cheers/{date}_{from}_{to}_{key}`, 받은 알림), `log.ts`, `activity.ts`, `firebase.ts` |
 | `src/storage/` | 이 기기 저장 | `db.ts`(IndexedDB: `notes`·`images`·`kv`), `list-store.ts`, `gone.ts`(삭제 기록), `backup.ts` |
 | `src/ui/` | 공통 화면 | `router.ts`(페이지 목록 `VIEW_ORDER`·`TEXT_PAGES`), `features.ts`(켜고 끄기), `page-order.ts`·`page-drag.ts`, `view-swipe.ts`, `drawers.ts`, `settings.ts`(설정 대화상자), `modal.ts`(`askText`·`askConfirm`·`askForm`·`showMenu`), `icons.ts`(Lucide 등록), `markdown.ts`(읽기용 렌더러), `md-editor.ts`·`md-pad.ts`(쓰기), `i18n.ts`(한국어), `changelog.ts`(What's new), `tour.ts`(페이지별 첫 안내: 단계 내용 `TOURS`, 본 기록은 `users/{uid}/meta/tour`), `greeting.ts`, `titlebar.ts`, `winbar.ts` |
 | `mcp/` | Claude용 MCP 서버 | `haru-mcp.mjs`(앱의 Firestore 구조를 그대로 따른다) |
@@ -33,7 +33,7 @@
 
 - Today: `state.ts`의 `setState` → localStorage + IndexedDB 미러 → `cloud/sync.ts`가 `users/{uid}/state/timetable`로 보냄(할 일마다 `u`, 삭제는 `gone`).
 - 지난 날: `history.ts`가 `day:YYYY-MM-DD`로 저장 → `sync.ts`가 `days/{date}`로 올림. 시작할 때는 최근 바뀐 날만 읽는다(`haru:days-cloud:{uid}`, 일주일마다 전체).
-- 다른 멤버: `viewing.ts`의 `watchTheirs`/`watchTheirToday`로 읽기만 한다(쓰기 금지).
+- 다른 멤버: `viewing.ts`의 `watchTheirs`/`watchTheirToday`로 읽기만 한다(쓰기 금지). 응원은 다른 사람 문서가 아니라 공용 `cheers`에 보낸 사람 이름으로 쓴다(`cloud/cheers.ts`, 받은 사람이 14일 지난 것을 지움).
 - Library: 클라우드에 아무것도 올리지 않는다. 소스 설정 `haru:library`, 토큰 `haru:library-keys`(암호문, 키는 IndexedDB `library:secret-key`), Git 설정·스테이징·커밋 대기 `haru:library-git*`, 보관함 폴더 핸들은 IndexedDB `kv`의 `library:vault:{id}`.
 
 ## 자주 하는 일
@@ -66,6 +66,7 @@
 | `27-phones` `28-big-screens` `29-motion` `30-titlebar` | 폰 하단 탭바, 큰 화면, 모션 줄이기, 설치형 타이틀바 |
 | `31-board` | Dot board(Tomorrow 칩·리뷰 카드도 여기) |
 | `32-library` `33-flow` `34-glass` `35-tour` | Library, Today Flow, Glass 투명도, 안내 투어·사용 안내 |
+| `36-brief` | 아침 브리핑, 응원 하트·알림 |
 
 새 부분은 맨 뒤에 새 번호로 추가하고 `app.css`의 `@import` 목록에도 넣는다.
 

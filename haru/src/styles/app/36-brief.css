@@ -1,0 +1,136 @@
+/* ---------- the morning brief (timetable/views/brief.ts) */
+.brief { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 24px); }
+.brief-card { position: relative; gap: 18px; padding: 24px; max-height: calc(100dvh - 24px); overflow: hidden auto; overscroll-behavior: contain; isolation: isolate; }
+/* a soft light from the corner, the colour of the time of day */
+.brief-card::before {
+  content: ''; position: absolute; z-index: -1; inset: -40% -30% auto auto; width: 420px; height: 320px; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 26%, transparent), transparent 72%);
+  filter: blur(8px); animation: brief-glow 6s ease-in-out infinite alternate;
+}
+@keyframes brief-glow { to { transform: translate3d(-24px, 18px, 0) scale(1.08); opacity: .75; } }
+.brief-hero { display: flex; align-items: center; gap: 14px; }
+.brief-sun {
+  display: grid; place-items: center; width: 46px; height: 46px; flex: none; border-radius: 15px; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.brief-sun .ic { width: 22px; height: 22px; }
+.brief-sun.day .ic { animation: brief-spin 18s linear infinite; }
+@keyframes brief-spin { to { transform: rotate(360deg); } }
+.brief-heading { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.brief-date { text-transform: none; font-size: 12px; letter-spacing: .02em; }
+.brief-title { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.025em; color: var(--text-strong); overflow-wrap: anywhere; }
+.brief-x { align-self: flex-start; }
+
+.brief-card > section { animation: brief-up .45s var(--drawer-ease) both; }
+.brief-card > section:nth-of-type(2) { animation-delay: .06s; }
+.brief-card > section:nth-of-type(3) { animation-delay: .12s; }
+@keyframes brief-up { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+
+/* today: the ring and its facts */
+.brief-today { display: grid; grid-template-columns: 148px minmax(0, 1fr); align-items: center; gap: 18px; padding: 14px; border-radius: 18px; background: rgb(var(--ink) / .035); box-shadow: inset 0 0 0 1px var(--glass-edge); }
+.peek-dial.brief-ring { position: static; inset: auto; width: 148px; height: 148px; overflow: visible; animation: none; }
+/* small: the slices and the hand only (no names or hour numbers), the count big in the middle */
+.brief-ring :is(.callout, text:not(.peek-pct)) { display: none; }
+.brief-ring .peek-pct { font-size: 120px; }
+.brief-facts { display: grid; gap: 8px; min-width: 0; }
+.brief-fact { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 10px; font-size: 13.5px; line-height: 1.45; }
+.brief-fact .k { color: var(--text-subtle); }
+.brief-fact .v { color: var(--text-strong); overflow-wrap: anywhere; }
+.brief-fact.next .v::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 2px; background: var(--c); vertical-align: 1px; }
+.brief-fact.menu .v { color: var(--text); font-size: 13px; }
+.brief-empty { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-muted); }
+.brief-empty.good { color: var(--accent); }
+
+/* yesterday: how much was done, what was left */
+.brief-yesterday { display: grid; gap: 10px; }
+.brief-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brief-meter { display: inline-flex; align-items: center; gap: 10px; font: 400 12px var(--font-mono); color: var(--text-muted); }
+.brief-meter i { position: relative; width: 120px; height: 6px; border-radius: 3px; background: rgb(var(--ink) / .07); overflow: hidden; }
+.brief-meter b { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--accent); transition: width .9s var(--drawer-ease); }
+.brief-sub { margin: 0; font-size: 12px; color: var(--text-subtle); }
+.brief-left { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.brief-left li {
+  display: grid; grid-template-columns: 8px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; min-height: 42px; padding: 0 6px 0 12px;
+  border-radius: 12px; background: rgb(var(--ink) / .03); box-shadow: inset 0 0 0 1px var(--glass-edge); transition: opacity .3s var(--ease-out);
+}
+.brief-left .dot { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+.brief-left .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--text-strong); }
+.brief-left .t { font: 400 11.5px var(--font-mono); color: var(--text-subtle); white-space: nowrap; }
+.brief-take { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.brief-take .ic { width: 13px; height: 13px; }
+.brief-left li.taken { opacity: .55; }
+.brief-left li.taken .brief-take { color: var(--accent); }
+
+/* hearts and streaks */
+.brief-extra { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.brief-tile { display: grid; align-content: start; gap: 8px; padding: 14px; border-radius: 16px; background: rgb(var(--ink) / .035); box-shadow: inset 0 0 0 1px var(--glass-edge); }
+.brief-tile[hidden] { display: none; }
+.brief-extra:has(.brief-tile[hidden]) { grid-template-columns: 1fr; }
+.brief-tile-top { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: var(--text-strong); }
+.brief-tile-top .ic { width: 17px; height: 17px; }
+.brief-cheers .brief-tile-top .ic { color: var(--heart); fill: var(--heart); }
+.brief-streak .brief-tile-top .ic { color: #f0a050; }
+.brief-tile-sub { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
+.brief-faces { display: flex; }
+.brief-faces .a-avatar { width: 26px; height: 26px; font-size: 12px; box-shadow: 0 0 0 2px var(--sheet); }
+.brief-faces .a-avatar + .a-avatar { margin-left: -7px; }
+.brief-go { justify-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; font-size: 15px; }
+.brief-go .ic { width: 16px; height: 16px; transition: transform var(--dur-fast) var(--ease-out); }
+.brief-go:hover .ic { transform: translateX(3px); }
+.greet-brief { --c: #f0b44c; }
+
+@media (max-width: 560px) {
+  .brief-card { padding: 18px; gap: 14px; }
+  .brief-title { font-size: 19px; }
+  .brief-today { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; padding: 12px; }
+  .peek-dial.brief-ring { width: 96px; height: 96px; }
+  .brief-fact { grid-template-columns: 44px minmax(0, 1fr); gap: 8px; font-size: 13px; }
+  .brief-extra { grid-template-columns: 1fr; }
+  .brief-left li { grid-template-columns: 8px minmax(0, 1fr) auto; }
+  .brief-left .t { display: none; }
+}
+
+/* ---------- cheers (cloud/cheers.ts): hearts on someone else's tasks, and on your own */
+:root { --heart: #f2667c; }
+.cheer-btn {
+  position: relative; display: inline-grid; grid-auto-flow: column; place-items: center; gap: 5px; min-width: 28px; height: 28px; padding: 0 7px;
+  border: 0; border-radius: 14px; background: rgb(var(--ink) / .05); color: var(--text-subtle); font: 500 12px var(--font-sans); cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.cheer-btn .ic { width: 14px; height: 14px; transition: fill var(--dur-fast) var(--ease-out); }
+.cheer-btn:hover { background: color-mix(in srgb, var(--heart) 14%, transparent); color: var(--heart); }
+.cheer-btn:active { transform: scale(.92); }
+.cheer-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--heart) 16%, transparent); color: var(--heart); }
+.cheer-btn[aria-pressed="true"] .ic { fill: currentColor; }
+.cheer-btn.day { padding: 0 11px; }
+/* a heart sent: it beats once and a ring goes out from it */
+.cheer-btn.pop .ic { animation: cheer-beat .5s cubic-bezier(.3, 1.6, .5, 1); }
+.cheer-btn.pop::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 0 color-mix(in srgb, var(--heart) 60%, transparent); animation: cheer-ring .6s var(--ease-out) forwards; pointer-events: none; }
+@keyframes cheer-beat { 30% { transform: scale(1.45); } 60% { transform: scale(.9); } }
+@keyframes cheer-ring { to { box-shadow: 0 0 0 10px transparent; } }
+.who-cheers { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 196px; overflow-y: auto; overscroll-behavior: contain; }
+.who-cheers li { display: grid; grid-template-columns: 7px 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 34px; padding: 0 2px 0 4px; border-radius: 9px; }
+.who-cheers li:hover { background: rgb(var(--ink) / .04); }
+.who-cheers .dot { width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
+.who-cheers .t { font: 400 11.5px var(--font-mono); color: var(--text-subtle); }
+.who-cheers .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text); }
+.who-cheers li.done .n { color: var(--text-subtle); text-decoration: line-through; }
+.who-cheers .who-cheers-empty { display: block; padding: 4px; font-size: 12.5px; color: var(--text-subtle); }
+.who-cheer-err { margin: 0; font-size: 12px; color: #e0806c; }
+/* yours: a heart by the task that got one */
+#list .d { display: inline-flex; align-items: center; gap: 8px; }
+.row-cheers { display: inline-flex; align-items: center; gap: 3px; color: var(--heart); font: 500 11px var(--font-sans); }
+.row-cheers .ic { width: 12px; height: 12px; fill: currentColor; }
+.cheer-toast {
+  position: fixed; left: 50%; bottom: 28px; z-index: 800; display: inline-flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px); padding: 10px 16px 10px 12px;
+  border: 1px solid var(--glass-edge); border-radius: 22px; background: var(--noise), var(--sheet); box-shadow: var(--glass-shine), var(--glass-drop);
+  font-size: 13.5px; line-height: 1.4; word-break: keep-all; color: var(--text-strong); transform: translateX(-50%); animation: cheer-in .45s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.cheer-toast.out { animation: cheer-out .35s var(--ease-out) forwards; }
+.cheer-toast-heart { flex: none; width: 18px; height: 18px; color: var(--heart); fill: var(--heart); animation: cheer-beat .7s .2s cubic-bezier(.3, 1.6, .5, 1) 2; }
+@keyframes cheer-in { from { opacity: 0; transform: translate(-50%, 16px) scale(.94); } }
+@keyframes cheer-out { to { opacity: 0; transform: translate(-50%, 10px); } }
+@media (max-width: 760px) { .cheer-toast { bottom: 84px; width: max-content; max-width: calc(100vw - 48px); } }
+@media (prefers-reduced-motion: reduce) {
+  .brief-card::before, .brief-sun .ic, .brief-card > section, .cheer-btn.pop .ic, .cheer-btn.pop::after, .cheer-toast, .cheer-toast-heart { animation: none; }
+}
