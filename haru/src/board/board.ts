@@ -58,14 +58,18 @@ async function loadTheirs(uid: string): Promise<Day[]> {
   ]);
   const blocksOf = (v: unknown): Block[] => (Array.isArray(v) ? v.filter(isBlock).map((b) => ({ ...b, done: b.done === true })) : []);
   const days: Day[] = [];
+  let begun = false;
   for (const d of kept.docs) {
     const x = d.data() as { date?: unknown; blocks?: unknown };
     const date = typeof x.date === 'string' ? x.date : d.id;
+    if (date === today) begun = true;
     const blocks = blocksOf(x.blocks);
-    if (date !== today && date < today && blocks.length) days.push(summarize(date, blocks));
+    if (date < today && blocks.length) days.push(summarize(date, blocks));
   }
+  // their Today counts as today only once their Haru has begun today (its copy of the day is there); before that
+  // it still holds an earlier day, already counted under that day (as on Today: cloud/viewing.ts watchTheirToday)
   const live = blocksOf((now?.data() as { blocks?: unknown } | undefined)?.blocks);
-  if (live.length) days.push(summarize(today, live));
+  if (begun && live.length) days.push(summarize(today, live));
   return days.sort((a, b) => a.date.localeCompare(b.date));
 }
 

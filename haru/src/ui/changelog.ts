@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '1.98',
+    date: '2026-11-04',
+    items: [
+      'Dot board에서 다른 멤버의 보드를 볼 때, 그 사람이 오늘 Haru를 아직 안 열었으면 어제 할 일이 오늘 기록으로 한 번 더 세지던 문제를 고쳤어요(Today 보기와 같은 기준).',
+    ],
+  },
+  {
     version: '1.97',
     date: '2026-11-03',
     items: [
