@@ -70,7 +70,7 @@ export async function setCheer(to: Profile, key: string, title: string, on: bool
   try {
     if (on) {
       await fs.setDoc(fs.doc(db, 'cheers', id), {
-        from: s.uid, fromName: s.name.slice(0, 60), fromPhoto: s.photo, to: to.uid, date, key: key.slice(0, 40), title: title.slice(0, 80), at: Date.now(),
+        from: s.uid, fromName: s.name.slice(0, 60), fromPhoto: s.photo && s.photo.length <= 1000 ? s.photo : null, to: to.uid, date, key: key.slice(0, 40), title: title.slice(0, 80), at: Date.now(),
       });
     } else await fs.deleteDoc(fs.doc(db, 'cheers', id));
     return null;

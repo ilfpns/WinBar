@@ -1,6 +1,6 @@
 import type { Fb } from './firebase';
 import { announceAutoLost, applyRemote, changingAutomatically, setState, state, subscribe } from '../timetable/state';
-import { type Block, blocksGone, blocksUpdated, newId, setBlocksGone, stampBlocks } from '../timetable/model';
+import { type Block, blocksGone, blocksUpdated, isBlock, newId, setBlocksGone, stampBlocks } from '../timetable/model';
 import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templatesGone, templatesUpdated } from '../timetable/templates';
 import { allDays, onDaySaved, putFromRemote, type DaySnapshot } from '../timetable/history';
 import { allPlans, onPlans, plansFromRemote, plansGone, plansUpdated } from '../timetable/plans';
@@ -34,6 +34,24 @@ import { onResetAt, resetAt, resetFromRemote, resetUpdated } from '../timetable/
 export type SyncStatus = 'syncing' | 'synced' | 'offline' | 'error';
 
 const MAX_IMAGE_BYTES = 900_000;
+/** A Firestore document holds at most 1 MiB: anything larger is refused, so it isn't sent (and says so). */
+const MAX_DOC_CHARS = 900_000;
+const tooBig = (v: unknown): boolean => {
+  try {
+    return JSON.stringify(v).length > MAX_DOC_CHARS;
+  } catch {
+    return true;
+  }
+};
+
+// ---------- what comes from the cloud is checked before it is used: a document in an unexpected shape (an older
+// Haru, a hand edit, a failed write) is read as far as it makes sense, never thrown on
+const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const withId = (v: unknown): boolean => isObj(v) && typeof v.id === 'string' && !!v.id;
+const isDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const blocksOf = (v: unknown): Block[] => arr(v).filter(isBlock);
 
 /** Re-encodes an image smaller until its data URL fits in one Firestore document. */
 async function fitImage(blob: Blob): Promise<string | null> {
@@ -65,17 +83,62 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   // the store listeners below live as long as the page; after sign-out they must do nothing
   let stopped = false;
   let pending = 0;
-  const report = () => onStatus(!navigator.onLine ? 'offline' : pending ? 'syncing' : 'synced');
+  /** The last write (or a listener) failed: shown until a write or a listener goes through again. */
+  let failed = false;
+  const report = () => {
+    if (!stopped) onStatus(!navigator.onLine ? 'offline' : failed ? 'error' : pending ? 'syncing' : 'synced');
+  };
+  const fail = (what: string, e?: unknown) => {
+    console.warn(`Haru sync: ${what}`, e ?? '');
+    failed = true;
+    report();
+  };
   addEventListener('online', report);
   addEventListener('offline', report);
   const write = (p: Promise<unknown>) => {
     pending++;
     report();
-    p.catch(() => onStatus('error')).finally(() => {
+    p.then(() => {
+      failed = false;
+    }, (e: unknown) => fail('a write failed', e)).finally(() => {
       pending--;
       report();
     });
   };
+  /**
+   * A live listener that comes back after an error. Firestore ends a listener for good on its first error (a lost
+   * connection that doesn't heal, a token being renewed, rules being published): without this, the other devices'
+   * changes would stop arriving until a reload. A throw in `next` (an unexpected document) is caught, not fatal.
+   */
+  const listen = <S>(open: (next: (snap: S) => void, error: (e: unknown) => void) => () => void, next: (snap: S) => unknown, what: string) => {
+    let close = () => {};
+    let timer = 0;
+    let tries = 0;
+    const start = () => {
+      if (stopped) return;
+      close = open((snap) => {
+        tries = 0;
+        try {
+          const r = next(snap);
+          if (r instanceof Promise) r.catch((e: unknown) => fail(`${what}: couldn't apply`, e));
+        } catch (e) {
+          fail(`${what}: couldn't apply`, e);
+        }
+      }, (e) => {
+        fail(`${what}: listener stopped`, e);
+        close = () => {};
+        clearTimeout(timer);
+        timer = window.setTimeout(start, Math.min(60_000, 2000 * 2 ** tries++));
+      });
+    };
+    start();
+    unsubs.push(() => {
+      clearTimeout(timer);
+      close();
+    });
+  };
+  const docListen = (path: string, next: (snap: { data(): unknown; metadata: { hasPendingWrites: boolean } }) => unknown) =>
+    listen((n, e) => fs.onSnapshot(ref(path), n, e), next, path);
 
   // ---------- Today (one document; the two copies are merged task by task — each task's stamp `u` and the
   // tombstones `gone`, like the lists — so a task checked off here and one added there both stay)
@@ -86,8 +149,10 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   let takeCloud = false;
   const pushBlocks = () => {
     const updated = blocksUpdated() || Date.now();
+    const doc = { blocks: state.blocks, updated, gone: blocksGone() };
+    if (tooBig(doc)) return fail('Today is too large to sync');
     cloudBlocksStamp = updated;
-    write(fs.setDoc(ref('state/timetable'), { blocks: state.blocks, updated, gone: blocksGone() }));
+    write(fs.setDoc(ref('state/timetable'), doc));
   };
   /**
    * Haru's own change (a new day, the school's lessons) goes up only onto the Today it was made from. If another
@@ -136,9 +201,10 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     applying = false;
     stampBlocks(stamp);
   };
-  unsubs.push(fs.onSnapshot(ref('state/timetable'), (snap) => {
+  docListen('state/timetable', (snap) => {
     if (snap.metadata.hasPendingWrites) return;
-    const data = snap.data() as { blocks: Block[]; updated: number; gone?: Gone } | undefined;
+    const raw = snap.data();
+    const data = isObj(raw) ? { blocks: blocksOf(raw.blocks), updated: num(raw.updated), gone: raw.gone as Gone | undefined } : undefined;
     if (!data) {
       // nothing in the cloud yet: this device's day goes up
       if (state.blocks.length) pushBlocks();
@@ -165,22 +231,25 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       setBlocksGone(m.gone);
       pushBlocks();
     } else stampBlocks(Math.max(blocksUpdated(), data.updated));
-  }, () => onStatus('error')));
+  });
 
   // ---------- templates (one list; the copies are merged template by template, so two devices editing
   // different templates at once keep both)
   let cloudTplStamp = 0;
   const pushTemplates = () => {
-    cloudTplStamp = templatesUpdated() || Date.now();
-    logChange('templates', '', 'save', allTemplates());
-    write(fs.setDoc(ref('meta/templates'), { list: allTemplates(), updated: cloudTplStamp, gone: templatesGone() }));
+    const doc = { list: allTemplates(), updated: templatesUpdated() || Date.now(), gone: templatesGone() };
+    if (tooBig(doc)) return fail('the templates are too large to sync');
+    cloudTplStamp = doc.updated;
+    logChange('templates', '', 'save', doc.list);
+    write(fs.setDoc(ref('meta/templates'), doc));
   };
   onTemplates(() => {
     if (!stopped && templatesUpdated() > cloudTplStamp) pushTemplates();
   });
-  unsubs.push(fs.onSnapshot(ref('meta/templates'), (snap) => {
+  docListen('meta/templates', (snap) => {
     if (snap.metadata.hasPendingWrites) return;
-    const data = snap.data() as { list: unknown[]; updated: number; gone?: Gone } | undefined;
+    const raw = snap.data();
+    const data = isObj(raw) ? { list: arr(raw.list).filter(withId), updated: num(raw.updated), gone: raw.gone as Gone | undefined } : undefined;
     if (!data) {
       if (allTemplates().length) pushTemplates();
       return;
@@ -192,21 +261,24 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       // taking the cloud's copy as is keeps its stamp; a merge is a change of its own, and goes back up
       templatesFromRemote(m.list, m.sameAsCloud ? data.updated : Date.now(), m.gone);
     } else if (!m.sameAsCloud) pushTemplates();
-  }, () => onStatus('error')));
+  });
 
   // ---------- plans (one list, merged day by day like the templates)
   let cloudPlanStamp = 0;
   const pushPlans = () => {
-    cloudPlanStamp = plansUpdated() || Date.now();
-    logChange('plans', '', 'save', allPlans());
-    write(fs.setDoc(ref('meta/plans'), { list: allPlans(), updated: cloudPlanStamp, gone: plansGone() }));
+    const doc = { list: allPlans(), updated: plansUpdated() || Date.now(), gone: plansGone() };
+    if (tooBig(doc)) return fail('the plans are too large to sync');
+    cloudPlanStamp = doc.updated;
+    logChange('plans', '', 'save', doc.list);
+    write(fs.setDoc(ref('meta/plans'), doc));
   };
   onPlans(() => {
     if (!stopped && plansUpdated() > cloudPlanStamp) pushPlans();
   });
-  unsubs.push(fs.onSnapshot(ref('meta/plans'), (snap) => {
+  docListen('meta/plans', (snap) => {
     if (snap.metadata.hasPendingWrites) return;
-    const data = snap.data() as { list: unknown[]; updated: number; gone?: Gone } | undefined;
+    const raw = snap.data();
+    const data = isObj(raw) ? { list: arr(raw.list).filter((p) => isObj(p) && isDate(p.date)), updated: num(raw.updated), gone: raw.gone as Gone | undefined } : undefined;
     if (!data) {
       if (allPlans().length) pushPlans();
       return;
@@ -217,7 +289,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       logChange('plans', '', 'from-cloud', m.list, allPlans());
       plansFromRemote(m.list, m.sameAsCloud ? data.updated : Date.now(), m.gone);
     } else if (!m.sameAsCloud) pushPlans();
-  }, () => onStatus('error')));
+  });
 
   // ---------- New day time (one value, the newer side wins). A device that never chose one sends the default
   // stamped 0, so any device's actual choice wins over it.
@@ -230,9 +302,12 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   onResetAt(() => {
     if (!stopped && resetUpdated() > cloudResetStamp) pushReset();
   });
-  unsubs.push(fs.onSnapshot(ref('meta/settings'), (snap) => {
+  docListen('meta/settings', (snap) => {
     if (snap.metadata.hasPendingWrites) return;
-    const data = snap.data() as { dayReset?: number | null; updated: number } | undefined;
+    const raw = snap.data();
+    // a minute of the day, or null (off); anything else is read as not set
+    const reset = isObj(raw) && (raw.dayReset === null || (typeof raw.dayReset === 'number' && raw.dayReset >= 0 && raw.dayReset < 1440)) ? raw.dayReset as number | null : undefined;
+    const data = isObj(raw) ? { dayReset: reset, updated: num(raw.updated) } : undefined;
     if (!data || data.dayReset === undefined) {
       // nothing in the cloud yet: this device's choice (or the default) goes up
       pushReset();
@@ -244,7 +319,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       resetFromRemote(data.dayReset, data.updated);
     } else if (resetUpdated() > data.updated) pushReset();
     else cloudResetStamp = data.updated;
-  }, () => onStatus('error')));
+  });
 
   // ---------- memos (per date)
   const notes = notesStore();
@@ -256,6 +331,10 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     const local = new Map(notes.all().map((r) => [r.date, r]));
     for (const r of local.values()) {
       if ((cloudNotes.get(r.date) ?? 0) >= r.updated) continue;
+      if (tooBig(r)) {
+        fail(`the memo of ${r.date} is too large to sync`);
+        continue;
+      }
       cloudNotes.set(r.date, r.updated);
       logChange('memo', r.date, 'save', r.text);
       write(fs.setDoc(ref(`notes/${r.date}`), r));
@@ -270,10 +349,14 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   onNotesChanged(pushNotes);
   if (notes) {
     void notes.ready.then(() => {
-      unsubs.push(fs.onSnapshot(col('notes'), (snap) => {
+      listen<{ docChanges(): { type: string; doc: { id: string; data(): unknown; metadata: { hasPendingWrites: boolean } } }[] }>((n, e) => fs.onSnapshot(col('notes'), n, e), (snap) => {
         for (const ch of snap.docChanges()) {
           if (ch.doc.metadata.hasPendingWrites) continue;
-          const r = ch.doc.data() as NoteRecord;
+          const raw = ch.doc.data();
+          // the date is the document's own name; a memo without text or a stamp is read as empty and old
+          const date = isObj(raw) && isDate(raw.date) ? raw.date : ch.doc.id;
+          if (!isDate(date)) continue;
+          const r: NoteRecord = { ...(isObj(raw) ? raw : {}), date, text: isObj(raw) && typeof raw.text === 'string' ? raw.text : '', updated: isObj(raw) ? num(raw.updated) : 0 } as NoteRecord;
           const mine = notes.record(r.date);
           if (ch.type === 'removed') {
             cloudNotes.delete(r.date);
@@ -294,7 +377,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
           notesSeeded = true;
           pushNotes(); // memos only this device has go up
         }
-      }, () => onStatus('error')));
+      }, 'notes');
     });
   }
 
@@ -326,7 +409,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     daysKnown.days[date] = saved;
     keepKnown();
   };
-  const sendDay = (s: DaySnapshot) => write(fs.runTransaction(db, async (tx) => {
+  const sendDay = (s: DaySnapshot) => tooBig(s) ? fail(`the day ${s.date} is too large to sync`) : write(fs.runTransaction(db, async (tx) => {
     const cur = await tx.get(ref(`days/${s.date}`));
     const there = Number(cur.data()?.saved) || 0;
     if (there >= s.saved) return there;
@@ -346,13 +429,16 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     const full = !daysKnown.full || Date.now() - daysKnown.full > DAYS_FULL_EVERY || Object.keys(daysKnown.days).some((d) => !here.has(d));
     const since = Math.max(0, ...Object.values(daysKnown.days)) - DAYS_MARGIN;
     const q = full ? col('days') : fs.query(col('days'), fs.where('saved', '>', since));
-    const remote = await fs.getDocs(q).catch(() => null);
+    const remote = await fs.getDocs(q).catch((e: unknown) => (fail('couldn’t read the past days', e), null));
     if (!remote || stopped) return;
     if (full) daysKnown = { days: {}, full: Date.now() };
     for (const d of remote.docs) {
-      const s = d.data() as DaySnapshot;
-      daysKnown.days[s.date] = Math.max(daysKnown.days[s.date] ?? 0, Number(s.saved) || 0);
-      await putFromRemote(s);
+      const raw = d.data() as unknown;
+      const date = isObj(raw) && isDate(raw.date) ? raw.date : d.id;
+      if (!isObj(raw) || !isDate(date)) continue;
+      const s: DaySnapshot = { date, blocks: blocksOf(raw.blocks), saved: num(raw.saved) };
+      daysKnown.days[s.date] = Math.max(daysKnown.days[s.date] ?? 0, s.saved);
+      await putFromRemote(s).catch((e: unknown) => fail(`couldn't keep the day ${s.date}`, e));
     }
     keepKnown();
     for (const s of mine) if ((daysKnown.days[s.date] ?? 0) < s.saved) sendDay(s);
@@ -368,8 +454,9 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     for (const r of local.values()) {
       if (cloudImages.has(r.id)) continue;
       cloudImages.add(r.id);
-      const data = await fitImage(r.blob);
-      if (data) {
+      const data = await fitImage(r.blob).catch(() => null);
+      if (!data) fail(`the image ${r.id} couldn’t be made small enough to sync`);
+      else {
         logChange('image', r.id, 'add', { date: r.date });
         write(fs.setDoc(ref(`images/${r.id}`), { id: r.id, date: r.date, created: r.created, data }));
       }
@@ -384,23 +471,28 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
   onImagesChanged(() => void pushImages());
   if (images) {
     void images.ready.then(() => {
-      unsubs.push(fs.onSnapshot(col('images'), async (snap) => {
+      listen<{ docChanges(): { type: string; doc: { id: string; data(): unknown; metadata: { hasPendingWrites: boolean } } }[] }>((n, e) => fs.onSnapshot(col('images'), n, e), async (snap) => {
         for (const ch of snap.docChanges()) {
           if (ch.doc.metadata.hasPendingWrites) continue;
-          const r = ch.doc.data() as { id: string; date: string; created: number; data: string };
+          const raw = ch.doc.data();
+          const r = { id: ch.doc.id, date: isObj(raw) && typeof raw.date === 'string' ? raw.date : '', created: isObj(raw) ? num(raw.created) : 0, data: isObj(raw) && typeof raw.data === 'string' ? raw.data : '' };
           if (ch.type === 'removed') {
             cloudImages.delete(r.id);
             images.removeFromRemote(r.id);
             continue;
           }
           cloudImages.add(r.id);
-          if (!images.has(r.id)) images.putFromRemote({ id: r.id, date: r.date, created: r.created, blob: await fromDataUrl(r.data) });
+          if (images.has(r.id) || !r.data.startsWith('data:')) continue;
+          // one image that won't decode never holds up the others
+          const blob = await fromDataUrl(r.data).catch(() => null);
+          if (blob) images.putFromRemote({ id: r.id, date: r.date, created: r.created, blob });
+          else fail(`the image ${r.id} couldn’t be read`);
         }
         if (!imagesSeeded) {
           imagesSeeded = true;
           void pushImages();
         }
-      }, () => onStatus('error')));
+      }, 'images');
     });
   }
 
@@ -422,10 +514,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       // Firestore takes no `undefined` fields: a JSON round trip drops them
       const items = JSON.parse(JSON.stringify(store.all())) as unknown[];
       // one document holds at most 1 MB
-      if (JSON.stringify(items).length > MAX_IMAGE_BYTES) {
-        onStatus('error');
-        return;
-      }
+      if (tooBig(items)) return fail(`the list ${key} is too large to sync`);
       cloudStamp = store.updated() || Date.now();
       logChange('list', key, 'save', items);
       write(fs.setDoc(ref(`lists/${key}`), { items, updated: cloudStamp, ...(items_ && { gone: store.gone() }) }));
@@ -435,9 +524,13 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
     });
     void store.ready.then(() => {
       if (stopped) return;
-      unsubs.push(fs.onSnapshot(ref(`lists/${key}`), (snap) => {
+      docListen(`lists/${key}`, (snap) => {
         if (snap.metadata.hasPendingWrites) return;
-        const data = snap.data() as { items: unknown[]; updated: number; gone?: Gone } | undefined;
+        const raw = snap.data();
+        // only what the merge below needs to read (each store checks its own records again as it takes them): pages
+        // and folders have an id, check-ins are dates; words go to their store as they are
+        const ok = merge ? isDate : items ? withId : () => true;
+        const data = isObj(raw) ? { items: arr(raw.items).filter(ok), updated: num(raw.updated), gone: raw.gone as Gone | undefined } : undefined;
         if (!data) {
           // nothing in the cloud yet: this device's list goes up
           if (store.all().length) push();
@@ -465,7 +558,7 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
           store.fromRemote(data.items, data.updated);
         } else if (store.updated() > data.updated) push();
         else cloudStamp = data.updated;
-      }, () => onStatus('error')));
+      });
     });
   }
 

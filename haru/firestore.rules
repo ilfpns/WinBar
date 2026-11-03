@@ -108,7 +108,11 @@ service cloud.firestore {
     match /cheers/{id} {
       allow read: if isInvited() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
       allow create: if isInvited() && request.resource.data.from == request.auth.uid
+        && request.resource.data.keys().hasOnly(['from', 'fromName', 'fromPhoto', 'to', 'date', 'key', 'title', 'at'])
         && request.resource.data.to is string && request.resource.data.to != request.auth.uid
+        && exists(/databases/$(database)/documents/profiles/$(request.resource.data.to))
+        && request.resource.data.at is int
+        && (request.resource.data.get('fromPhoto', null) == null || (request.resource.data.fromPhoto is string && request.resource.data.fromPhoto.size() <= 1000))
         && request.resource.data.date is string && request.resource.data.date.size() == 10
         && request.resource.data.key is string && request.resource.data.key.size() > 0 && request.resource.data.key.size() <= 40
         && request.resource.data.title is string && request.resource.data.title.size() <= 80

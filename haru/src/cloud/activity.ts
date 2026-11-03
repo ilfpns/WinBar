@@ -62,6 +62,8 @@ export async function sweepIdle(
   for (const [email, invited] of members) {
     if (OWNERS.includes(email)) continue;
     const p = profiles.get(email);
+    // signed in but the profile not read yet (or written without its email): never judged on nothing
+    if (!p && profiles.size === 0) continue;
     const lastAdded = p?.lastAdded ?? 0;
     if (now - activeSince(invited, lastAdded) < IDLE_MS) continue;
     const rec: Expired = { email, name: p?.name ?? '', invited, lastAdded, expiredAt: now };

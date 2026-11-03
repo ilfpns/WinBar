@@ -19,15 +19,32 @@ export const cloudConfigured = SIGN_IN_ENABLED && Boolean(config.apiKey && confi
 export type Fb = Awaited<ReturnType<typeof loadFirebase>>;
 
 let loading: ReturnType<typeof load> | null = null;
-export const loadFirebase = () => (loading ??= load());
+/** Loaded once; a failed load (offline, a part of the build gone after a deploy) may be tried again. */
+export const loadFirebase = () => (loading ??= load().catch((e: unknown) => {
+  loading = null;
+  throw e;
+}));
 
 async function load() {
-  const [{ initializeApp }, authMod, fs] = await Promise.all([import('firebase/app'), import('firebase/auth'), import('firebase/firestore')]);
-  const app = initializeApp(config as Record<string, string>);
+  const [{ initializeApp, getApps }, authMod, fs] = await Promise.all([import('firebase/app'), import('firebase/auth'), import('firebase/firestore')]);
+  const app = getApps()[0] ?? initializeApp(config as Record<string, string>);
   const auth = authMod.getAuth(app);
-  // Firestore keeps its own offline copy and queues writes made offline
-  const db = fs.initializeFirestore(app, {
-    localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
-  });
+  // Firestore keeps its own offline copy and queues writes made offline. A field left undefined is dropped
+  // instead of refusing the whole write. A browser that can't keep the copy (storage blocked, a private window)
+  // still syncs, from memory.
+  let db: ReturnType<typeof fs.initializeFirestore>;
+  try {
+    db = fs.initializeFirestore(app, {
+      ignoreUndefinedProperties: true,
+      localCache: fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() }),
+    });
+  } catch {
+    try {
+      db = fs.initializeFirestore(app, { ignoreUndefinedProperties: true, localCache: fs.memoryLocalCache() });
+    } catch {
+      // already set up (a load tried again): the one there is
+      db = fs.getFirestore(app);
+    }
+  }
   return { app, auth, authMod, db, fs };
 }

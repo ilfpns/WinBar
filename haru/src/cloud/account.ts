@@ -396,20 +396,21 @@ export function mountAccount(refs: AccountRefs): void {
     let names = new Map<string, string>();
     let rows: string[] = [];
     let invitedAt = new Map<string, number>();
-    // both lists loaded at least once: only then can anyone be judged idle
+    // both lists loaded at least once from the server itself: only then can anyone be judged idle (this device's
+    // copy can be days old — judged on it, someone active since would be taken off)
     let gotProfiles = false;
     let gotAllow = false;
     const sweep = () => {
       if (gotProfiles && gotAllow) void sweepIdle(fb, invitedAt, profiles);
     };
-    const unsubNames = fs.onSnapshot(fs.collection(db, 'profiles'), (snap) => {
+    const unsubNames = fs.onSnapshot(fs.collection(db, 'profiles'), { includeMetadataChanges: true }, (snap) => {
       profiles = new Map(snap.docs.map((d) => {
         const p = d.data() as { email?: string; name?: string; lastAdded?: number };
         return [String(p.email ?? '').toLowerCase(), { name: String(p.name ?? ''), lastAdded: Number(p.lastAdded) || 0 }] as const;
       }));
       names = new Map([...profiles].map(([e, p]) => [e, p.name]));
-      const first = !gotProfiles;
-      gotProfiles = true;
+      const first = !gotProfiles && !snap.metadata.fromCache;
+      if (first) gotProfiles = true;
       paintRows();
       if (first) sweep();
     }, () => {});
@@ -430,11 +431,11 @@ export function mountAccount(refs: AccountRefs): void {
       // the rules for `expired` not published yet: the invitation alone
       void batch.commit().catch(() => fs.setDoc(fs.doc(db, 'allow', email), entry));
     }
-    const unsub = fs.onSnapshot(fs.collection(db, 'allow'), (snap) => {
+    const unsub = fs.onSnapshot(fs.collection(db, 'allow'), { includeMetadataChanges: true }, (snap) => {
       rows = snap.docs.map((d) => d.id).sort();
       invitedAt = new Map(snap.docs.map((d) => [d.id, Number((d.data() as { invited?: number }).invited) || 0]));
-      const first = !gotAllow;
-      gotAllow = true;
+      const first = !gotAllow && !snap.metadata.fromCache;
+      if (first) gotAllow = true;
       paintRows();
       if (first) sweep();
     });
