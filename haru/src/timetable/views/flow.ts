@@ -126,8 +126,19 @@ export function createFlow(): Flow {
       });
       cats.append(b);
     }
-    const when = el('span', 'flow-time', `${hhmm(adding!.start)}–${hhmm(adding!.start + draft.dur)}`);
-    c.append(top, lens, cats, when);
+    // the foot: when it goes, as what, and the way to add it besides Enter
+    const foot = el('div', 'flow-new-foot');
+    const when = el('span', 'flow-time');
+    when.append(icon('clock'), `${hhmm(adding!.start)}–${hhmm(adding!.start + draft.dur)}`);
+    const kind = el('span', 'flow-kind', CATEGORIES[draft.cat]);
+    kind.style.setProperty('--c', `var(--cat-${draft.cat})`);
+    const add = el('button', 'flow-add', 'Add');
+    add.type = 'button';
+    add.title = 'Add  Enter';
+    add.addEventListener('click', commit);
+    foot.append(when, kind, add);
+    lens.style.setProperty('--n', String(lens.childElementCount));
+    c.append(top, lens, cats, foot);
     if (error) c.append(el('span', 'flow-err', error));
     return c;
   }
