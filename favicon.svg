@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Haru: the day dial. A dark tile, the 24h ring, the part of the day done in green, the dot emblem at its heart. -->
+  <rect width="64" height="64" rx="15" fill="#0d0e10"/>
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="14.25" fill="none" stroke="#ffffff" stroke-opacity=".09" stroke-width="1.5"/>
+  <circle cx="32" cy="32" r="19" fill="none" stroke="#2b2d31" stroke-width="7"/>
+  <!-- about two thirds of the day, from midnight at the top, clockwise -->
+  <circle cx="32" cy="32" r="19" fill="none" stroke="#4fbf7a" stroke-width="7" stroke-linecap="round"
+    pathLength="100" stroke-dasharray="66 100" transform="rotate(-90 32 32)"/>
+  <circle cx="32" cy="32" r="7.5" fill="#4fbf7a"/>
+  <circle cx="32" cy="12.5" r="1.6" fill="#0d0e10"/>
+</svg>
