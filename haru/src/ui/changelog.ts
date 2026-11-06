@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.00',
+    date: '2026-11-06',
+    items: [
+      '학교 시간표: 컴시간알리미 자료가 없는 주에는 NEIS에서 오늘 수업을 가져와요 (No timetable for this week yet 해결)',
+      'NEIS로 가져와도 교시 시각은 학교의 실제 종 시간을 써요',
+    ],
+  },
+  {
     version: '1.99',
     date: '2026-11-04',
     items: [

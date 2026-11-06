@@ -10,8 +10,9 @@ import { automatically, setState, state } from './state';
  * Where the lessons come from:
  *  - 컴시간알리미, for the school published by scripts/fetch-school-timetable.mjs (data/school-timetable.json):
  *    lessons and the school's own period start times;
- *  - NEIS (open.neis.go.kr, readable from the browser) for any other school: schools, classes and the day's
- *    lessons; NEIS has no bell times, so periods follow a usual day for the school's level.
+ *  - NEIS (open.neis.go.kr, readable from the browser) for any other school, and for that one in a week the
+ *    snapshot doesn't cover: schools, classes and the day's lessons; NEIS has no bell times, so periods follow
+ *    the snapshot's bell times if there are any, else a usual day for the school's level.
  */
 interface Lesson { period: number; subject: string }
 interface Week { start: string; periods: string[]; classes: Record<string, Record<string, Lesson[]>> }
@@ -165,9 +166,11 @@ export async function lessonsToday(s: School, cls: string, now = new Date()): Pr
       end.setDate(end.getDate() + 7);
       return w.start <= today && today < dayKey(end);
     });
-    if (!week) return 'No timetable for this week yet';
-    const lessons = week.classes[cls]?.[String(day)] ?? [];
-    return lessons.length ? toBlocks(lessons, week.periods, 50) : 'No classes today';
+    if (week) {
+      const lessons = week.classes[cls]?.[String(day)] ?? [];
+      return lessons.length ? toBlocks(lessons, week.periods, 50) : 'No classes today';
+    }
+    // no snapshot for this week (컴시간알리미 couldn't be read): NEIS's lessons at the school's own bell times
   }
   const [grade, num] = cls.split('-');
   const service = s.kind.startsWith('초') ? 'elsTimetable' : s.kind.startsWith('중') ? 'misTimetable' : 'hisTimetable';
@@ -180,7 +183,8 @@ export async function lessonsToday(s: School, cls: string, now = new Date()): Pr
   }
   const lessons = rows.map((r) => ({ period: Number(r.PERIO), subject: (r.ITRT_CNTNT ?? '').replace(/^-/, '').trim() })).filter((l) => l.period > 0 && l.subject);
   if (!lessons.length) return 'No classes today';
-  const { periods, lesson } = usualDay(s.kind);
+  const known = isComci(s) ? comci!.weeks.at(-1)?.periods : undefined;
+  const { periods, lesson } = known?.length ? { periods: known, lesson: 50 } : usualDay(s.kind);
   return toBlocks(lessons, periods, lesson);
 }
 
