@@ -12,11 +12,22 @@ export const nextStamp = (last: number): number => Math.max(Date.now(), (Number(
 
 const KEEP_DAYS = 60;
 
-/** `gone` with the keys that `before` had and `after` lacks marked as deleted now, old marks dropped. */
-export function markGone<T>(gone: Gone, before: readonly T[], after: readonly T[], key: (t: T) => string, now = Date.now()): Gone {
+/**
+ * A stamp for changing something that carries `prev`: now, but always later than `prev`. Another device's clock
+ * may run ahead of this one (a Mac and a Windows PC minutes apart): a change made here must still win over the
+ * older one it replaces, or the merge would keep the older copy and the change would seem not to work.
+ */
+export const stampAfter = (prev: unknown): number => nextStamp(Number(prev) || 0);
+
+/**
+ * `gone` with the keys that `before` had and `after` lacks marked as deleted now, old marks dropped. With `stampOf`,
+ * a mark is always later than the deleted item's own stamp (stamped by a device whose clock runs ahead), so the
+ * deletion holds in the merge.
+ */
+export function markGone<T>(gone: Gone, before: readonly T[], after: readonly T[], key: (t: T) => string, now = Date.now(), stampOf?: (t: T) => number): Gone {
   const kept = new Set(after.map(key));
   const out = pruneGone(gone, now);
-  for (const t of before) if (!kept.has(key(t))) out[key(t)] = now;
+  for (const t of before) if (!kept.has(key(t))) out[key(t)] = Math.max(now, stampOf ? (Number(stampOf(t)) || 0) + 1 : 0);
   return out;
 }
 

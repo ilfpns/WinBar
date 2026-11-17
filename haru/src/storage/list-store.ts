@@ -34,6 +34,8 @@ export function listStore<T>(key: string, valid: (v: unknown) => v is T): ListSt
   };
   /** The key a tombstone goes under: the record's id (a bare string, like a check-in date, is its own). */
   const idOf = (t: T): string => (typeof t === 'string' ? t : String((t as { id?: unknown }).id ?? ''));
+  /** A record's own stamp (journal pages: `updated`, folders: `created`), so a deletion is marked later than it. */
+  const stampOf = (t: T): number => (t && typeof t === 'object' ? Number((t as { updated?: unknown; created?: unknown }).updated ?? (t as { created?: unknown }).created) || 0 : 0);
   let current: Saved<T> = { items: [], updated: 0, gone: {} };
   try {
     current = clean(JSON.parse(localStorage.getItem(LS) ?? 'null')) ?? current;
@@ -61,7 +63,7 @@ export function listStore<T>(key: string, valid: (v: unknown) => v is T): ListSt
   return {
     all: () => current.items,
     set(items) {
-      current = { items, updated: nextStamp(current.updated), gone: markGone(current.gone ?? {}, current.items, items, idOf) };
+      current = { items, updated: nextStamp(current.updated), gone: markGone(current.gone ?? {}, current.items, items, idOf, Date.now(), stampOf) };
       writeLocal();
       void kvSet(key, current).catch(() => {});
       listeners.forEach((fn) => fn());

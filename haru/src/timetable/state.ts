@@ -171,9 +171,10 @@ export function setState(patch: Partial<AppState>): void {
     const prev = new Map(before.map((b) => [b.id, b]));
     state.blocks = state.blocks.map((b) => {
       const p = prev.get(b.id);
-      return p && sameTask(p, b) ? b : { ...b, u: now };
+      // later than the task's last stamp even when another device's clock runs ahead of this one
+      return p && sameTask(p, b) ? b : { ...b, u: Math.max(now, (Number(p?.u ?? b.u) || 0) + 1) };
     });
-    setBlocksGone(markGone(blocksGone(), before, state.blocks, (b) => b.id, now));
+    setBlocksGone(markGone(blocksGone(), before, state.blocks, (b) => b.id, now, (b) => Number(b.u) || 0));
   }
   if (before) {
     const ids = new Set(state.blocks.map((b) => b.id));

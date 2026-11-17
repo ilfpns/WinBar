@@ -13,6 +13,7 @@ import { sharePage, unsharePage } from '../archive/archive';
 import { type Entry, type Folder, ROOT, folderStore, journalStore, newId, wordCount } from './journal-store';
 import { mountPhotos } from './journal-photos';
 import { mountTree } from './journal-tree';
+import { stampAfter } from '../storage/gone';
 
 export { type Entry, type Folder, folderStore, journalStore } from './journal-store';
 
@@ -221,7 +222,7 @@ export function mountJournal(body: HTMLElement): void {
     const moving = before.filter((e) => ids.includes(e.id) && folderOf(e) !== folder);
     if (!moving.length) return;
     const from = validTab();
-    journalStore.set(before.map((e) => (moving.includes(e) ? { ...filedIn(e, folder), updated: Date.now() } : e)));
+    journalStore.set(before.map((e) => (moving.includes(e) ? { ...filedIn(e, folder), updated: stampAfter(e.updated) } : e)));
     if (follow) setTab(folder);
     tell(`Moved to ${placeName(folder)}`, () => {
       const back = new Map(moving.map((e) => [e.id, e.folder]));
@@ -382,7 +383,7 @@ export function mountJournal(body: HTMLElement): void {
       journalStore.set([e, ...all]);
     } else {
       if (cur.title === title && cur.body === bodyText) return;
-      journalStore.set(all.map((x) => (x.id === cur.id ? { ...x, title, body: bodyText, updated: Date.now() } : x)));
+      journalStore.set(all.map((x) => (x.id === cur.id ? { ...x, title, body: bodyText, updated: stampAfter(x.updated) } : x)));
     }
   }
   titleIn.addEventListener('input', () => {

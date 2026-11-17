@@ -3,6 +3,14 @@
 Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호를 붙이고, 처리 결과(고침 / 보류 / 사양대로)를 함께 적는다.
 점검은 사용자의 브라우저가 아니라 별도의 헤드리스 브라우저(gstack browse, `http://localhost:5288`)에서 한다.
 
+## 2026-11-17 (v2.01) — Mac·Windows 동기화(시계 차이)
+
+- 증상: macOS와 Windows에서 같은 계정으로 쓸 때, 다른 기기에서 만든 할 일의 체크·수정·삭제가 안 먹거나 되돌아감.
+  - 원인: 할 일의 `u`, 삭제 기록 `gone`을 각 기기의 `Date.now()`로 찍음 → 시계가 느린 기기의 변경이 빠른 기기의 옛 시각보다 작아 합치기(`merge.ts`)에서 짐.
+  - 처리: 바꿀 때 `max(지금, 이전 시각 + 1)`(`gone.ts`의 `stampAfter`), 삭제 기록도 지운 항목 시각보다 뒤로. Today·템플릿·계획·저널·메모·지난 날 기록·`haru-mcp.mjs`에 적용.
+  - 확인: tsc·build 통과. Windows 시계 5분 빠름 가정 테스트에서 Mac의 수정·삭제가 남음(이전 코드는 삭제가 되살아남).
+  - 남은 것: 실제 Mac·Windows 두 기기에서 확인 필요.
+
 ## 2026-11-06 (v2.00) — 학교 시간표 NEIS 대체
 
 - 증상: Settings → Today → School timetable에서 Apply 시 "No timetable for this week yet".

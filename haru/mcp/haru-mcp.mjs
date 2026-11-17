@@ -279,6 +279,9 @@ const DAY = 1440;
 const mod = (m) => ((m % DAY) + DAY) % DAY;
 const hhmm = (m) => `${String(Math.floor(mod(m) / 60)).padStart(2, '0')}:${String(mod(m) % 60).padStart(2, '0')}`;
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+/** A stamp later than `prev` (as the app's storage/gone.ts stampAfter): a change wins even over a stamp from a
+ *  device whose clock runs ahead of this one. */
+const after = (prev, now = Date.now()) => Math.max(now, (Number(prev) || 0) + 1);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const localDate = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -371,11 +374,13 @@ async function editToday(change) {
     const { blocks, result } = change(before);
     const now = Date.now();
     // changed and new tasks are stamped now; what went is marked deleted (`gone`), as the app does
+    // always later than the task's own stamp: another device's clock may run ahead of this one
     const prev = new Map(before.map((b) => [b.id, JSON.stringify(stored({ ...b, u: 0 }))]));
-    const out = blocks.sort(byStart).map((b) => (prev.get(b.id) === JSON.stringify(stored({ ...b, u: 0 })) ? b : { ...b, u: now })).map(stored);
+    const oldU = new Map(before.map((b) => [b.id, Number(b.u) || 0]));
+    const out = blocks.sort(byStart).map((b) => (prev.get(b.id) === JSON.stringify(stored({ ...b, u: 0 })) ? b : { ...b, u: after(oldU.get(b.id) ?? b.u, now) })).map(stored);
     const ids = new Set(out.map((b) => b.id));
     const gone = { ...(cur?.gone ?? {}) };
-    for (const b of before) if (!ids.has(b.id)) gone[b.id] = now;
+    for (const b of before) if (!ids.has(b.id)) gone[b.id] = after(b.u, now);
     return { data: { blocks: out, updated: now, gone }, result };
   });
 }
@@ -558,8 +563,9 @@ const tools = [
       }
       blocks.sort(byStart);
       return update(`users/${uid}/meta/plans`, (cur) => {
+        const old = (cur?.list ?? []).find((p) => p.date === day);
         const list = (cur?.list ?? []).filter((p) => p.date !== day);
-        list.push({ date: day, blocks, from: a.from ? String(a.from) : 'Claude', saved: Date.now() });
+        list.push({ date: day, blocks, from: a.from ? String(a.from) : 'Claude', saved: after(old?.saved) });
         list.sort((x, y) => x.date.localeCompare(y.date));
         // `gone`: what the list deleted and when (the app merges copies with it); a document write keeps it
         return { data: { list, updated: Date.now(), gone: cur?.gone ?? {} }, result: { planned: day, tasks: blocks.map(shown) } };
@@ -577,7 +583,8 @@ const tools = [
         const list = cur?.list ?? [];
         if (!list.some((p) => p.date === day)) fail(`No plan on ${day}`);
         const now = Date.now();
-        return { data: { list: list.filter((p) => p.date !== day), updated: now, gone: { ...(cur?.gone ?? {}), [day]: now } }, result: { cleared: day } };
+        const mark = after(list.find((p) => p.date === day)?.saved, now);
+        return { data: { list: list.filter((p) => p.date !== day), updated: now, gone: { ...(cur?.gone ?? {}), [day]: mark } }, result: { cleared: day } };
       });
     },
   },
@@ -614,7 +621,7 @@ const tools = [
         await logWrite(path, prev?.data, undefined);
         return { removed: day };
       }
-      const data = { date: day, text, updated: Date.now() };
+      const data = { date: day, text, updated: after(prev?.data?.updated) };
       await firestore.set(path, data);
       await logWrite(path, prev?.data, data);
       return { saved: day };
@@ -671,7 +678,7 @@ const tools = [
           const i = items.findIndex((x) => x.id === a.id);
           if (i < 0) fail(`No Journal page with id ${a.id}`);
           if (hidden.has(items[i].folder)) fail(HIDDEN);
-          page = { ...items[i], ...(a.date !== undefined && { date: date(a.date) }), ...(a.title !== undefined && { title: String(a.title) }), ...(a.body !== undefined && { body: String(a.body) }), updated: t };
+          page = { ...items[i], ...(a.date !== undefined && { date: date(a.date) }), ...(a.title !== undefined && { title: String(a.title) }), ...(a.body !== undefined && { body: String(a.body) }), updated: after(items[i].updated, t) };
           items[i] = page;
         } else {
           page = { id: newId(), date: a.date ? date(a.date) : today, title: String(a.title ?? ''), body: String(a.body ?? ''), created: t, updated: t };

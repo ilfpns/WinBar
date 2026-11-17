@@ -1,4 +1,5 @@
 import { db } from '../storage/db';
+import { stampAfter } from '../storage/gone';
 
 /**
  * Per-day memos, kept in IndexedDB (one record per date) so they can grow for years without
@@ -79,7 +80,7 @@ export function createNotes(onChange: () => void): Notes {
     all: () => [...cache.values()],
     set(date, text) {
       const blank = !text.trim();
-      const record = { date, text, updated: Date.now() };
+      const record = { date, text, updated: stampAfter(cache.get(date)?.updated) };
       if (blank) cache.delete(date);
       else cache.set(date, record);
       changed();

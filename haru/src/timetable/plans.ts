@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from '../storage/db';
-import { type Gone, cleanGone, markGone, nextStamp } from '../storage/gone';
+import { type Gone, cleanGone, markGone, nextStamp, stampAfter } from '../storage/gone';
 import { CATEGORIES, type Block, type Category, newId } from './model';
 import type { TemplateBlock } from './templates';
 
@@ -71,7 +71,7 @@ function load(): Plan[] {
   }
 }
 function save(stamp = nextStamp(plansUpdated()), before: readonly Plan[] = plans, remoteGone?: Gone): void {
-  gone = remoteGone ?? markGone(gone, before, plans, (p) => p.date);
+  gone = remoteGone ?? markGone(gone, before, plans, (p) => p.date, Date.now(), (p) => Number(p.saved) || 0);
   try {
     localStorage.setItem(STAMP, String(stamp));
     localStorage.setItem(KEY, JSON.stringify(plans));
@@ -105,7 +105,7 @@ export function setPlan(date: string, blocks: readonly PlanBlock[], from: string
     date,
     blocks: blocks.map(planBlock).sort((a, b) => a.start - b.start),
     from,
-    saved: Date.now(),
+    saved: stampAfter(planOn(date)?.saved),
   };
   const before = plans;
   plans = [...plans.filter((x) => x.date !== date), p].sort((a, b) => a.date.localeCompare(b.date));

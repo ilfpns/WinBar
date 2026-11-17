@@ -1,5 +1,5 @@
 import { kvGet, kvSet } from '../storage/db';
-import { type Gone, cleanGone, markGone, nextStamp } from '../storage/gone';
+import { type Gone, cleanGone, markGone, nextStamp, stampAfter } from '../storage/gone';
 import { CATEGORIES, type Block, type Category, newId } from './model';
 import { announceAdded, setState, state } from './state';
 
@@ -56,7 +56,7 @@ function load(): Template[] {
   }
 }
 function save(stamp = nextStamp(templatesUpdated()), before: readonly Template[] = templates, remoteGone?: Gone): void {
-  gone = remoteGone ?? markGone(gone, before, templates, (t) => t.id);
+  gone = remoteGone ?? markGone(gone, before, templates, (t) => t.id, Date.now(), (t) => Number(t.updated) || 0);
   try {
     localStorage.setItem(STAMP, String(stamp));
     localStorage.setItem(KEY, JSON.stringify(templates));
@@ -87,7 +87,7 @@ export function onTemplates(fn: () => void): void {
 export function saveTemplate(name: string): Template {
   const blocks = state.blocks.map(templateBlock).sort((a, b) => a.start - b.start);
   const same = templates.find((t) => t.name.toLowerCase() === name.toLowerCase());
-  const t: Template = { id: same?.id ?? newId(), name, blocks, updated: Date.now() };
+  const t: Template = { id: same?.id ?? newId(), name, blocks, updated: stampAfter(same?.updated) };
   templates = same ? templates.map((x) => (x.id === t.id ? t : x)) : [...templates, t];
   save();
   return t;
@@ -106,7 +106,7 @@ export function createTemplate(name: string): Template {
 /** Renames a template or replaces its tasks (kept in start order). */
 export function updateTemplate(id: string, patch: Partial<Pick<Template, 'name' | 'blocks'>>): void {
   templates = templates.map((t) => (t.id === id
-    ? { ...t, ...patch, blocks: (patch.blocks ?? t.blocks).map(templateBlock).sort((a, b) => a.start - b.start), updated: Date.now() }
+    ? { ...t, ...patch, blocks: (patch.blocks ?? t.blocks).map(templateBlock).sort((a, b) => a.start - b.start), updated: stampAfter(t.updated) }
     : t));
   save();
 }

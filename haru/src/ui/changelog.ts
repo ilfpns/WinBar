@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.01',
+    date: '2026-11-17',
+    items: [
+      'Mac·Windows 사이 동기화: 기기 시계가 서로 달라도 방금 체크·수정·삭제한 할 일이 되돌아가지 않아요',
+      '템플릿·계획·저널·달력 메모도 같은 방식으로 고쳤어요 (Claude 연동 포함)',
+    ],
+  },
+  {
     version: '2.00',
     date: '2026-11-06',
     items: [

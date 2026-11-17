@@ -145,7 +145,8 @@ export function trackHistory(): void {
     if (state.blocks === last) return;
     last = state.blocks;
     clearTimeout(timer);
-    changedAt = changingAutomatically() ? blocksUpdated() || 1 : Date.now();
+    // by hand: later than any task's stamp, so this day's record wins over the copy another device (clock ahead) filed
+    changedAt = changingAutomatically() ? blocksUpdated() || 1 : Math.max(Date.now(), ...state.blocks.map((b) => (Number(b.u) || 0) + 1));
     timer = window.setTimeout(() => snap(), 400);
   });
   addEventListener('pagehide', () => snap());
