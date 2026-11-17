@@ -330,6 +330,8 @@ function stored(b) {
   if (b.note) out.note = b.note;
   // `u`: when the task last changed (the app merges two devices' copies of Today by it)
   if (b.u) out.u = b.u;
+  // `auto`: put there by Haru itself and untouched (lessons, meals, a day's plan); gone once the task is changed
+  if (b.auto) out.auto = b.auto;
   return out;
 }
 const shown = (b) => ({
@@ -377,7 +379,7 @@ async function editToday(change) {
     // always later than the task's own stamp: another device's clock may run ahead of this one
     const prev = new Map(before.map((b) => [b.id, JSON.stringify(stored({ ...b, u: 0 }))]));
     const oldU = new Map(before.map((b) => [b.id, Number(b.u) || 0]));
-    const out = blocks.sort(byStart).map((b) => (prev.get(b.id) === JSON.stringify(stored({ ...b, u: 0 })) ? b : { ...b, u: after(oldU.get(b.id) ?? b.u, now) })).map(stored);
+    const out = blocks.sort(byStart).map((b) => (prev.get(b.id) === JSON.stringify(stored({ ...b, u: 0 })) ? b : { ...b, u: after(oldU.get(b.id) ?? b.u, now), auto: undefined })).map(stored);
     const ids = new Set(out.map((b) => b.id));
     const gone = { ...(cur?.gone ?? {}) };
     for (const b of before) if (!ids.has(b.id)) gone[b.id] = after(b.u, now);

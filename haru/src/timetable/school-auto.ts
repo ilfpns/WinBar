@@ -53,12 +53,12 @@ export async function runAuto(): Promise<Partial<Record<Kind, number>>> {
     if (autoOn('lessons') && read(DONE_KEY.lessons) !== day && myClass()) {
       const lessons = await lessonsToday(mySchool(), myClass(), when);
       // a weekday with lessons, or a day that has none: either way this day is settled (a failure is tried again)
-      if (typeof lessons !== 'string') out.lessons = addAround(lessons).length;
+      if (typeof lessons !== 'string') out.lessons = addAround(lessons, 'school', day).length;
       if (typeof lessons !== 'string' || lessons === 'No classes today') write(DONE_KEY.lessons, day);
     }
     if (autoOn('meals') && read(DONE_KEY.meals) !== day) {
       const meals = await mealsToday(mySchool(), when);
-      if (typeof meals !== 'string') out.meals = addAround(await mealBlocks(mySchool(), meals, when)).length;
+      if (typeof meals !== 'string') out.meals = addAround(await mealBlocks(mySchool(), meals, when), 'meal', day).length;
       if (typeof meals !== 'string' || meals === 'No school meals today') write(DONE_KEY.meals, day);
     }
   } finally {

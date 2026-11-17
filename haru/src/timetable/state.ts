@@ -172,7 +172,17 @@ export function setState(patch: Partial<AppState>): void {
     state.blocks = state.blocks.map((b) => {
       const p = prev.get(b.id);
       // later than the task's last stamp even when another device's clock runs ahead of this one
-      return p && sameTask(p, b) ? b : { ...b, u: Math.max(now, (Number(p?.u ?? b.u) || 0) + 1) };
+      if (p && sameTask(p, b)) return b;
+      // a task Haru puts on the day by itself is stamped as old as can be: another device fills the same task
+      // (same id, model.ts autoId), maybe hours later, and anything done to it there must win over this fill
+      if (!p && b.auto && changingAutomatically()) return { ...b, u: 1 };
+      const u = Math.max(now, (Number(p?.u ?? b.u) || 0) + 1);
+      // changed by hand: no longer Haru's own (settleOverlaps never drops it)
+      if (b.auto && p && !changingAutomatically()) {
+        const { auto: _, ...mine } = b;
+        return { ...mine, u };
+      }
+      return { ...b, u };
     });
     setBlocksGone(markGone(blocksGone(), before, state.blocks, (b) => b.id, now, (b) => Number(b.u) || 0));
   }

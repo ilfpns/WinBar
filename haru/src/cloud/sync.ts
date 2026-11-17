@@ -1,6 +1,6 @@
 import type { Fb } from './firebase';
 import { announceAutoLost, applyRemote, changingAutomatically, setState, state, subscribe } from '../timetable/state';
-import { type Block, blocksGone, blocksUpdated, isBlock, newId, setBlocksGone, stampBlocks } from '../timetable/model';
+import { type Block, blocksGone, blocksUpdated, isBlock, newId, setBlocksGone, settleOverlaps, stampBlocks } from '../timetable/model';
 import { allTemplates, onTemplates, saveTemplate, templatesFromRemote, templatesGone, templatesUpdated } from '../timetable/templates';
 import { allDays, onDaySaved, putFromRemote, type DaySnapshot } from '../timetable/history';
 import { allPlans, onPlans, plansFromRemote, plansGone, plansUpdated } from '../timetable/plans';
@@ -218,7 +218,18 @@ export function startSync(fb: Fb, uid: string, onStatus: (s: SyncStatus) => void
       cloudBlocksStamp = data.updated;
       return;
     }
-    const m = mergeLists({ items: local, gone: blocksGone() }, { items: data.blocks, gone: cleanGone(data.gone) }, (b) => b.id, (b) => Number(b.u) || 0);
+    const merged = mergeLists({ items: local, gone: blocksGone() }, { items: data.blocks, gone: cleanGone(data.gone) }, (b) => b.id, (b) => Number(b.u) || 0);
+    // two devices that each filled the day by themselves overlap once merged: Haru's own untouched tasks give way
+    // (model.ts settleOverlaps), and what went is marked deleted so the other device drops it too
+    const settled = settleOverlaps(merged.list);
+    const m = settled.dropped.length
+      ? {
+        list: settled.list,
+        gone: { ...merged.gone, ...Object.fromEntries(settled.dropped.map((b) => [b.id, nextStamp(Number(b.u) || 0)])) },
+        sameAsLocal: false,
+        sameAsCloud: false,
+      }
+      : merged;
     // a first sync must never silently lose a different local day: it is kept as a template as well
     if (local.length && !m.sameAsLocal && !blocksUpdated()) saveTemplate(`This device ${new Date().toLocaleDateString('en-CA')}`);
     cloudBlocksStamp = data.updated;

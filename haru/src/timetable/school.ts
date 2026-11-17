@@ -1,6 +1,6 @@
 import { session } from '../cloud/session';
 import { dayKey } from './history';
-import { type Block, newId, overlaps } from './model';
+import { type AutoSource, type Block, autoId, blocksGone, newId, overlaps } from './model';
 import { automatically, setState, state } from './state';
 
 /**
@@ -263,8 +263,13 @@ export async function mealBlocks(s: School, meals: Meal[], now = new Date()): Pr
  * Puts tasks on Today without touching what is there: anything that would overlap an existing task is left
  * out (used by the daily automatic fill, which asks nobody). Returns what was added.
  */
-export function addAround(blocks: Block[]): Block[] {
-  const added = blocks.filter((b) => !overlaps(state.blocks, { ...b, id: null }));
+export function addAround(blocks: Block[], source: AutoSource, date: string): Block[] {
+  // the same id on every device (see autoId); one deleted today stays deleted
+  const gone = blocksGone();
+  const have = new Set(state.blocks.map((b) => b.id));
+  const added = blocks
+    .map((b) => ({ ...b, id: autoId(source, date, b), auto: source }))
+    .filter((b) => !gone[b.id] && !have.has(b.id) && !overlaps(state.blocks, { ...b, id: null }));
   if (added.length) automatically(() => setState({ blocks: [...state.blocks, ...added] }));
   return added;
 }

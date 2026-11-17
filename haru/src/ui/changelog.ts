@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.03',
+    date: '2026-11-17',
+    items: [
+      '두 기기(Mac·Windows)가 각자 오늘 수업·급식·계획을 채워 같은 시간에 할 일이 두 개씩 생기던 문제를 고쳤어요',
+      '이미 겹친 할 일도 정리해요: 똑같은 할 일은 하나만, 손대지 않은 수업은 내 할 일에 자리를 비켜요',
+      '한 기기에서 체크한 수업이 다른 기기의 자동 채우기로 되돌아가지 않아요',
+    ],
+  },
+  {
     version: '2.02',
     date: '2026-11-17',
     items: [

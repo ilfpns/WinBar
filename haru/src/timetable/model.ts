@@ -32,6 +32,64 @@ export interface Block {
   note?: string;
   /** When the task last changed on any device (stamped by setState), for merging Today between devices. */
   u?: number;
+  /** Put on Today by Haru itself (a day's plan, the school's lessons or meals) and not changed by hand since.
+   *  Dropped as soon as the task is changed by hand. */
+  auto?: AutoSource;
+}
+
+export type AutoSource = 'plan' | 'school' | 'meal';
+
+/**
+ * The id of a task Haru puts on a day by itself: the same on every device. Each device fills Today on opening —
+ * before sign-in, so before the sync can tell it another device already did — and with ids of their own the two
+ * fills would both stay when the copies are merged: every lesson twice. With this id they are one task.
+ */
+export function autoId(source: AutoSource, date: string, b: Pick<Block, 'start' | 'title'>): string {
+  let h = 0;
+  for (const ch of b.title) h = (Math.imul(h, 31) + ch.codePointAt(0)!) >>> 0;
+  return `${source}-${date}-${b.start}-${h.toString(36)}`;
+}
+
+/**
+ * Two devices' copies of Today merged can overlap (each filled the day by itself before they met), which the app
+ * never allows on its own. Settles it without losing anything someone did:
+ *  - the same task twice (title, category, time): one is kept — the one checked off or with a note, else the newer;
+ *  - a task Haru put there by itself and nobody touched (not started, no note) gives way to an overlapping one
+ *    that ranks higher: your own tasks, then a day's plan, then lessons and meals. A lesson or meal from before
+ *    the `auto` mark counts as Haru's when it sits at exactly the same time as the other task.
+ * Anything else that overlaps is left as it is. Returns the tasks kept and the ones dropped.
+ */
+export function settleOverlaps(blocks: readonly Block[]): { list: Block[]; dropped: Block[] } {
+  const untouched = (b: Block) => !b.done && !b.doing && !b.note;
+  const sameSpan = (a: Block, b: Block) => a.start === b.start && a.dur === b.dur;
+  const weight = (b: Block) => (b.done ? 4 : b.doing ? 2 : 0) + (b.note ? 1 : 0);
+  const rank = (x: Block, other: Block) => {
+    if (x.auto) return x.auto === 'plan' ? 1 : 0;
+    // lessons and meals put on Today before v2.03 carry no mark
+    if ((x.cat === 'school' || x.cat === 'meal') && untouched(x) && sameSpan(x, other)) return 0;
+    return 2;
+  };
+  const dropped = new Set<Block>();
+  for (let i = 0; i < blocks.length; i++) {
+    for (let j = i + 1; j < blocks.length; j++) {
+      const a = blocks[i]!;
+      const b = blocks[j]!;
+      if (dropped.has(a) || dropped.has(b)) continue;
+      if (!(mod(a.start - b.start) < b.dur || mod(b.start - a.start) < a.dur)) continue;
+      if (a.title === b.title && a.cat === b.cat && sameSpan(a, b)) {
+        const [keep, lose] = weight(a) !== weight(b) ? (weight(a) > weight(b) ? [a, b] : [b, a]) : (Number(a.u) || 0) >= (Number(b.u) || 0) ? [a, b] : [b, a];
+        // two different notes: both are someone's writing, both stay
+        if (!lose.note || lose.note === keep.note) dropped.add(lose);
+        continue;
+      }
+      const ra = rank(a, b);
+      const rb = rank(b, a);
+      if (ra === rb) continue;
+      const lose = ra < rb ? a : b;
+      if (untouched(lose)) dropped.add(lose);
+    }
+  }
+  return { list: blocks.filter((b) => !dropped.has(b)), dropped: [...dropped] };
 }
 
 /** A block being created (id null) or edited. */

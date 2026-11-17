@@ -1,6 +1,6 @@
 import { kvGet, kvSet } from '../storage/db';
 import { type Gone, cleanGone, markGone, nextStamp, stampAfter } from '../storage/gone';
-import { CATEGORIES, type Block, type Category, newId } from './model';
+import { CATEGORIES, type Block, type Category, autoId, blocksGone } from './model';
 import type { TemplateBlock } from './templates';
 
 /**
@@ -131,7 +131,9 @@ export function takePlan(date: string): Block[] | null {
     plans = left;
     save(nextStamp(plansUpdated()), before);
   }
-  return p ? p.blocks.map((b) => ({ ...b, id: newId(), done: false })) : null;
+  // the same ids on every device that begins this day (see autoId); a task deleted today stays deleted
+  const gone = blocksGone();
+  return p ? p.blocks.map((b) => ({ ...b, id: autoId('plan', date, b), done: false, auto: 'plan' as const })).filter((b) => !gone[b.id]) : null;
 }
 
 /** Applies the plan list (and its tombstones) from the cloud, keeping its time stamp. */
