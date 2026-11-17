@@ -13,7 +13,7 @@ import { resetAt } from '../day-reset';
  * a category; Enter), the + at the end after the last one. A card's check cycles its status; the card opens it
  * in the editor.
  */
-const CARD_W = 232;
+const CARD_W = 232; // = .flow-node width in styles/app/33-flow.css
 const CARD_H = 104;
 const GAP_X = 86;
 const GAP_Y = 74;
@@ -245,6 +245,9 @@ export function createFlow(): Flow {
         card.addEventListener('click', () => startAdding(slot, last?.id ?? null));
         (card as HTMLButtonElement).disabled = slot.room < SNAP;
       }
+      // a row running right to left: the wire comes in on the right and leaves on the left, so the ports swap
+      // sides (else a card shows a wire leaving from both of them)
+      card.classList.toggle('rev', cols > 1 && p.row % 2 === 1);
       card.style.transform = `translate(${p.x}px, ${p.y}px)`;
       card.style.setProperty('--i', String(i));
       canvas.append(card);

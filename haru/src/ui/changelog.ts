@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.02',
+    date: '2026-11-17',
+    items: [
+      'Flow: 오른쪽에서 왼쪽으로 가는 줄에서 한 할 일에 선이 양쪽으로 빠져나가 보이던 문제를 고쳤어요',
+      'Flow: 연결선이 카드의 점에 딱 붙고, 시간 글자가 잘리지 않아요',
+    ],
+  },
+  {
     version: '2.01',
     date: '2026-11-17',
     items: [
