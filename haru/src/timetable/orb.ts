@@ -207,7 +207,8 @@ export function createOrb(canvas: HTMLCanvasElement): Orb {
   }
   const shown = () => {
     const body = document.body;
-    return cssW > 0 && body.dataset.view === 'today' && !body.classList.contains('switching') && !canvas.parentElement?.classList.contains('alt');
+    // (power saver: held still until it wakes — ui/saver.ts)
+    return cssW > 0 && body.dataset.view === 'today' && !body.classList.contains('switching') && !body.classList.contains('saver') && !canvas.parentElement?.classList.contains('alt');
   };
   const watch = new MutationObserver(() => {
     if (shown()) wake();

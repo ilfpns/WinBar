@@ -57,3 +57,18 @@ html.calm .rail-btn[aria-current="page"]::after, html.calm .live-dot.on { animat
 .toast-go:hover .toast-text strong { text-decoration: underline; text-underline-offset: 3px; }
 .toast-x { width: 32px; height: 32px; }
 @media (prefers-reduced-motion: reduce) { .toast-update.out { animation: none; } }
+
+/* ---------- power saver (ui/saver.ts): unused for a while, Haru goes dark — the clock and the task now — and
+   everything underneath holds still */
+body.saver *, body.saver *::before, body.saver *::after { animation-play-state: paused !important; }
+.saver-veil {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-content: center; justify-items: center; gap: 14px;
+  background: #000; color: #f2f2f2; cursor: none; opacity: 0; transition: opacity 1.2s var(--ease-out);
+}
+.saver-veil[hidden] { display: none; }
+.saver-veil.on { opacity: 1; }
+.saver-clock { margin: 0; font: 200 clamp(64px, 14vw, 180px)/1 var(--font-sans); letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: rgb(255 255 255 / .82); }
+.saver-task { display: flex; align-items: center; gap: 10px; margin: 0; font: 400 15px/1.2 var(--font-sans); color: rgb(255 255 255 / .55); }
+.saver-task[hidden] { display: none; }
+.saver-left { font: 400 13px/1 var(--font-mono); color: rgb(255 255 255 / .35); }
+@media (prefers-reduced-motion: reduce) { .saver-veil { transition: none; } }

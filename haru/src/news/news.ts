@@ -2,6 +2,7 @@ import { createGlobe, type GeoPoint, type LandDot, type Marker } from './globe';
 import { currentView, onView } from '../ui/router';
 import { toggleDrawer } from '../timetable/state';
 import { icon } from '../ui/icons';
+import { onSaver, saving } from '../ui/saver';
 
 /** data/news.json, refreshed every 10 minutes by scripts/fetch-news.mjs (GitHub Actions). */
 type Topic = 'ai' | 'agi' | 'robotics' | 'chips' | 'embedded' | 'sw' | 'hw';
@@ -378,8 +379,9 @@ export function mountNews(refs: NewsRefs): void {
       }
       setHeat(heatSaved);
       globe.warm();
-      // spin only while the page is on screen — including while it slides in or out
-      const sync = () => globe!.setActive(currentView() === 'news');
+      // spin only while the page is on screen — including while it slides in or out — and not while Haru rests
+      const sync = () => globe!.setActive(currentView() === 'news' && !saving());
+      onSaver(sync);
       onView((view, prev) => {
         if (view !== 'news' && prev !== 'news') return;
         globe!.setActive(true);

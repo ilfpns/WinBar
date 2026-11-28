@@ -36,6 +36,7 @@ import { mountChangelog } from './ui/changelog';
 import { mountI18n } from './ui/i18n';
 import { mountFeatures } from './ui/features';
 import { mountPageOrder, mountRailAll } from './ui/page-order';
+import { mountSaver } from './ui/saver';
 import { mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountLibrary } from './library/library';
@@ -72,6 +73,8 @@ mountFeatures();
 // the tabs (Today, Journal, Calendar), then the other pages behind All
 mountPageOrder();
 mountRailAll();
+// Haru left open and unused goes dark and holds still until touched
+mountSaver();
 
 // labels, icons and links are not draggable content
 document.addEventListener('dragstart', (e) => {

@@ -25,7 +25,7 @@
 | `src/library/` | Library(Obsidian·GitHub·Notion) | `library.ts`(화면: 카드 부채·경로·Recent·읽기/편집), `sources.ts`(소스 목록·토큰 저장, Driver 인터페이스), `obsidian.ts`·`github.ts`·`notion.ts`(소스별 읽기·쓰기·삭제·그림), `notion-blocks.ts`(Notion 블록 ↔ 마크다운, 바뀐 블록만 고르는 비교), `note-text.ts`(앞머리·`[[링크]]`), `opened.ts`(최근 연 노트), `memo.ts`(노트 메모를 GitHub 메모 레포에 커밋), `git.ts`(Add·Commit·Push: 스테이징·커밋 대기열·Git 데이터 API로 푸시), `secrets.ts`(토큰 암호화 저장: 꺼낼 수 없는 AES 키) |
 | `src/cloud/` | 로그인·동기화·멤버 | `sync.ts`(Firestore 구조 표가 맨 위에 있다), `merge.ts`(목록 합치기), `account.ts`, `session.ts`, `viewing.ts`(다른 멤버 보기, `watchTheirToday`), `cheers.ts`(응원 하트: `cheers/{date}_{from}_{to}_{key}`, 받은 알림), `log.ts`, `activity.ts`, `firebase.ts` |
 | `src/storage/` | 이 기기 저장 | `db.ts`(IndexedDB: `notes`·`images`·`kv`), `list-store.ts`, `gone.ts`(삭제 기록), `backup.ts` |
-| `src/ui/` | 공통 화면 | `router.ts`(페이지 목록 `VIEW_ORDER`·`TEXT_PAGES`), `features.ts`(켜고 끄기, `defaultOff`는 처음에 꺼짐), `page-order.ts`(탭 `TABS` = Today·Journal·Calendar, 나머지는 레일 All 메뉴 `mountRailAll`)(레일·오버뷰의 All 버튼이 같은 메뉴를 씀)·`page-drag.ts`(지금은 쓰지 않음), `view-swipe.ts`, `drawers.ts`, `settings.ts`(설정 대화상자), `modal.ts`(`askText`·`askConfirm`·`askForm`·`showMenu`), `icons.ts`(Lucide 등록), `time-field.ts`(시간 칸: 타이핑 + 시·분 휠, 모든 시간 입력이 씀), `markdown.ts`(읽기용 렌더러), `md-editor.ts`·`md-pad.ts`(쓰기), `i18n.ts`(한국어), `changelog.ts`(What's new), `tour.ts`(페이지별 첫 안내: 단계 내용 `TOURS`, 본 기록은 `users/{uid}/meta/tour`), `greeting.ts`, `titlebar.ts`, `winbar.ts` |
+| `src/ui/` | 공통 화면 | `router.ts`(페이지 목록 `VIEW_ORDER`·`TEXT_PAGES`), `features.ts`(켜고 끄기, `defaultOff`는 처음에 꺼짐), `page-order.ts`(탭 `TABS` = Today·Journal·Calendar, 나머지는 레일 All 메뉴 `mountRailAll`)(레일·오버뷰의 All 버튼이 같은 메뉴를 씀)·`page-drag.ts`(지금은 쓰지 않음), `view-swipe.ts`, `drawers.ts`, `settings.ts`(설정 대화상자), `modal.ts`(`askText`·`askConfirm`·`askForm`·`showMenu`), `icons.ts`(Lucide 등록), `time-field.ts`(시간 칸: 타이핑 + 시·분 휠, 모든 시간 입력이 씀), `saver.ts`(절전: 쓰지 않으면 검은 화면·`body.saver`로 애니메이션 정지, 다이얼 점·지구본은 `saving()`/`onSaver`로 멈춤), `markdown.ts`(읽기용 렌더러), `md-editor.ts`·`md-pad.ts`(쓰기), `i18n.ts`(한국어), `changelog.ts`(What's new), `tour.ts`(페이지별 첫 안내: 단계 내용 `TOURS`, 본 기록은 `users/{uid}/meta/tour`), `greeting.ts`, `titlebar.ts`, `winbar.ts` |
 | `mcp/` | Claude용 MCP 서버 | `haru-mcp.mjs`(앱의 Firestore 구조를 그대로 따른다) |
 | `scripts/` | 빌드·배포 | `deploy.mjs`, `fetch-*.mjs`, `change-requests.mjs` |
 
@@ -63,7 +63,7 @@
 | `18-markdown` `19-print` `25-md-editor` | 마크다운 보기, PDF 인쇄, 쓰기 편집기 |
 | `20-logo-menu` `21-features` | 로고 메뉴, 꺼진 기능 숨기기 |
 | `22-archive` `23-viewing` `24-dialogs` `26-chat` | Archive, 다른 멤버 보기, 대화상자·메뉴, Chat |
-| `27-phones` `28-big-screens` `29-motion` `30-titlebar` | 폰 하단 탭바, 큰 화면, 모션 줄이기, 설치형 타이틀바 |
+| `27-phones` `28-big-screens` `29-motion` `30-titlebar` | 폰 하단 탭바, 큰 화면, 모션 줄이기·절전 화면, 설치형 타이틀바 |
 | `31-board` | Dot board(Tomorrow 칩·리뷰 카드도 여기) |
 | `32-library` `33-flow` `34-glass` `35-tour` | Library, Today Flow, Glass 투명도, 안내 투어·사용 안내 |
 | `36-brief` | 아침 브리핑, 응원 하트·알림 |

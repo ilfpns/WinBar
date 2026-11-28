@@ -17,6 +17,15 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.07',
+    date: '2026-11-28',
+    items: [
+      '절전: 켜 둔 채 쓰지 않으면 화면이 검게 바뀌고 시계와 지금 할 일만 보여요. 움직이는 것(다이얼 점, 지구본, 애니메이션)은 모두 멈춰요',
+      '아무 데나 누르거나 마우스를 움직이면 바로 돌아와요 (깨우는 클릭은 다른 걸 누르지 않아요)',
+      '설정 → Appearance → Power saver에서 끄거나 2·5·15분을 골라요 (처음은 5분)',
+    ],
+  },
+  {
     version: '2.06',
     date: '2026-11-28',
     items: [

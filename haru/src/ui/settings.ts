@@ -3,6 +3,7 @@ import { icon } from './icons';
 import { toggleDrawer } from '../timetable/state';
 import { shownTheme, showTheme } from './theme';
 import { FEATURES, featureOn, onFeatures, setFeature } from './features';
+import { type SaverDelay, savedSaver, setSaver } from './saver';
 import { timeField } from './time-field';
 import { DEFAULT_RESET, onResetAt, resetAt, setResetAt } from '../timetable/day-reset';
 import { NEIS_KEYLESS_ROWS, type School, applyLessons, classesOf, hasNeisKey, isComci, lessonsToday, mealBlocks, mealsToday, myClass, mySchool, searchSchools, setMyClass, setMySchool } from '../timetable/school';
@@ -409,6 +410,14 @@ export function mountSettings(): void {
   }
   themeBtns.forEach((b) => b.addEventListener('click', () => setTheme(b.dataset.themePick as Theme)));
   // ---- motion: full, or less (the decoration goes; what tells you something changed stays)
+  // power saver: after how long unused Haru goes dark (ui/saver.ts)
+  const saverBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-saver-pick]')];
+  const paintSaver = () => saverBtns.forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.saverPick) === savedSaver())));
+  saverBtns.forEach((b) => b.addEventListener('click', () => {
+    setSaver(Number(b.dataset.saverPick) as SaverDelay);
+    paintSaver();
+  }));
+  paintSaver();
   const motionBtns = [...document.querySelectorAll<HTMLButtonElement>('[data-motion-pick]')];
   const paintMotion = () => motionBtns.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.motionPick === savedMotion())));
   motionBtns.forEach((b) => b.addEventListener('click', () => {
