@@ -299,17 +299,17 @@
   --text-muted: rgba(235, 240, 255, 0.62);
   --text-subtle: rgba(235, 240, 255, 0.38);
 
-  /* Apple's system colours (dark) */
-  --accent: #30d158;
-  --chart-bar: #30d158;
-  --info: #0a84ff;
-  --danger: #ff453a;
-  --status-doing: #64d2ff;
-  --cat-work: #ff9f0a;     --cat-study: #0a84ff;   --cat-school: #63e6e2;  --cat-project: #5e5ce6;
-  --cat-meeting: #ff375f;  --cat-meal: #ffd60a;    --cat-health: #32d74b;  --cat-reading: #64d2ff;
-  --cat-hobby: #bf5af2;    --cat-social: #ff6fb1;  --cat-rest: #e5c07b;    --cat-personal: #30d158;
-  --cat-commute: #98a8ff;  --cat-chores: #ff8a5c;  --cat-sleep: #8e7cff;   --cat-etc: #aeaeb2;
-  --cat-work-fill: color-mix(in srgb, var(--cat-work) 40%, transparent);       --cat-study-fill: color-mix(in srgb, var(--cat-study) 40%, transparent);
+  /* Apple's system hues, toned down: soft, dark and quiet on the black glass */
+  --accent: #5aa877;
+  --chart-bar: #5aa877;
+  --info: #6e93c4;
+  --danger: #c46a64;
+  --status-doing: #7aa6c2;
+  --cat-work: #b98a58;     --cat-study: #6585b2;   --cat-school: #6ea3a0;  --cat-project: #7d79b0;
+  --cat-meeting: #b06d80;  --cat-meal: #b9a466;    --cat-health: #7ea36f;  --cat-reading: #6f9cb3;
+  --cat-hobby: #9879ad;    --cat-social: #b08ba2;  --cat-rest: #a99a80;    --cat-personal: #6fa07f;
+  --cat-commute: #8590ad;  --cat-chores: #ab8270;  --cat-sleep: #8478ab;   --cat-etc: #8a8a90;
+  --cat-work-fill: color-mix(in srgb, var(--cat-work) 32%, transparent);       --cat-study-fill: color-mix(in srgb, var(--cat-study) 32%, transparent);
   --cat-school-fill: color-mix(in srgb, var(--cat-school) 36%, transparent);   --cat-project-fill: color-mix(in srgb, var(--cat-project) 40%, transparent);
   --cat-meeting-fill: color-mix(in srgb, var(--cat-meeting) 40%, transparent); --cat-meal-fill: color-mix(in srgb, var(--cat-meal) 34%, transparent);
   --cat-health-fill: color-mix(in srgb, var(--cat-health) 36%, transparent);   --cat-reading-fill: color-mix(in srgb, var(--cat-reading) 36%, transparent);

@@ -17,6 +17,13 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.12',
+    date: '2026-11-28',
+    items: [
+      'Liquid 테마의 색을 연하고 어둡게 낮췄어요 (카테고리·완료 체크·다이얼·지금 카드·칩)',
+    ],
+  },
+  {
     version: '2.11',
     date: '2026-11-28',
     items: [
