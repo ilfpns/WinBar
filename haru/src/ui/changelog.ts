@@ -17,6 +17,16 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.04',
+    date: '2026-11-28',
+    items: [
+      '왼쪽 탭은 Today·Journal·Calendar만 두고, 나머지 페이지는 All 버튼에 마우스를 올리면 보여요 (설정에서 꺼 둔 페이지도)',
+      '휠·스와이프는 탭 세 개 사이에서만 넘어가요, 탭 사이 구분선은 없앴어요',
+      'News·Words·Dot board·Library는 처음에 꺼져 있어요. 설정 → Features에서 켜면 오버뷰와 타이틀바에도 보여요',
+      '인사말 옆 Brief 칩을 없앴어요 (아침 브리핑은 하루 한 번 그대로 떠요)',
+    ],
+  },
+  {
     version: '2.03',
     date: '2026-11-17',
     items: [

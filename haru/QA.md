@@ -3,6 +3,16 @@
 Haru를 점검한 기록. 새 항목은 맨 위에 적는다. 문제는 번호를 붙이고, 처리 결과(고침 / 보류 / 사양대로)를 함께 적는다.
 점검은 사용자의 브라우저가 아니라 별도의 헤드리스 브라우저(gstack browse, `http://localhost:5288`)에서 한다.
 
+## 2026-11-28 (v2.04) — 탭 정리, All 메뉴, 기본 꺼짐
+
+- 확인(별도 헤드리스 playwright-core, 1440×900·390×800, 로그인 화면은 검사 안에서만 걷어냄):
+  - 레일: 로고 → Today·Journal·Calendar → All. 넘기기 구분선 없음. All 메뉴에 News·Words·Archive·Dot board·Library.
+  - All에 마우스 올림 → 62ms 뒤 메뉴 열림, 메뉴로 옮겨도 유지, 꺼진 News 눌러 이동 → 메뉴 닫힘, All 버튼 강조. 폰은 아래 탭바 위로 열림.
+  - 휠 4번: Today → Journal → Calendar → Calendar(탭 세 개 밖으로 안 넘어감).
+  - 처음 상태: off-news·off-words·off-board·off-library, 오버뷰에는 Today·Journal·Calendar·Archive. `haru:features-on`에 words → Words만 켜짐.
+  - Brief 칩 없음. 콘솔 오류 0, tsc 통과.
+- 찾은 문제 1: All 아이콘이 비어 보임 → `layout-grid`를 `ui/icons.ts`에 등록(고침).
+- 학교 시간표가 앞 5교시만 들어오는 문제: v2.00과 같은 원인(컴시간알리미 받아오기 실패 → NEIS 키 없이 5행). 키를 `config/neis`에 넣으면 해결(보류 — 키 발급 필요).
 ## 2026-11-17 (v2.03) — 같은 시간 할 일 중복(다이얼 이름표 선 두 개)
 
 - 증상(사용자 스크린샷 11:47): 다이얼 한 구간에서 이름표 선이 두 개씩 — `한국사2 08:40` 두 개, `시프`와 `* 임베디드…`(13:30), `마제`와 `* 로봇…`(09:40·11:40)이 같은 시간에 겹침.

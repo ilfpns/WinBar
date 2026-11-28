@@ -2,7 +2,6 @@ import { onSession, session } from '../cloud/session';
 import { icon } from './icons';
 import { onStreaks, todayRun } from '../timetable/streaks';
 import { mountPlanAhead } from '../timetable/views/plan-ahead';
-import { briefChip } from '../timetable/views/brief';
 
 /**
  * Today's greeting, top left: one line for the time of day with your name in it ("Good morning, Public"),
@@ -93,7 +92,6 @@ export function mountGreeting(stage: HTMLElement): void {
   chip.style.setProperty('--c', 'var(--accent)');
   runs.append(chip);
   mountPlanAhead(runs, stage);
-  runs.append(briefChip());
   const paintRuns = () => {
     const { days, best } = todayRun();
     chip.hidden = days < 2;

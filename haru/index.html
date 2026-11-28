@@ -102,7 +102,6 @@
     <nav class="tb-tabs" aria-label="Pages">
       <a class="tb-tab" href="#/" data-view="today" title="Today"><i data-icon="clock"></i><span>Today</span></a>
       <a class="tb-tab" href="#/calendar" data-view="calendar" title="Calendar"><i data-icon="calendar"></i><span>Calendar</span></a>
-      <span class="tb-rule" data-split aria-hidden="true"></span>
       <a class="tb-tab" href="#/news" data-view="news" title="News"><i data-icon="newspaper"></i><span>News</span></a>
       <a class="tb-tab" href="#/words" data-view="words" title="Words"><i data-icon="languages"></i><span>Words</span></a>
       <a class="tb-tab" href="#/journal" data-view="journal" title="Journal"><i data-icon="notebook-pen"></i><span>Journal</span></a>
@@ -120,17 +119,19 @@
     <button type="button" class="rail-btn rail-brand" aria-haspopup="menu" aria-controls="logo-menu" aria-expanded="false" aria-label="Haru menu" data-tip="Haru · settings and more"><i data-icon="circle-dot"></i></button>
     <span class="rail-rule" aria-hidden="true"></span>
     <a class="rail-btn" href="#/" data-view="today" aria-label="Today" data-tip="Today · the day's timetable"><i data-icon="clock"></i></a>
+    <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
     <a class="rail-btn" href="#/calendar" data-view="calendar" aria-label="Calendar" data-tip="Calendar · month, notes, stats"><i data-icon="calendar"></i></a>
-    <span class="rail-rule" data-split aria-hidden="true" data-tip="Swipe line · pages above it turn with the wheel or a swipe. Drag pages or this line to rearrange"></span>
     <a class="rail-btn" href="#/news" data-view="news" aria-label="News" data-tip="News · headlines on the globe, attendance"><i data-icon="newspaper"></i></a>
     <a class="rail-btn" href="#/words" data-view="words" aria-label="Words" data-tip="Words · learn English vocabulary"><i data-icon="languages"></i></a>
-    <a class="rail-btn" href="#/journal" data-view="journal" aria-label="Journal" data-tip="Journal · write and keep entries"><i data-icon="notebook-pen"></i></a>
     <a class="rail-btn" href="#/archive" data-view="archive" aria-label="Archive" data-tip="Archive · pages everyone shared"><i data-icon="archive"></i></a>
     <a class="rail-btn" href="#/board" data-view="board" aria-label="Dot board" data-tip="Dot board · every day, a cell for each category"><i data-icon="hexagon"></i></a>
     <a class="rail-btn" href="#/library" data-view="library" aria-label="Library" data-tip="Library · Obsidian, GitHub and Notion notes"><i data-icon="library"></i></a>
+    <button type="button" class="rail-btn rail-all" id="rail-all" aria-haspopup="true" aria-controls="rail-all-menu" aria-expanded="false" aria-label="All pages"><i data-icon="layout-grid"></i></button>
     <span class="rail-fill"></span>
     <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
   </nav>
+  <!-- the pages after the tabs, filled in by ui/page-order.ts; opens on hovering All (mountRailAll) -->
+  <div class="rail-all-menu" id="rail-all-menu" role="menu" aria-label="All pages" hidden></div>
 
   <!-- side drawers start tucked away; only their tab (or, on the left, the rail) shows until it is clicked -->
   <aside class="drawer drawer-left" id="drawer-left">
@@ -147,7 +148,6 @@
         <a class="nav-item" href="#/calendar" data-view="calendar">
           <i data-icon="calendar"></i>Calendar
         </a>
-        <span class="nav-rule" data-split aria-hidden="true" title="Pages above this line turn with the wheel or a swipe. Drag to rearrange"></span>
         <a class="nav-item" href="#/news" data-view="news">
           <i data-icon="newspaper"></i>News
         </a>

@@ -77,7 +77,6 @@
 .brief-go { justify-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; font-size: 15px; }
 .brief-go .ic { width: 16px; height: 16px; transition: transform var(--dur-fast) var(--ease-out); }
 .brief-go:hover .ic { transform: translateX(3px); }
-.greet-brief { --c: #f0b44c; }
 
 @media (max-width: 560px) {
   .brief-card { padding: 18px; gap: 14px; }

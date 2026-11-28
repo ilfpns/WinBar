@@ -16,8 +16,7 @@ import { currentView, onView } from '../../ui/router';
  * The morning brief: the first time Today opens on a new day, one card with the day ahead — today's tasks on a small
  * ring, what comes first, the school day and lunch when they're in Today — and the day before: how much was done,
  * and what was left, each with a button that brings it into today. Under them the hearts the others sent and the
- * streaks. It comes up by itself once a day (after a page tour, never over one); the Brief chip under the
- * greeting opens it again.
+ * streaks. It comes up by itself once a day (after a page tour, never over one).
  */
 const SEEN_KEY = 'haru:brief-seen';
 const ko = () => lang() === 'ko';
@@ -274,17 +273,6 @@ export async function openBrief(): Promise<void> {
   dlg.addEventListener('click', (e) => {
     if (e.target === dlg) shut();
   });
-}
-
-/** The chip under the greeting that opens the brief again. */
-export function briefChip(): HTMLButtonElement {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'greet-streak greet-brief';
-  b.title = ko() ? '오늘의 브리핑 다시 보기' : 'See this morning’s brief again';
-  b.append(icon('sun'), ko() ? '브리핑' : 'Brief');
-  b.addEventListener('click', () => void openBrief());
-  return b;
 }
 
 /** Once a day, on Today, when nothing else is on screen (a tour, a dialog, the sign-in card, someone else's Today). */

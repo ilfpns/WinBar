@@ -17,4 +17,3 @@
 .rail-btn[aria-current="page"] { isolation: isolate; color: color-mix(in srgb, var(--accent) 45%, var(--text-strong)); }
 @keyframes rail-breathe { 0%, 100% { opacity: .35; transform: scale(.86); } 50% { opacity: 1; transform: scale(1.06); } }
 body.drawer-moving .rail-btn[aria-current="page"]::after { animation-play-state: paused; }
-.nav-rule { height: 1px; margin: 4px 10px; background: var(--glass-edge); }

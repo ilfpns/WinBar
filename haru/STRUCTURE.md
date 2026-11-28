@@ -15,7 +15,7 @@
 | 폴더 | 무엇 | 주요 파일 |
 |---|---|---|
 | `src/timetable/` | Today의 데이터와 다이얼 | `state.ts`(앱 상태·할 일 추가/수정/상태 변경, `openDraft`·`addBlock`·`cycleStatus`), `model.ts`(Block·카테고리·`passedOf`), `time.ts`, `dial.ts`(다이얼 SVG), `orb.ts`(가운데 점), `editor.ts`(오른쪽 서랍 편집기), `schedule.ts`(할 일 목록), `history.ts`(지난 날 스냅숏·`dayOf`), `day-reset.ts`(새 날 시각), `plans.ts`·`plan-form.ts`(미리 계획), `templates*.ts`, `streaks.ts`, `review.ts`, `school*.ts`, `reminders.ts` |
-| `src/timetable/views/` | Today의 다른 보기와 겹쳐 보는 화면 | `today-views.ts`(아래쪽 보기 전환 바, 보기 추가는 여기), `today-modes.ts`(Next 3 hours·This week·dots), `flow.ts`(Flow 다이어그램), `plan-ahead.ts`(Tomorrow 칩), `brief.ts`(아침 브리핑: 하루 한 번 뜨는 카드, 인사말 옆 Brief 칩), `peek.ts`·`profile-card.ts`(다른 멤버 Today, 응원하기 하트) |
+| `src/timetable/views/` | Today의 다른 보기와 겹쳐 보는 화면 | `today-views.ts`(아래쪽 보기 전환 바, 보기 추가는 여기), `today-modes.ts`(Next 3 hours·This week·dots), `flow.ts`(Flow 다이어그램), `plan-ahead.ts`(Tomorrow 칩), `brief.ts`(아침 브리핑: 하루 한 번 뜨는 카드), `peek.ts`·`profile-card.ts`(다른 멤버 Today, 응원하기 하트) |
 | `src/calendar/` | Calendar 페이지 | `calendar.ts`(월 그리드·날짜 패널), `week.ts`, `stats.ts`, `notes.ts`·`images.ts`(메모), `quick-add.ts`(`!` 문법), `attendance.ts`(News 페이지의 출석), `day-charts.ts` |
 | `src/news/` | News 지구본 | `globe*.ts`, `news.ts` |
 | `src/words/` | Words | `words.ts` |
@@ -25,7 +25,7 @@
 | `src/library/` | Library(Obsidian·GitHub·Notion) | `library.ts`(화면: 카드 부채·경로·Recent·읽기/편집), `sources.ts`(소스 목록·토큰 저장, Driver 인터페이스), `obsidian.ts`·`github.ts`·`notion.ts`(소스별 읽기·쓰기·삭제·그림), `notion-blocks.ts`(Notion 블록 ↔ 마크다운, 바뀐 블록만 고르는 비교), `note-text.ts`(앞머리·`[[링크]]`), `opened.ts`(최근 연 노트), `memo.ts`(노트 메모를 GitHub 메모 레포에 커밋), `git.ts`(Add·Commit·Push: 스테이징·커밋 대기열·Git 데이터 API로 푸시), `secrets.ts`(토큰 암호화 저장: 꺼낼 수 없는 AES 키) |
 | `src/cloud/` | 로그인·동기화·멤버 | `sync.ts`(Firestore 구조 표가 맨 위에 있다), `merge.ts`(목록 합치기), `account.ts`, `session.ts`, `viewing.ts`(다른 멤버 보기, `watchTheirToday`), `cheers.ts`(응원 하트: `cheers/{date}_{from}_{to}_{key}`, 받은 알림), `log.ts`, `activity.ts`, `firebase.ts` |
 | `src/storage/` | 이 기기 저장 | `db.ts`(IndexedDB: `notes`·`images`·`kv`), `list-store.ts`, `gone.ts`(삭제 기록), `backup.ts` |
-| `src/ui/` | 공통 화면 | `router.ts`(페이지 목록 `VIEW_ORDER`·`TEXT_PAGES`), `features.ts`(켜고 끄기), `page-order.ts`·`page-drag.ts`, `view-swipe.ts`, `drawers.ts`, `settings.ts`(설정 대화상자), `modal.ts`(`askText`·`askConfirm`·`askForm`·`showMenu`), `icons.ts`(Lucide 등록), `markdown.ts`(읽기용 렌더러), `md-editor.ts`·`md-pad.ts`(쓰기), `i18n.ts`(한국어), `changelog.ts`(What's new), `tour.ts`(페이지별 첫 안내: 단계 내용 `TOURS`, 본 기록은 `users/{uid}/meta/tour`), `greeting.ts`, `titlebar.ts`, `winbar.ts` |
+| `src/ui/` | 공통 화면 | `router.ts`(페이지 목록 `VIEW_ORDER`·`TEXT_PAGES`), `features.ts`(켜고 끄기, `defaultOff`는 처음에 꺼짐), `page-order.ts`(탭 `TABS` = Today·Journal·Calendar, 나머지는 레일 All 메뉴 `mountRailAll`)·`page-drag.ts`(오버뷰에서 끌어 순서 바꾸기), `view-swipe.ts`, `drawers.ts`, `settings.ts`(설정 대화상자), `modal.ts`(`askText`·`askConfirm`·`askForm`·`showMenu`), `icons.ts`(Lucide 등록), `markdown.ts`(읽기용 렌더러), `md-editor.ts`·`md-pad.ts`(쓰기), `i18n.ts`(한국어), `changelog.ts`(What's new), `tour.ts`(페이지별 첫 안내: 단계 내용 `TOURS`, 본 기록은 `users/{uid}/meta/tour`), `greeting.ts`, `titlebar.ts`, `winbar.ts` |
 | `mcp/` | Claude용 MCP 서버 | `haru-mcp.mjs`(앱의 Firestore 구조를 그대로 따른다) |
 | `scripts/` | 빌드·배포 | `deploy.mjs`, `fetch-*.mjs`, `change-requests.mjs` |
 
@@ -38,7 +38,7 @@
 
 ## 자주 하는 일
 
-- **새 페이지**: `router.ts`의 `View`·`VIEW_ORDER`(본문형이면 `TEXT_PAGES`) → `features.ts`의 `Feature`·`FEATURES` → `index.html`의 `<main>`과 페이지 목록 세 곳 → `main.ts`의 `mountViewSwipe` 맵과 `mount…` → `styles/app/21-features.css`의 `body.off-<id>` → 새 CSS 파일.
+- **새 페이지**: `router.ts`의 `View`·`VIEW_ORDER`(본문형이면 `TEXT_PAGES`) → `features.ts`의 `Feature`·`FEATURES` → `index.html`의 `<main>`과 페이지 목록 세 곳(레일에 넣으면 All 메뉴로 옮겨짐) → `main.ts`의 `mountViewSwipe` 맵과 `mount…` → `styles/app/21-features.css`의 `body.off-<id>` → 새 CSS 파일.
 - **Today 보기 추가**: `views/today-views.ts`의 `TodayView`·`VIEWS`, `render()`에 분기. 다이얼을 가리면 `wrap.classList.toggle('alt', …)`.
 - **아이콘**: `ui/icons.ts`에 import와 `ICONS` 이름을 같이 넣는다(브랜드 아이콘 없음).
 - **대화상자**: `ui/modal.ts`의 `askText`/`askConfirm`/`askForm`/`showMenu`를 쓴다. 브라우저 `prompt`·`confirm`은 쓰지 않는다.

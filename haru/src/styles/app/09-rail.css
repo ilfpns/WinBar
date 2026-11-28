@@ -30,3 +30,19 @@ body.left-open .rail { opacity: 0; pointer-events: none; transition-delay: 0s; }
 .rail-brand:hover { background: radial-gradient(circle at 35% 28%, rgb(var(--ink) / 0.28), rgb(var(--ink) / 0.07) 70%); }
 .rail-rule { flex: none; width: 24px; height: 1px; margin: 4px 0; background: var(--glass-edge); }
 .rail-fill { flex: 1; }
+
+/* All: the pages after the tabs, in a glass menu beside the button (ui/page-order.ts mountRailAll) */
+.rail-all.holds-current, .rail-all[aria-expanded="true"] { color: var(--text-strong); background: var(--surface-2); }
+.rail-all-menu {
+  position: fixed; z-index: 60; display: grid; gap: 2px; min-width: 168px; padding: 6px;
+  border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--popover); box-shadow: var(--glass-drop);
+  opacity: 0; transform: translate3d(-6px, 0, 0); transition: opacity .14s var(--ease-out), transform .18s var(--ease-out);
+}
+.rail-all-menu.on { opacity: 1; transform: none; }
+.rail-all-menu .rail-btn {
+  width: auto; height: 36px; justify-content: flex-start; align-items: center; gap: 10px; padding: 0 12px 0 10px;
+  border-radius: 10px; font-size: 13px;
+}
+.rail-all-menu .rail-btn[aria-current="page"]::before, .rail-all-menu .rail-btn[aria-current="page"]::after { display: none; }
+.rail-all-name { white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .rail-all-menu { transition: none; transform: none; } }

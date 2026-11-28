@@ -1,30 +1,38 @@
-import { currentView, goTo, onView, type View } from './router';
-
 /**
- * Pages and tools that can be switched off in Settings → Features. Off means out of sight — the rail, the
- * overview, page turns and its shortcut — never deleted: switching it back on brings everything back.
- * Remembered per browser. Today is always on.
+ * Pages and tools that can be switched off in Settings → Features. Off means out of the way — the overview, the
+ * title bar and page turns — never deleted, and still a click away under the rail's All button: switching it back
+ * on brings everything back.
+ * Remembered per browser. Today is always on. `defaultOff` ones stay hidden until switched on in Settings.
  */
 export type Feature = 'calendar' | 'news' | 'words' | 'journal' | 'archive' | 'board' | 'library';
-export const FEATURES: { id: Feature; label: string; hint: string }[] = [
+export const FEATURES: { id: Feature; label: string; hint: string; defaultOff?: boolean }[] = [
   { id: 'calendar', label: 'Calendar', hint: 'Month view, memos and statistics' },
-  { id: 'news', label: 'News', hint: 'Headlines on the globe, attendance' },
-  { id: 'words', label: 'Words', hint: 'TOEIC vocabulary cards' },
+  { id: 'news', label: 'News', hint: 'Headlines on the globe, attendance', defaultOff: true },
+  { id: 'words', label: 'Words', hint: 'TOEIC vocabulary cards', defaultOff: true },
   { id: 'journal', label: 'Journal', hint: 'Pages in folders' },
   { id: 'archive', label: 'Archive', hint: 'Journal pages everyone shared' },
-  { id: 'board', label: 'Dot board', hint: 'Every day you keep, a cell for each category' },
-  { id: 'library', label: 'Library', hint: 'Obsidian, GitHub and Notion notes as cards' },
+  { id: 'board', label: 'Dot board', hint: 'Every day you keep, a cell for each category', defaultOff: true },
+  { id: 'library', label: 'Library', hint: 'Obsidian, GitHub and Notion notes as cards', defaultOff: true },
 ];
 const KEY = 'haru:features-off';
+/** The `defaultOff` features switched on — the rest are remembered in KEY as switched off. */
+const ON_KEY = 'haru:features-on';
 const listeners = new Set<() => void>();
 
-let off = new Set<Feature>();
-try {
-  const saved = JSON.parse(localStorage.getItem(KEY) ?? '[]') as unknown;
-  if (Array.isArray(saved)) off = new Set(saved.filter((f): f is Feature => FEATURES.some((x) => x.id === f)));
-} catch {
-  // all on
+const isDefaultOff = (f: Feature): boolean => FEATURES.some((x) => x.id === f && x.defaultOff);
+function readList(key: string): Feature[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) ?? '[]') as unknown;
+    if (Array.isArray(saved)) return saved.filter((f): f is Feature => FEATURES.some((x) => x.id === f));
+  } catch {
+    // nothing saved
+  }
+  return [];
 }
+
+const switchedOn = new Set(readList(ON_KEY).filter(isDefaultOff));
+const off = new Set(readList(KEY).filter((f) => !isDefaultOff(f)));
+for (const f of FEATURES) if (f.defaultOff && !switchedOn.has(f.id)) off.add(f.id);
 
 export const featureOn = (f: Feature): boolean => !off.has(f);
 export function onFeatures(fn: () => void): void {
@@ -34,7 +42,8 @@ export function setFeature(f: Feature, on: boolean): void {
   if (on) off.delete(f);
   else off.add(f);
   try {
-    localStorage.setItem(KEY, JSON.stringify([...off]));
+    localStorage.setItem(KEY, JSON.stringify([...off].filter((x) => !isDefaultOff(x))));
+    localStorage.setItem(ON_KEY, JSON.stringify(FEATURES.filter((x) => x.defaultOff && !off.has(x.id)).map((x) => x.id)));
   } catch {
     // for this visit
   }
@@ -42,18 +51,10 @@ export function setFeature(f: Feature, on: boolean): void {
   listeners.forEach((fn) => fn());
 }
 
-const isPage = (v: View): v is Exclude<View, 'today'> => v !== 'today';
 function apply(): void {
   for (const f of FEATURES) document.body.classList.toggle(`off-${f.id}`, off.has(f.id));
-  // the page you are on was switched off: back to Today
-  const v = currentView();
-  if (isPage(v) && off.has(v)) goTo('today');
 }
 
 export function mountFeatures(): void {
   apply();
-  // a link or a typed address to a page that is off lands on Today
-  onView((v) => {
-    if (isPage(v) && off.has(v)) goTo('today');
-  });
 }
