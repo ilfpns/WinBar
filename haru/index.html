@@ -130,7 +130,7 @@
     <span class="rail-fill"></span>
     <button type="button" class="rail-btn" data-drawer="left" aria-controls="panel-left" aria-expanded="false" aria-label="Open overview" data-tip="Open overview  ["><i data-icon="chevron-right"></i></button>
   </nav>
-  <!-- the pages after the tabs, filled in by ui/page-order.ts; opens on hovering All (mountRailAll) -->
+  <!-- the pages after the tabs, filled in by ui/page-order.ts; opens on hovering All in the rail or the overview (mountRailAll) -->
   <div class="rail-all-menu" id="rail-all-menu" role="menu" aria-label="All pages" hidden></div>
 
   <!-- side drawers start tucked away; only their tab (or, on the left, the rail) shows until it is clicked -->
@@ -166,6 +166,9 @@
         <a class="nav-item" href="#/library" data-view="library">
           <i data-icon="library"></i>Library
         </a>
+        <button type="button" class="nav-item nav-all" id="nav-all" aria-haspopup="true" aria-controls="rail-all-menu" aria-expanded="false">
+          <i data-icon="layout-grid"></i>All
+        </button>
       </nav>
 
       <section class="section">

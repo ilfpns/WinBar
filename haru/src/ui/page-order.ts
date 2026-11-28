@@ -3,8 +3,8 @@ import { VIEW_ORDER, currentView, onView, type View } from './router';
 
 /**
  * The pages' order in the rail, the overview and the title bar. Today, Journal and Calendar are the tabs: always
- * first, in that order, and the only pages that turn by wheel or swipe. The rest follow in the saved order (dragged
- * in the overview, see page-drag) and, in the rail, sit behind the All button (mountRailAll). Remembered per browser.
+ * first, in that order, and the only pages that turn by wheel or swipe. The rest follow in the saved order
+ * and sit behind the All button in the rail and the overview (mountRailAll). The order is remembered per browser.
  */
 export const RULE = 'rule';
 export type Slot = View | typeof RULE;
@@ -51,13 +51,20 @@ export function setLayout(slots: readonly Slot[]): void {
 const lists = (): HTMLElement[] =>
   [document.querySelector<HTMLElement>('.panel-left .nav'), document.querySelector<HTMLElement>('.tb-tabs')].filter((l) => !!l);
 
-/** Puts every list in order: in the rail the tabs above the All button, the other pages in its menu. */
+/**
+ * Puts every list in order. In the rail and the overview the tabs come first, then the All button; the other
+ * pages are only in its menu (the overview keeps their links hidden).
+ */
 export function apply(): void {
   for (const list of lists()) {
     for (const v of pageOrder()) {
       const el = list.querySelector<HTMLElement>(`:scope > [data-view="${v}"]`);
-      if (el) list.append(el);
+      if (!el) continue;
+      list.append(el);
+      el.classList.toggle('behind-all', list.classList.contains('nav') && !isTab(v));
     }
+    const navAll = list.querySelector(':scope > #nav-all');
+    if (navAll) list.append(navAll);
   }
   const rail = document.getElementById('rail');
   const all = document.getElementById('rail-all');
@@ -79,20 +86,21 @@ export function mountPageOrder(): void {
 }
 
 /**
- * The All button at the end of the tabs: hovering it (or a click, on touch) opens a menu of every other page —
- * switched-off ones too, so nothing is out of reach. The menu lives outside the rail so the rail's scroll never
- * clips it, and sits beside the button (above it when the rail is a tab bar along the bottom).
+ * The All button at the end of the tabs, in the rail and in the open overview alike: hovering it (or a click, on
+ * touch) opens a menu of every other page — switched-off ones too, so nothing is out of reach. The menu lives
+ * outside both so their scroll never clips it, and sits beside the button (above it when the rail is a tab bar
+ * along the bottom).
  */
 export function mountRailAll(): void {
-  const rail = document.getElementById('rail');
-  const btn = document.getElementById('rail-all');
   const menu = document.getElementById('rail-all-menu');
-  if (!rail || !btn || !menu) return;
+  const buttons = ['rail-all', 'nav-all'].flatMap((id) => document.getElementById(id) ?? []);
+  if (!menu || !buttons.length) return;
+  let btn = buttons[0]!;
   let closeTimer = 0;
 
   const place = () => {
     const r = btn.getBoundingClientRect();
-    const rr = rail.getBoundingClientRect();
+    const rr = (btn.closest<HTMLElement>('#rail, .panel') ?? btn).getBoundingClientRect();
     const m = menu.getBoundingClientRect();
     if (rr.width > rr.height) {
       // the rail is a bottom tab bar: open upward
@@ -103,9 +111,11 @@ export function mountRailAll(): void {
       menu.style.top = `${Math.max(8, Math.min(r.top, innerHeight - m.height - 8))}px`;
     }
   };
-  const open = () => {
+  const open = (from: HTMLElement) => {
     clearTimeout(closeTimer);
-    if (!menu.hidden) return;
+    if (!menu.hidden && from === btn) return;
+    if (from !== btn) btn.setAttribute('aria-expanded', 'false');
+    btn = from;
     // names next to the icons, in the language the labels are in now
     for (const a of menu.querySelectorAll<HTMLElement>('[data-view]')) {
       let name = a.querySelector<HTMLElement>(':scope > .rail-all-name');
@@ -113,6 +123,7 @@ export function mountRailAll(): void {
       name.textContent = a.getAttribute('aria-label') ?? '';
     }
     menu.hidden = false;
+    menu.classList.toggle('from-nav', btn.id === 'nav-all');
     place();
     btn.setAttribute('aria-expanded', 'true');
     requestAnimationFrame(() => menu.classList.add('on'));
@@ -129,20 +140,23 @@ export function mountRailAll(): void {
     closeTimer = window.setTimeout(close, 160);
   };
 
-  for (const el of [btn, menu]) {
-    el.addEventListener('pointerenter', (e) => {
-      if (e.pointerType !== 'touch') open();
+  for (const b of buttons) {
+    b.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'touch') open(b);
     });
+    b.addEventListener('click', () => (menu.hidden || b !== btn ? open(b) : b.matches(':hover') ? undefined : close()));
+  }
+  for (const el of [...buttons, menu]) {
     el.addEventListener('pointerleave', (e) => {
       if (e.pointerType !== 'touch') closeSoon();
     });
   }
-  btn.addEventListener('click', () => (menu.hidden ? open() : btn.matches(':hover') ? undefined : close()));
+  menu.addEventListener('pointerenter', () => clearTimeout(closeTimer));
   menu.addEventListener('click', (e) => {
     if ((e.target as Element).closest('[data-view]')) close();
   });
   document.addEventListener('pointerdown', (e) => {
-    if (!menu.hidden && !(e.target as Element).closest('#rail-all, #rail-all-menu')) close();
+    if (!menu.hidden && !(e.target as Element).closest('#rail-all, #nav-all, #rail-all-menu')) close();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !menu.hidden) {
@@ -151,8 +165,15 @@ export function mountRailAll(): void {
     }
   });
   addEventListener('resize', close);
-  // the button lights up while the page you are on is one of its pages
-  const mark = (v: View) => btn.classList.toggle('holds-current', !isTab(v));
+  // the overview opening or closing moves the button away from under the menu
+  let leftOpen = document.body.classList.contains('left-open');
+  new MutationObserver(() => {
+    const now = document.body.classList.contains('left-open');
+    if (now !== leftOpen && !menu.hidden) close();
+    leftOpen = now;
+  }).observe(document.body, { attributeFilter: ['class'] });
+  // the buttons light up while the page you are on is one of their pages
+  const mark = (v: View) => buttons.forEach((b) => b.classList.toggle('holds-current', !isTab(v)));
   onView(mark);
   mark(currentView());
 }

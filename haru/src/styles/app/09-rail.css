@@ -33,6 +33,9 @@ body.left-open .rail { opacity: 0; pointer-events: none; transition-delay: 0s; }
 
 /* All: the pages after the tabs, in a glass menu beside the button (ui/page-order.ts mountRailAll) */
 .rail-all.holds-current, .rail-all[aria-expanded="true"] { color: var(--text-strong); background: var(--surface-2); }
+.nav-all { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+.nav-all.holds-current, .nav-all[aria-expanded="true"] { background: var(--surface-2); color: var(--text-strong); }
+.panel-left .nav > .behind-all { display: none !important; }
 .rail-all-menu {
   position: fixed; z-index: 60; display: grid; gap: 2px; min-width: 168px; padding: 6px;
   border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--popover); box-shadow: var(--glass-drop);

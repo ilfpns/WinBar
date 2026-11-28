@@ -39,9 +39,8 @@ const KO: Record<string, string> = {
   Yet: '시작 전', 'In progress': '진행 중', Status: '상태',
   // who reacted to a chat message (chat/chat.ts)
   you: '나', someone: '누군가',
-  // the rule between the swipe pages and the rest (ui/page-order.ts, ui/page-drag.ts)
-  'Swipe line · pages above it turn with the wheel or a swipe. Drag pages or this line to rearrange': '넘기기 선 · 위쪽 페이지는 휠이나 스와이프로 넘어가요. 페이지나 이 선을 끌어서 순서를 바꿔요',
-  'Pages above this line turn with the wheel or a swipe. Drag to rearrange': '이 선 위쪽 페이지는 휠이나 스와이프로 넘어가요. 끌어서 순서를 바꿔요',
+  // the All button and its menu (ui/page-order.ts)
+  'All pages': '모든 페이지',
   // calendar: the week and plans (calendar/week.ts)
   Week: '주', 'Plan week': '한 주 계획', 'Plan the weekdays ahead with a template': '남은 평일을 템플릿으로 계획해요', 'Previous week': '지난주', 'Next week': '다음 주',
   'Plan this day': '이 날 계획하기', Plan: '계획', Change: '바꾸기', 'Plan cleared': '계획을 지웠어요', 'Plans cleared': '계획을 모두 지웠어요',

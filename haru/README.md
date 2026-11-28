@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v2.05** (2026-11-28) — 오버뷰에도 All 버튼(같은 메뉴), 오버뷰를 열면 레일의 All 메뉴가 닫힘, 오버뷰의 페이지 끌기 없앰
 - **v2.04** (2026-11-28) — 왼쪽 탭은 Today·Journal·Calendar만, 나머지는 All 버튼(호버) 메뉴로, 구분선 없앰·탭 세 개만 넘기기, News·Words·Dot board·Library 기본 꺼짐, Brief 칩 없앰
 - **v2.03** (2026-11-17) — 같은 시간 할 일 중복: 수업·급식·계획을 기기마다 같은 id(`autoId`)·`auto` 표시로 채우고, 합친 뒤 겹침 정리(`settleOverlaps`: 같은 할 일 하나만, 손대지 않은 자동 할 일은 비킴), MCP도 `auto` 유지
 - **v2.02** (2026-11-17) — Flow 연결선: 거꾸로 가는 줄에서 연결점 자리 바꿈(선이 양쪽으로 나가 보이던 문제), 카드 폭을 선 배치와 맞춤(232px), 1열이면 연결점 숨김

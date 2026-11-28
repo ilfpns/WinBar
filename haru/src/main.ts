@@ -36,7 +36,6 @@ import { mountChangelog } from './ui/changelog';
 import { mountI18n } from './ui/i18n';
 import { mountFeatures } from './ui/features';
 import { mountPageOrder, mountRailAll } from './ui/page-order';
-import { makeSortable } from './ui/page-drag';
 import { mountAttendance } from './calendar/attendance';
 import { mountArchive } from './archive/archive';
 import { mountLibrary } from './library/library';
@@ -70,10 +69,9 @@ mountI18n();
 mountViewSwipe({ today: byIdEarly('stage'), calendar: byIdEarly('calendar'), news: byIdEarly('news'), words: byIdEarly('words'), journal: byIdEarly('journal'), archive: byIdEarly('archive'), board: byIdEarly('board'), library: byIdEarly('library') });
 mountRouter();
 mountFeatures();
-// the tabs (Today, Journal, Calendar), then the other pages in your order behind All; drag in the overview to rearrange
+// the tabs (Today, Journal, Calendar), then the other pages behind All
 mountPageOrder();
 mountRailAll();
-makeSortable(document.querySelector<HTMLElement>('.panel-left .nav')!);
 
 // labels, icons and links are not draggable content
 document.addEventListener('dragstart', (e) => {

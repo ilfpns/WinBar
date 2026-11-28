@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.05',
+    date: '2026-11-28',
+    items: [
+      '오버뷰(왼쪽 서랍)를 열었을 때도 Today·Journal·Calendar 아래에 All이 있어요. 마우스를 올리면 나머지 페이지가 보여요',
+      'All 메뉴가 열린 채 오버뷰를 열면 메뉴가 서랍 위에 남던 문제를 고쳤어요',
+    ],
+  },
+  {
     version: '2.04',
     date: '2026-11-28',
     items: [
