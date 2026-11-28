@@ -5,10 +5,17 @@ export const CATEGORIES = {
   work: 'Work',
   study: 'Study',
   school: 'School',
+  project: 'Project',
   meeting: 'Meeting',
   meal: 'Meal',
   health: 'Health',
+  reading: 'Reading',
+  hobby: 'Hobby',
+  social: 'Social',
+  rest: 'Rest',
   personal: 'Personal',
+  commute: 'Commute',
+  chores: 'Chores',
   sleep: 'Sleep',
   etc: 'Other',
 } as const;
@@ -192,11 +199,18 @@ export function sampleDay(): Block[] {
 
 const STORE_KEY = 'haru:timetable:v1';
 
+/**
+ * A category this version knows, or Other: a task from a newer Haru (with a category added since) is kept, never
+ * dropped as broken — it shows as Other here until this device updates.
+ */
+export const knownCat = (c: unknown): Category => (typeof c === 'string' && c in CATEGORIES ? (c as Category) : 'etc');
+
 export function isBlock(v: unknown): v is Block {
   if (typeof v !== 'object' || v === null) return false;
   const b = v as Record<string, unknown>;
-  return typeof b.id === 'string' && typeof b.title === 'string' && typeof b.cat === 'string' && b.cat in CATEGORIES
-    && typeof b.start === 'number' && typeof b.dur === 'number';
+  if (!(typeof b.id === 'string' && typeof b.title === 'string' && typeof b.cat === 'string' && typeof b.start === 'number' && typeof b.dur === 'number')) return false;
+  b.cat = knownCat(b.cat);
+  return true;
 }
 
 export function loadBlocks(): Block[] {

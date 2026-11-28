@@ -32,6 +32,7 @@ const KO: Record<string, string> = {
   // overview drawer
   Now: '지금', Day: '하루', Categories: '카테고리', Done: '완료', Planned: '계획', Free: '여유', 'Free time': '여유 시간',
   Work: '업무', Study: '공부', Meeting: '회의', Meal: '식사', Health: '건강', Personal: '개인', Sleep: '수면', Other: '기타',
+  Project: '프로젝트', Reading: '독서', Hobby: '취미', Social: '약속', Rest: '휴식', Commute: '이동', Chores: '집안일',
   'Nothing planned yet': '아직 계획이 없어요', 'Not planned yet': '아직 계획 없음',
   // the greeting on Today (ui/greeting.ts); the lines themselves stay in English
   'Name for the greeting': '인사에 쓸 이름', 'Used in the greeting on Today. Empty: your account’s first name.': 'Today 인사에 쓰여요. 비워 두면 계정 이름을 써요.',

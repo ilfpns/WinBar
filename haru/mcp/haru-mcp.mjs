@@ -274,7 +274,7 @@ async function update(path, change) {
 
 // ---------- the planner
 
-const CATEGORIES = ['work', 'study', 'school', 'meeting', 'meal', 'health', 'personal', 'sleep', 'etc'];
+const CATEGORIES = ['work', 'study', 'school', 'project', 'meeting', 'meal', 'health', 'reading', 'hobby', 'social', 'rest', 'personal', 'commute', 'chores', 'sleep', 'etc'];
 const DAY = 1440;
 const mod = (m) => ((m % DAY) + DAY) % DAY;
 const hhmm = (m) => `${String(Math.floor(mod(m) / 60)).padStart(2, '0')}:${String(mod(m) % 60).padStart(2, '0')}`;

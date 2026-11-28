@@ -1,6 +1,6 @@
 import { kvGet, kvSet } from '../storage/db';
 import { type Gone, cleanGone, markGone, nextStamp, stampAfter } from '../storage/gone';
-import { CATEGORIES, type Block, type Category, newId } from './model';
+import { type Block, type Category, knownCat, newId } from './model';
 import { announceAdded, setState, state } from './state';
 
 /**
@@ -29,8 +29,8 @@ function isTemplate(v: unknown): v is Template {
 const cleanBlocks = (blocks: unknown[]): TemplateBlock[] =>
   blocks.flatMap((b) => {
     const x = b as Record<string, unknown>;
-    return typeof x?.start === 'number' && typeof x.dur === 'number' && typeof x.cat === 'string' && x.cat in CATEGORIES
-      ? [templateBlock({ title: typeof x.title === 'string' ? x.title : '', cat: x.cat as Category, start: x.start, dur: x.dur, note: typeof x.note === 'string' ? x.note : undefined })]
+    return typeof x?.start === 'number' && typeof x.dur === 'number' && typeof x.cat === 'string'
+      ? [templateBlock({ title: typeof x.title === 'string' ? x.title : '', cat: knownCat(x.cat), start: x.start, dur: x.dur, note: typeof x.note === 'string' ? x.note : undefined })]
       : [];
   });
 const clean = (list: unknown[]): Template[] =>

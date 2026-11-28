@@ -77,6 +77,7 @@
      each its own hue, spread round the wheel (orange, ochre, lichen, forest, lake, glacier, dusk, rope; granite grey) */
   --blaze: #e8642e; --ochre: #d6a32f; --lichen: #9fc23f; --forest: #4f9f68; --lake: #2aa596;
   --glacier: #4a95d6; --dusk: #8461cc; --rope: #d4527f; --granite: #8b9099;
+  --indigo: #5b6fe0; --sky: #4cc3e0; --orchid: #b45fd0; --blossom: #ec8fb4; --sand: #c9a678; --steel: #7491b0; --clay: #b77556;
 
   /* schedule categories: line/dot = the gear colour, fill = that colour sunk well toward black */
   --cat-work: var(--blaze);       --cat-work-fill: color-mix(in srgb, var(--blaze) 30%, #0b0b0d);
@@ -88,6 +89,13 @@
   --cat-personal: var(--forest);  --cat-personal-fill: color-mix(in srgb, var(--forest) 32%, #0b0b0d);
   --cat-sleep: var(--dusk);       --cat-sleep-fill: color-mix(in srgb, var(--dusk) 32%, #0b0b0d);
   --cat-etc: var(--granite);      --cat-etc-fill: color-mix(in srgb, var(--granite) 26%, #0b0b0d);
+  --cat-project: var(--indigo);   --cat-project-fill: color-mix(in srgb, var(--indigo) 30%, #0b0b0d);
+  --cat-reading: var(--sky);      --cat-reading-fill: color-mix(in srgb, var(--sky) 26%, #0b0b0d);
+  --cat-hobby: var(--orchid);     --cat-hobby-fill: color-mix(in srgb, var(--orchid) 30%, #0b0b0d);
+  --cat-social: var(--blossom);   --cat-social-fill: color-mix(in srgb, var(--blossom) 26%, #0b0b0d);
+  --cat-rest: var(--sand);        --cat-rest-fill: color-mix(in srgb, var(--sand) 26%, #0b0b0d);
+  --cat-commute: var(--steel);    --cat-commute-fill: color-mix(in srgb, var(--steel) 28%, #0b0b0d);
+  --cat-chores: var(--clay);      --cat-chores-fill: color-mix(in srgb, var(--clay) 30%, #0b0b0d);
 
   /* type */
   --font-sans: "Geist", "Pretendard Variable", Pretendard, system-ui, sans-serif;
@@ -183,4 +191,11 @@
   --cat-personal: color-mix(in srgb, var(--forest) 85%, #000); --cat-personal-fill: color-mix(in srgb, var(--forest) 22%, #fff);
   --cat-sleep: color-mix(in srgb, var(--dusk) 88%, #000);     --cat-sleep-fill: color-mix(in srgb, var(--dusk) 20%, #fff);
   --cat-etc: color-mix(in srgb, var(--granite) 85%, #000);    --cat-etc-fill: color-mix(in srgb, var(--granite) 24%, #fff);
+  --cat-project: color-mix(in srgb, var(--indigo) 88%, #000); --cat-project-fill: color-mix(in srgb, var(--indigo) 20%, #fff);
+  --cat-reading: color-mix(in srgb, var(--sky) 78%, #000);    --cat-reading-fill: color-mix(in srgb, var(--sky) 24%, #fff);
+  --cat-hobby: color-mix(in srgb, var(--orchid) 88%, #000);   --cat-hobby-fill: color-mix(in srgb, var(--orchid) 20%, #fff);
+  --cat-social: color-mix(in srgb, var(--blossom) 80%, #000); --cat-social-fill: color-mix(in srgb, var(--blossom) 24%, #fff);
+  --cat-rest: color-mix(in srgb, var(--sand) 80%, #000);      --cat-rest-fill: color-mix(in srgb, var(--sand) 26%, #fff);
+  --cat-commute: color-mix(in srgb, var(--steel) 85%, #000);  --cat-commute-fill: color-mix(in srgb, var(--steel) 22%, #fff);
+  --cat-chores: color-mix(in srgb, var(--clay) 85%, #000);    --cat-chores-fill: color-mix(in srgb, var(--clay) 22%, #fff);
 }

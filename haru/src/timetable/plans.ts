@@ -1,6 +1,6 @@
 import { kvGet, kvSet } from '../storage/db';
 import { type Gone, cleanGone, markGone, nextStamp, stampAfter } from '../storage/gone';
-import { CATEGORIES, type Block, type Category, autoId, blocksGone } from './model';
+import { type Block, autoId, blocksGone, knownCat } from './model';
 import type { TemplateBlock } from './templates';
 
 /**
@@ -39,8 +39,8 @@ const planBlock = ({ title, cat, start, dur, note }: PlanBlock): PlanBlock =>
 const cleanBlocks = (blocks: unknown[]): PlanBlock[] =>
   blocks.flatMap((b) => {
     const x = b as Record<string, unknown>;
-    return typeof x?.start === 'number' && typeof x.dur === 'number' && typeof x.cat === 'string' && x.cat in CATEGORIES
-      ? [planBlock({ title: typeof x.title === 'string' ? x.title : '', cat: x.cat as Category, start: x.start, dur: x.dur, note: typeof x.note === 'string' ? x.note : undefined })]
+    return typeof x?.start === 'number' && typeof x.dur === 'number' && typeof x.cat === 'string'
+      ? [planBlock({ title: typeof x.title === 'string' ? x.title : '', cat: knownCat(x.cat), start: x.start, dur: x.dur, note: typeof x.note === 'string' ? x.note : undefined })]
       : [];
   });
 const clean = (list: unknown[]): Plan[] =>

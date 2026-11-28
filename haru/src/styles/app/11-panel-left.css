@@ -189,3 +189,7 @@ body.gated > :not(.gate, .connect) { visibility: hidden; }
 /* sign in / out sits at the right end of the drawer's bottom row */
 .acct-foot { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
 .acct-foot .ic { width: 14px; height: 14px; }
+
+/* the overview's category rings: only the categories today has (timetable/overview.ts) */
+#cat-rings .unused { display: none; }
+.panel-left .section[hidden] { display: none; }

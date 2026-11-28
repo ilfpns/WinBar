@@ -9,6 +9,7 @@ import { askConfirm } from '../ui/modal';
 export const CATEGORY_ICON: Record<Category, IconName> = {
   work: 'briefcase', study: 'book-open', school: 'graduation-cap', meeting: 'users', meal: 'utensils',
   health: 'dumbbell', personal: 'house', sleep: 'moon', etc: 'sparkles',
+  project: 'code', reading: 'book-marked', hobby: 'palette', social: 'smile', rest: 'coffee', commute: 'bus', chores: 'brush',
 };
 
 export interface OverviewRefs {
@@ -84,10 +85,13 @@ export function mountOverview(refs: OverviewRefs): void {
 
     const byCat = new Map<Category, number>();
     for (const b of state.blocks) byCat.set(b.cat, (byCat.get(b.cat) ?? 0) + b.dur);
+    // only the categories today has (sixteen empty rings would bury the ones that matter); none yet: the section goes
     for (const [k, r] of cats) {
       const mins = byCat.get(k) ?? 0;
       r.set(mins / DAY, `${CATEGORIES[k]} · ${formatDuration(mins)}`);
+      r.el.classList.toggle('unused', !mins);
     }
+    refs.catRings.parentElement!.hidden = !byCat.size;
   }
 
   subscribe(render);

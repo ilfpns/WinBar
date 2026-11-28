@@ -11,6 +11,13 @@ const ALIASES: Record<string, Category> = {
   health: 'health', 운동: 'health',
   personal: 'personal', 개인: 'personal',
   sleep: 'sleep', 수면: 'sleep', 잠: 'sleep',
+  project: 'project', 프로젝트: 'project', 플젝: 'project',
+  reading: 'reading', 독서: 'reading', 책: 'reading',
+  hobby: 'hobby', 취미: 'hobby',
+  social: 'social', 약속: 'social', 친구: 'social',
+  rest: 'rest', 휴식: 'rest', 쉬기: 'rest',
+  commute: 'commute', 이동: 'commute', 통학: 'commute', 출근: 'commute',
+  chores: 'chores', 집안일: 'chores', 청소: 'chores',
   other: 'etc', etc: 'etc', 기타: 'etc',
 };
 
@@ -22,8 +29,8 @@ export const QUICK_ADD_HINT = [
   '  → moves to Today',
   '',
   'categories',
-  `  ${names.slice(0, 3).join(' · ')}`,
-  `  ${names.slice(3).join(' · ')}`,
+  // four to a line
+  ...Array.from({ length: Math.ceil(names.length / 4) }, (_, i) => `  ${names.slice(i * 4, i * 4 + 4).join(' · ')}`),
 ].join('\n');
 
 /**
