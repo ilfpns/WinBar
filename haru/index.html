@@ -20,7 +20,7 @@
       document.documentElement.dataset.theme = t;
       if (t === 'light') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#e9eaee');
       if (t === 'neon') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#020205');
-      if (t === 'liquid') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0b1024');
+      if (t === 'liquid') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000000');
       document.documentElement.lang = localStorage.getItem('haru:lang') === 'ko' ? 'ko' : 'en';
     } catch (e) { document.documentElement.dataset.theme = 'dark'; }
   </script>

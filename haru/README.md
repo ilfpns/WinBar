@@ -50,6 +50,7 @@ Claude Desktop: Settings → Developer → Edit Config, add `"haru": { "command"
 
 앱 안에서는 설정 → What's new에서 같은 패치노트를 본다 (`src/ui/changelog.ts`).
 
+- **v2.11** (2026-11-28) — 처음 열었을 때 로고를 누르면 News로 가던 버그(닫힌 All 메뉴가 보이지 않게 로고 위에 남아 클릭을 가로챔) 수정, Liquid를 무채색(검정 → 투명 유리)으로
 - **v2.10** (2026-11-28) — Liquid 테마(애플 리퀴드 글래스풍: 색 배경 + 블러·채도 유리, 알약 버튼, 시스템 색, SF 글꼴; `38-liquid.css`), 설정 선택 버튼 줄바꿈 막음
 - **v2.09** (2026-11-28) — Neon 테마(`data-theme="neon"`, 토큰은 `tokens.css`, 빛은 `37-neon.css`), 로고 메뉴 전환은 마지막 어두운 테마로
 - **v2.08** (2026-11-28) — 카테고리 7개 추가(project·reading·hobby·social·rest·commute·chores, 색·아이콘·`!` 키워드·MCP), 오버뷰는 오늘 쓴 카테고리만, 모르는 카테고리는 Other로 보존(`knownCat`)

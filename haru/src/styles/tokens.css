@@ -261,39 +261,37 @@
   --glow-lg: 0 0 28px;
 }
 
-/* ---------- liquid theme (Settings → Appearance): Apple-like liquid glass — clear frosted sheets with a lit rim,
-   over colour. A dark theme; the tokens here, the glass itself in styles/app/38-liquid.css */
+/* ---------- liquid theme (Settings → Appearance): Apple-like liquid glass in black and white — sheets that go from
+   black at the top to clear at the foot, a rim of light along their edge. A dark theme; the tokens here, the glass
+   itself in styles/app/38-liquid.css */
 :root[data-theme="liquid"] {
   --ink: 255 255 255;
-  --bg: #0b1024;
-  /* the wallpaper the glass shows: soft fields of colour (still; nothing moves behind the panels) */
+  --bg: #000;
+  /* the page behind the glass: black, with a little grey light for the glass to bend (no colour) */
   --backdrop:
-    radial-gradient(60vmax 55vmax at 12% 18%, rgba(64, 140, 255, 0.55) 0%, rgba(64, 140, 255, 0.22) 35%, transparent 70%),
-    radial-gradient(55vmax 50vmax at 88% 12%, rgba(191, 90, 242, 0.50) 0%, rgba(191, 90, 242, 0.18) 38%, transparent 72%),
-    radial-gradient(60vmax 55vmax at 78% 92%, rgba(255, 105, 140, 0.42) 0%, rgba(255, 105, 140, 0.15) 40%, transparent 74%),
-    radial-gradient(50vmax 45vmax at 18% 90%, rgba(48, 209, 160, 0.38) 0%, rgba(48, 209, 160, 0.12) 40%, transparent 72%),
-    radial-gradient(40vmax 35vmax at 50% 50%, rgba(255, 190, 90, 0.16) 0%, transparent 70%),
-    linear-gradient(160deg, #101634, #0a0d22 55%, #120c26);
-  --sheet: linear-gradient(160deg, rgba(60, 66, 100, 0.72), rgba(28, 30, 52, 0.78));
-  --sheet-solid: #1b1e34;
-  --card-bg: rgba(20, 22, 40, 0.6);
-  --slice: rgba(255, 255, 255, 0.07); --slice-sel: rgba(255, 255, 255, 0.16); --slice-gap: rgba(10, 12, 30, 0.55); --slice-base: rgba(12, 14, 32, 0.7);
-  --disk: rgba(8, 10, 26, 0.55);
+    radial-gradient(70vmax 55vmax at 15% 0%, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.04) 40%, transparent 72%),
+    radial-gradient(60vmax 50vmax at 95% 100%, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 40%, transparent 72%),
+    #000;
+  --sheet: linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(28, 28, 30, 0.7));
+  --sheet-solid: #0c0c0d;
+  --card-bg: rgba(0, 0, 0, 0.5);
+  --slice: rgba(255, 255, 255, 0.07); --slice-sel: rgba(255, 255, 255, 0.16); --slice-gap: rgba(0, 0, 0, 0.6); --slice-base: rgba(0, 0, 0, 0.7);
+  --disk: rgba(0, 0, 0, 0.55);
   --surface-2: rgba(255, 255, 255, 0.08);
   --surface-3: rgba(255, 255, 255, 0.15);
   --line: rgba(255, 255, 255, 0.10);
   --line-strong: rgba(255, 255, 255, 0.18);
-  /* the glass: a clear sheet, brighter at the top, a rim of light along its edge */
-  --glass-fill: linear-gradient(160deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.07) 45%, rgba(255, 255, 255, 0.04) 100%);
-  --glass-edge: rgba(255, 255, 255, 0.24);
-  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.06), inset 1px 0 0 rgba(255, 255, 255, 0.08);
-  --glass-drop: 0 30px 70px -20px rgba(4, 6, 24, 0.65), 0 2px 10px rgba(4, 6, 24, 0.25);
+  /* the glass: black at the top, clearing toward the foot, a rim of light along its edge */
+  --glass-fill: linear-gradient(180deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.6) 40%, rgba(20, 20, 22, 0.3) 80%, rgba(255, 255, 255, 0.04) 100%);
+  --glass-edge: rgba(255, 255, 255, 0.2);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 0 rgba(255, 255, 255, 0.05), inset 1px 0 0 rgba(255, 255, 255, 0.06);
+  --glass-drop: 0 30px 70px -20px rgba(0, 0, 0, 0.8), 0 2px 10px rgba(0, 0, 0, 0.3);
   --noise: none;
   --well: rgba(255, 255, 255, 0.07);
   --well-border: rgba(255, 255, 255, 0.12);
   --gray-btn: rgba(255, 255, 255, 0.14);
   --gray-btn-hover: rgba(255, 255, 255, 0.24);
-  --popover: rgba(36, 40, 70, 0.72);
+  --popover: rgba(14, 14, 16, 0.78);
   --blur-glass: 34px;
 
   --text: rgba(255, 255, 255, 0.86);

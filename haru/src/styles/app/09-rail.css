@@ -41,6 +41,9 @@ body.left-open .rail { opacity: 0; pointer-events: none; transition-delay: 0s; }
   border: 1px solid var(--glass-edge); border-radius: 14px; background: var(--popover); box-shadow: var(--glass-drop);
   opacity: 0; transform: translate3d(-6px, 0, 0); transition: opacity .14s var(--ease-out), transform .18s var(--ease-out);
 }
+/* closed, it is gone — not just see-through (an invisible menu would still catch the clicks under it) */
+.rail-all-menu[hidden] { display: none; }
+.rail-all-menu:not(.on) { pointer-events: none; }
 .rail-all-menu.on { opacity: 1; transform: none; }
 .rail-all-menu .rail-btn {
   width: auto; height: 36px; justify-content: flex-start; align-items: center; gap: 10px; padding: 0 12px 0 10px;

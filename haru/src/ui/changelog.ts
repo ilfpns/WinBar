@@ -17,6 +17,14 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.11',
+    date: '2026-11-28',
+    items: [
+      '처음 열었을 때(또는 초기화 뒤) 맨 위 로고를 누르면 News로 가 버리던 문제를 고쳤어요',
+      'Liquid 테마: 색 배경을 없애고 검정 바탕에, 유리는 위쪽 검정에서 아래로 투명해지게 바꿨어요',
+    ],
+  },
+  {
     version: '2.10',
     date: '2026-11-28',
     items: [

@@ -1,6 +1,6 @@
-/* ---------- liquid theme: Apple-like liquid glass. Tokens are in tokens.css (:root[data-theme="liquid"]); here the
-   glass — a strong blur that soaks up the colour behind (saturate), a lit rim, round shapes, pill buttons. All of it
-   still: no moving highlights, so the power saver stays as cheap as in Dark. */
+/* ---------- liquid theme: Apple-like liquid glass in black and white. Tokens are in tokens.css
+   (:root[data-theme="liquid"]); here the glass — a strong blur, black at the top clearing toward the foot, a lit rim,
+   round shapes, pill buttons. All of it still: no moving highlights, so the power saver stays as cheap as in Dark. */
 
 /* every sheet of glass: more blur, more colour through it */
 [data-theme="liquid"] :is(.panel, .rail, .drawer-tab, .glass-card, .today-views, .cal-main, .cal-day, .attend, .peek-btn, .peek-bar, .globe-heat, .rail-all-menu, .pop-menu, .logo-menu, .time-pop, .class-pop, .ahead-pop, .plan-pop, .rail-tip) {
@@ -9,16 +9,16 @@
 }
 /* floating things (menus, pickers, tips) are glass too, a little denser to read on */
 [data-theme="liquid"] :is(.rail-all-menu, .pop-menu, .logo-menu, .time-pop, .class-pop, .ahead-pop, .plan-pop, .rail-tip) {
-  background: linear-gradient(160deg, rgba(70, 78, 120, 0.62), rgba(34, 38, 66, 0.7));
-  box-shadow: var(--glass-shine), 0 24px 60px -16px rgba(4, 6, 24, 0.7);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(24, 24, 26, 0.62));
+  box-shadow: var(--glass-shine), 0 24px 60px -16px rgba(0, 0, 0, 0.8);
 }
 /* the settings and other dialogs: a big sheet of glass over a dimmed, blurred page */
-[data-theme="liquid"] dialog { background: linear-gradient(160deg, rgba(60, 66, 104, 0.66), rgba(26, 28, 52, 0.74)); -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%); border: 1px solid var(--glass-edge); box-shadow: var(--glass-shine), 0 40px 100px -20px rgba(0, 0, 0, 0.7); }
-[data-theme="liquid"] dialog::backdrop { background: rgba(6, 8, 24, 0.35); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+[data-theme="liquid"] dialog { background: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(22, 22, 24, 0.6)); -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%); border: 1px solid var(--glass-edge); box-shadow: var(--glass-shine), 0 40px 100px -20px rgba(0, 0, 0, 0.7); }
+[data-theme="liquid"] dialog::backdrop { background: rgba(0, 0, 0, 0.4); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 
 /* the Glass setting still sets how clear the sheets are */
-:root[data-theme="liquid"][data-glass="clear"] { --glass-fill: linear-gradient(160deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03)); }
-:root[data-theme="liquid"][data-glass="glass"] { --glass-fill: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)); }
+:root[data-theme="liquid"][data-glass="clear"] { --glass-fill: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.4) 40%, rgba(20, 20, 22, 0.15) 80%, transparent 100%); }
+:root[data-theme="liquid"][data-glass="glass"] { --glass-fill: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.22) 40%, transparent 85%); }
 
 /* ---------- controls: pills and soft wells, like the system's */
 [data-theme="liquid"] :is(.btn-sm, .btn-ghost, .btn-solid, .chip, .gap-add, .ed-note-add, .wheel-now) { border-radius: 999px; }
@@ -57,7 +57,7 @@
 [data-theme="liquid"] #list .check[aria-checked="true"] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
 [data-theme="liquid"] .editor { box-shadow: var(--glass-shine), inset 3px 0 0 var(--c); border-radius: 20px; }
 [data-theme="liquid"] .sum-bar { height: 6px; background: rgba(255, 255, 255, 0.12); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25); }
-[data-theme="liquid"] .sum-bar i { background: linear-gradient(90deg, #64d2ff, var(--accent)); }
+[data-theme="liquid"] .sum-bar i { background: linear-gradient(90deg, rgba(255, 255, 255, 0.55), #fff); }
 [data-theme="liquid"] .wheels::before { background: rgba(255, 255, 255, 0.14); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
 
 /* ---------- the dial: tasks to come are tinted glass, the time gone is the full colour */
@@ -75,4 +75,4 @@
 [data-theme="liquid"] .cal-cell.is-today { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
 
 /* the power saver: the clock over the colour, frosted */
-[data-theme="liquid"] .saver-veil { background: radial-gradient(80vmax 60vmax at 30% 30%, rgba(64, 140, 255, 0.18), transparent 70%), radial-gradient(70vmax 60vmax at 80% 80%, rgba(191, 90, 242, 0.14), transparent 70%), #05060f; }
+[data-theme="liquid"] .saver-veil { background: #000; }

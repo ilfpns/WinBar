@@ -1,4 +1,4 @@
 /* ---------- features switched off in Settings: out of the overview and the title bar (the All menu keeps them) */
 body.off-calendar [data-view="calendar"], body.off-news [data-view="news"], body.off-words [data-view="words"],
 body.off-journal [data-view="journal"], body.off-archive [data-view="archive"], body.off-board [data-view="board"], body.off-library [data-view="library"] { display: none !important; }
-#rail-all-menu [data-view] { display: flex !important; }
+#rail-all-menu:not([hidden]) [data-view] { display: flex !important; }
