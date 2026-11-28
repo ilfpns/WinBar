@@ -225,28 +225,33 @@
       <div class="tpl-edit" id="tpl-edit" hidden></div>
     </section>
 
+    <!-- how the day is going: done / all, the time the open tasks still need (timetable/schedule.ts) -->
+    <div class="day-sum" id="day-sum" hidden></div>
+    <!-- the editor opens in the list, in the place of the task it edits (or where a new one would go) -->
     <form id="editor" class="card editor" hidden autocomplete="off">
       <div class="editor-head">
         <span class="dot"></span><span id="ed-head">New task</span>
+        <button type="button" class="ed-close" data-act="cancel" aria-label="Close" title="Close  Esc"><i data-icon="x"></i></button>
       </div>
       <input class="title-input" name="title" placeholder="What are you doing?" maxlength="40">
+      <div class="times">
+        <label class="time-col"><span class="meta">Start</span><input class="time-field" data-field="start" aria-label="Start time"></label>
+        <span class="arrow"><i data-icon="arrow-right"></i><span class="ed-dur" id="ed-dur"></span></span>
+        <label class="time-col"><span class="meta">End</span><input class="time-field" data-field="end" aria-label="End time"></label>
+      </div>
+      <div class="chips" id="chips" role="radiogroup" aria-label="Category"></div>
       <div class="status-seg" id="status-seg" role="radiogroup" aria-label="Status">
         <button type="button" role="radio" data-status="yet"><i data-icon="circle-dashed"></i>Yet</button>
         <button type="button" role="radio" data-status="doing"><i data-icon="hourglass"></i>In progress</button>
         <button type="button" role="radio" data-status="done"><i data-icon="check"></i>Done</button>
       </div>
-      <div class="chips" id="chips" role="radiogroup" aria-label="Category"></div>
-      <div class="times">
-        <div class="time-col"><span class="meta">Start</span><button type="button" class="time-field" data-field="start" aria-label="Start time"></button></div>
-        <span class="arrow"><i data-icon="arrow-right"></i></span>
-        <div class="time-col"><span class="meta">End</span><button type="button" class="time-field" data-field="end" aria-label="End time"></button></div>
-      </div>
-      <textarea class="note-input" name="note" rows="3" maxlength="1000" placeholder="Notes (optional)" aria-label="Notes"></textarea>
+      <button type="button" class="ed-note-add" id="ed-note-add"><i data-icon="plus"></i>Note</button>
+      <textarea class="note-input" name="note" rows="2" maxlength="1000" placeholder="Notes" aria-label="Notes" hidden></textarea>
       <p class="err" id="err" role="alert"></p>
       <div class="actions">
         <button type="submit" class="btn-solid">Save</button>
         <button type="button" class="btn-ghost" data-act="cancel">Cancel</button>
-        <button type="button" class="btn-text danger" data-act="delete" id="del">Delete</button>
+        <button type="button" class="ed-del" data-act="delete" id="del" aria-label="Delete task" title="Delete task"><i data-icon="trash"></i></button>
       </div>
     </form>
     <ol id="list"></ol>
@@ -432,7 +437,7 @@
           <div class="set-row">
             <div class="set-label"><strong>New day</strong><span>At this time the day's timetable is kept in the calendar and Today starts empty</span></div>
             <div class="set-reset">
-              <button type="button" class="time-field" id="reset-time" aria-label="New day time"></button>
+              <input class="time-field" id="reset-time" aria-label="New day time">
               <button type="button" class="switch" role="switch" id="reset-on" aria-label="Start a new day automatically"><i></i></button>
             </div>
           </div>

@@ -30,10 +30,9 @@
   .drawer { top: max(var(--panel-inset), env(safe-area-inset-top)); bottom: max(var(--panel-inset), env(safe-area-inset-bottom)); }
   .drawer-tab { height: 120px; }
   .nav-item, #list .row { height: 44px; }
-  .chip, .seg button, .time-pop button { height: 36px; }
+  .chip, .seg button, .wheel-now { height: 36px; }
   .time-field { height: 40px; }
   #list .check { width: 28px; height: 28px; }
   #list li { grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
   #list .row { grid-template-columns: auto 6px minmax(0, 1fr) auto; gap: 8px; }
-  .time-pop { width: min(300px, calc(100vw - 24px)); }
 }

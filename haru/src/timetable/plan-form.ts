@@ -2,6 +2,7 @@ import { CATEGORIES, CATEGORY_KEYS, type Category, labelOf } from './model';
 import { type PlanBlock, clearPlan, planOn, setPlan } from './plans';
 import { templateBlock } from './templates';
 import { hhmm, minutesOf, mod } from './time';
+import { timeField } from '../ui/time-field';
 
 /**
  * Editing a day ahead's plan one task at a time, in a list of its tasks: the Calendar's day panel and Today's
@@ -74,6 +75,8 @@ export function planForm(list: HTMLElement, row: HTMLElement | null, date: strin
   title.placeholder = CATEGORIES[base.cat];
   f('start').value = hhmm(base.start);
   f('end').value = hhmm(base.start + base.dur);
+  timeField(f('start'), undefined, { live: false });
+  timeField(f('end'), undefined, { live: false });
   note.value = base.note ?? '';
   const fit = () => {
     note.style.height = 'auto';

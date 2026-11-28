@@ -5,6 +5,34 @@
 
 .editor { display: grid; gap: 14px; box-shadow: inset 2px 0 0 var(--c, var(--text)); }
 .editor[hidden] { display: none; }
+/* in the list, in the place of the task it edits (timetable/schedule.ts) */
+#list li.edit-slot { display: block; margin: 4px 0 6px; animation: ed-in .22s var(--ease-out); }
+#list li.edit-slot[hidden] { display: none; }
+@keyframes ed-in { from { opacity: 0; transform: translate3d(0, -4px, 0); } }
+.editor-head .ed-close {
+  display: grid; place-items: center; width: 26px; height: 26px; margin: -4px -4px -4px auto; padding: 0;
+  border: 0; border-radius: 8px; background: none; color: var(--text-subtle); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.editor-head .ed-close:hover { background: var(--surface-3); color: var(--text-strong); }
+.editor-head .ed-close .ic { width: 15px; height: 15px; }
+.ed-note-add {
+  justify-self: start; display: flex; align-items: center; gap: 6px; height: 28px; margin: -4px 0; padding: 0 10px 0 8px;
+  border: 1px dashed var(--well-border); border-radius: 999px; background: none; color: var(--text-subtle);
+  font: 400 12.5px/1 var(--font-sans); cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.ed-note-add:hover { color: var(--text-strong); border-color: var(--line-strong); }
+.ed-note-add[hidden] { display: none; }
+.ed-note-add .ic { width: 13px; height: 13px; }
+.ed-del {
+  display: grid; place-items: center; width: 34px; height: 34px; margin-left: auto; padding: 0;
+  border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-subtle); cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.ed-del:hover { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.ed-del[hidden] { display: none; }
+.ed-del .ic { width: 16px; height: 16px; }
 /* more about the task, under its hours */
 .editor .note-input {
   width: 100%; min-height: 64px; max-height: 200px; padding: 9px 12px; resize: vertical;
@@ -32,7 +60,7 @@
 }
 .title-input::placeholder { color: var(--text-subtle); }
 .title-input:focus { border-bottom-color: var(--info); }
-.chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
 /* the editor's status: Yet · In progress · Done, side by side */
 .status-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: 12px; background: rgb(var(--shade) / .35); }
 .status-seg button {
@@ -65,14 +93,14 @@
 @keyframes st-pop { 40% { transform: scale(1.06); } }
 @media (prefers-reduced-motion: reduce) { .status-seg.changed::before, .status-seg.changed [aria-checked="true"], .status-seg.changed [aria-checked="true"] .ic, .status-seg.changed [aria-checked="true"] .ic > * { transition: none; animation: none; } }
 .chip {
-  display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-width: 0; height: 30px; padding: 0 10px;
-  border: 1px solid var(--well-border); border-radius: var(--radius-sm); background: var(--well);
+  display: flex; align-items: center; justify-content: flex-start; gap: 7px; min-width: 0; height: 28px; padding: 0 11px 0 9px;
+  border: 1px solid var(--well-border); border-radius: 999px; background: var(--well);
   font: 400 13px/1 var(--font-sans); color: var(--text-muted); cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .chip:hover { color: var(--text); background: var(--surface-3); }
-.chip[aria-checked="true"] { color: var(--text-strong); background: var(--gray-btn-hover); border-color: rgb(var(--ink) / 0.12); }
-.times { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 10px; }
+.chip[aria-checked="true"] { color: var(--text-strong); background: color-mix(in srgb, var(--c, var(--text)) 18%, var(--well)); border-color: color-mix(in srgb, var(--c, var(--text)) 45%, transparent); }
+.times { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; }
 .time-col { display: grid; gap: 6px; min-width: 0; }
 .time-field {
   display: flex; align-items: center; justify-content: space-between; gap: 6px;
@@ -85,6 +113,13 @@
 .time-field[aria-expanded="true"] { border-color: var(--line-strong); background: var(--surface-3); }
 .time-field .ic { color: var(--text-subtle); transition: transform var(--dur-fast) var(--ease-out); }
 .time-field[aria-expanded="true"] .ic { transform: rotate(180deg); }
+/* a time field you type in (ui/time-field.ts): the wheels open under it */
+input.time-field { cursor: text; outline: none; text-align: center; padding: 0 10px; letter-spacing: .02em; }
+input.time-field:focus { border-color: var(--info); background: var(--surface-3); }
+input.time-field::selection { background: color-mix(in srgb, var(--info) 35%, transparent); }
+input.time-field.bad { border-color: var(--danger); animation: tf-shake .3s var(--ease-out); }
+@keyframes tf-shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) { input.time-field.bad { animation: none; } }
 
 /* the class picker: a field like the time fields; its popover lists the grades as rows of class chips */
 .class-field { width: auto; min-width: 118px; justify-content: space-between; gap: 10px; }
@@ -107,34 +142,47 @@
 .class-chips button:hover { background: var(--surface-3); color: var(--text-strong); }
 .class-chips button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
 @media (prefers-reduced-motion: reduce) { .class-pop:popover-open { animation: none; } }
-/* time picker popover (top layer) */
+/* the time wheels (top layer): an hour wheel and a minute wheel that snap row by row, the middle row picked */
 .time-pop {
-  position: fixed; inset: auto; margin: 0; width: 252px; padding: 10px;
-  border: 1px solid rgb(var(--ink) / 0.08); border-radius: var(--radius-sm);
+  position: fixed; inset: auto; margin: 0; padding: 8px;
+  border: 1px solid rgb(var(--ink) / 0.08); border-radius: 14px;
   background: var(--popover); color: var(--text);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
 }
-.time-pop:popover-open { display: grid; gap: 6px; }
-.time-label { padding: 0 2px; }
-.time-label + .time-mins { margin-bottom: 0; }
-.time-hours { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin-bottom: 6px; }
-.time-mins { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 2px; border-radius: var(--radius-sm); background: rgb(var(--shade) / 0.35); }
-.time-pop button {
-  position: relative; height: 30px; border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer;
-  font: 400 13px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-muted);
+.time-pop:popover-open, .time-pop.pop-fb:not([hidden]) { display: grid; gap: 6px; animation: class-pop-in .16s var(--ease-out); }
+.wheels { --wheel-row: 34px; position: relative; display: grid; grid-template-columns: 64px auto 64px; align-items: center; }
+/* the band the picked row sits in */
+.wheels::before {
+  content: ""; position: absolute; left: 0; right: 0; top: calc(50% - var(--wheel-row) / 2); height: var(--wheel-row);
+  border-radius: 10px; background: rgb(var(--ink) / 0.07); pointer-events: none;
+}
+.wheel {
+  position: relative; height: calc(var(--wheel-row) * 5); overflow-y: auto; overscroll-behavior: contain;
+  scroll-snap-type: y mandatory; scrollbar-width: none; padding: calc(var(--wheel-row) * 2) 0;
+  -webkit-mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent); mask-image: linear-gradient(transparent, #000 32%, #000 68%, transparent);
+}
+.wheel::-webkit-scrollbar { display: none; }
+.wheel button {
+  display: block; width: 100%; height: var(--wheel-row); padding: 0; border: 0; background: none; cursor: pointer; scroll-snap-align: center;
+  font: 400 16px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-subtle);
+  transition: color .12s var(--ease-out), transform .12s var(--ease-out);
+}
+.wheel button.on { color: var(--text-strong); transform: scale(1.12); }
+.wheel-colon { font: 400 16px/1 var(--font-mono); color: var(--text-subtle); }
+.wheel-now {
+  height: 28px; border: 0; border-radius: 8px; background: rgb(var(--shade) / 0.35); cursor: pointer;
+  font: 500 12px/1 var(--font-sans); color: var(--text-muted);
   transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.time-pop button:hover { background: var(--surface-3); color: var(--text-strong); }
-.time-pop button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
-.time-pop .now::after {
-  content: ""; position: absolute; left: 50%; bottom: 3px; width: 3px; height: 3px; margin-left: -1.5px;
-  border-radius: 50%; background: var(--accent);
-}
-.times .arrow { display: grid; place-items: center; height: 36px; color: var(--text-subtle); }
+.wheel-now:hover { background: var(--surface-3); color: var(--text-strong); }
+@media (prefers-reduced-motion: reduce) { .wheel button { transition: none; } .time-pop:popover-open { animation: none; } }
+.times .arrow { display: grid; justify-items: center; align-content: center; gap: 1px; height: 36px; color: var(--text-subtle); }
+.times .arrow .ic { width: 14px; height: 14px; }
+.ed-dur { font: 400 10.5px/1 var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+.ed-dur:empty { display: none; }
 .err { margin: -4px 0 0; min-height: 16px; font: 400 var(--text-meta) / var(--text-meta--lh) var(--font-mono); color: var(--danger); }
 .err:empty { display: none; }
 .actions { display: flex; align-items: center; gap: 6px; }
-.actions .btn-text { margin-left: auto; }
 
 /* batch actions */
 /* docked at the bottom of the panel so the list never shifts under a drag */
@@ -203,3 +251,34 @@
 #list .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--text); }
 #list .now .n { color: var(--text-strong); }
 #list .now .t { color: var(--accent); }
+
+/* ---------- the day at a glance, above the list: done of all, the time still to go, a bar of the done time */
+.day-sum { display: grid; gap: 8px; padding: 4px 8px 2px; }
+.day-sum[hidden], .panel-right[data-tab="templates"] .day-sum { display: none; }
+.sum-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.sum-line strong { font: 500 13px/1 var(--font-sans); color: var(--text-strong); }
+.sum-line .meta { text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.sum-bar { height: 4px; border-radius: 4px; overflow: hidden; background: rgb(var(--ink) / 0.07); }
+.sum-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transform-origin: left; transition: transform .5s var(--ease-out); }
+
+/* the task going on now: a card, with the time it has left */
+#list li.now:not(.done) .row {
+  height: auto; min-height: 52px; padding-top: 8px; padding-bottom: 8px; row-gap: 4px;
+  background: color-mix(in srgb, var(--c) 10%, var(--surface-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent);
+}
+#list li.now:not(.done) .row:hover { background: color-mix(in srgb, var(--c) 16%, var(--surface-2)); }
+#list .row .left { grid-column: 3 / -1; font: 400 11.5px/1.2 var(--font-mono); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+#list .doing .row .left { color: var(--status-doing); }
+
+/* free time between tasks: a quiet line that adds a task there */
+#list li.gap { display: block; }
+.gap-add {
+  display: flex; align-items: center; gap: 6px; width: 100%; height: 26px; padding: 0 10px 0 42px;
+  border: 0; border-radius: var(--radius-sm); background: none; cursor: pointer;
+  font: 400 11.5px/1 var(--font-mono); color: var(--text-subtle); opacity: .7;
+  transition: opacity var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.gap-add .ic { width: 12px; height: 12px; }
+.gap-add::after { content: ""; flex: 1; height: 0; margin-left: 4px; border-top: 1px dashed var(--line); }
+.gap-add:hover, .gap-add:focus-visible { opacity: 1; background: var(--surface-2); color: var(--text-strong); outline: none; }
+#list li.empty { display: block; padding: 18px 8px; text-align: center; font-size: 13px; color: var(--text-subtle); }

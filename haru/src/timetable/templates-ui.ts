@@ -3,6 +3,7 @@ import { CATEGORIES, CATEGORY_KEYS, labelOf, type Category } from './model';
 import { setState, state, subscribe } from './state';
 import { DAY, formatDuration, hhmm, minutesOf, mod } from './time';
 import { icon } from '../ui/icons';
+import { timeField } from '../ui/time-field';
 import { askConfirm } from '../ui/modal';
 
 export interface TemplateRefs {
@@ -11,7 +12,7 @@ export interface TemplateRefs {
   status: HTMLElement;
 }
 
-/** A time box: typed as HH:MM in the app's mono digits (the native picker shows 오전/오후 and doesn't fit). */
+/** A time box: typed as HH:MM in the app's mono digits, with the wheels (ui/time-field) — the native picker shows 오전/오후. */
 const timeBox = (cls: string, label: string, name = '') =>
   `<input class="${cls}"${name ? ` name="${name}"` : ''} inputmode="numeric" maxlength="5" placeholder="HH:MM" aria-label="${label}" autocomplete="off">`;
 const clash = (a: TemplateBlock, b: TemplateBlock) => mod(a.start - b.start) < b.dur || mod(b.start - a.start) < a.dur;
@@ -262,6 +263,8 @@ export function mountTemplates(refs: TemplateRefs): void {
       title.placeholder = CATEGORIES[b.cat];
       start.value = hhmm(b.start);
       end.value = hhmm(b.start + b.dur);
+      timeField(start, undefined, { live: false });
+      timeField(end, undefined, { live: false });
       const edit = () => {
         const s = minutesOf(start.value);
         const e = minutesOf(end.value);
@@ -302,6 +305,8 @@ export function mountTemplates(refs: TemplateRefs): void {
       f('start').value = hhmm(last.start + last.dur);
       f('end').value = hhmm(last.start + last.dur + 60);
     }
+    timeField(f('start'), undefined, { live: false });
+    timeField(f('end'), undefined, { live: false });
     add.addEventListener('submit', (e) => {
       e.preventDefault();
       const s = minutesOf(f('start').value);

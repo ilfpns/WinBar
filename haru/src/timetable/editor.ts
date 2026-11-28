@@ -1,4 +1,4 @@
-import { mod } from './time';
+import { formatDuration, mod } from './time';
 import { CATEGORIES, CATEGORY_KEYS, type Category, type Status, statusOf } from './model';
 import { closeDraft, commitDraft, deleteDraftBlock, patchDraft, setDraftStatus, setStatus, state, subscribe } from './state';
 import { timeField } from '../ui/time-field';
@@ -20,8 +20,20 @@ export function mountEditor(form: HTMLFormElement): void {
   const err = req<HTMLElement>(form, '#err');
   const del = req<HTMLButtonElement>(form, '#del');
   const chips = req<HTMLElement>(form, '#chips');
+  const dur = req<HTMLElement>(form, '#ed-dur');
+  const noteAdd = req<HTMLButtonElement>(form, '#ed-note-add');
 
-  // custom 24h pickers: native <select>/<input type=time> follow OS styling and the 12h locale
+  // a note is one press away; a task that has one shows it
+  const showNote = (on: boolean) => {
+    f.note.hidden = !on;
+    noteAdd.hidden = on;
+  };
+  noteAdd.addEventListener('click', () => {
+    showNote(true);
+    f.note.focus();
+  });
+
+  // 24h fields to type or turn (ui/time-field): native <input type=time> follows the OS and its 12h locale
   const setTimes = (start: number, end: number) => {
     err.textContent = '';
     patchDraft({ start, dur: mod(end - start) });
@@ -41,9 +53,10 @@ export function mountEditor(form: HTMLFormElement): void {
     b.className = 'chip';
     b.setAttribute('role', 'radio');
     b.dataset.cat = k;
+    // the chip takes its category's colour when picked (the dot always has it)
+    b.style.setProperty('--c', `var(--cat-${k})`);
     const dot = document.createElement('span');
     dot.className = 'dot';
-    dot.style.setProperty('--c', `var(--cat-${k})`);
     b.append(dot, CATEGORIES[k]);
     b.addEventListener('click', () => patchDraft({ cat: k as Category }));
     return b;
@@ -76,6 +89,7 @@ export function mountEditor(form: HTMLFormElement): void {
       del.hidden = !d.id;
       f.title.value = d.title;
       f.note.value = d.note ?? '';
+      showNote(!!d.note);
       err.textContent = '';
       // at the next frame, where the layout is worked out anyway (focusing now would force it mid-click)
       requestAnimationFrame(() => f.title.focus({ preventScroll: true }));
@@ -83,6 +97,7 @@ export function mountEditor(form: HTMLFormElement): void {
     form.style.setProperty('--c', `var(--cat-${d.cat})`);
     startField.set(d.start);
     endField.set(mod(d.start + d.dur));
+    dur.textContent = d.dur ? formatDuration(d.dur) : '';
     chips.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.cat === d.cat)));
     const status = statusOf(d);
     statusSeg.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.status === status)));

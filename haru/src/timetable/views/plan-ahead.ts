@@ -26,6 +26,28 @@ const addDays = (date: string, n: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const short = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+/** Days from `a` to `b` (YYYY-MM-DD). */
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T12:00`) - Date.parse(`${a}T12:00`)) / 86_400_000);
+/**
+ * A typed day ahead of `today` → YYYY-MM-DD, or null: "+3" (days from today), "12/3", "12.3", "12-3", "1203",
+ * "2026-12-03". Without a year it is the next such day (December 3 typed in January: this year's is gone, next year's).
+ */
+function dateOf(text: string, today: string): string | null {
+  const t = text.trim();
+  const plus = /^\+(\d{1,2})$/.exec(t);
+  if (plus) return addDays(today, Number(plus[1]));
+  const m = /^(?:(\d{4})[-./])?(\d{1,2})[-./](\d{1,2})$/.exec(t) ?? /^()(\d{2})(\d{2})$/.exec(t);
+  if (!m) return null;
+  const [mo, d] = [Number(m[2]), Number(m[3])];
+  let y = m[1] ? Number(m[1]) : Number(today.slice(0, 4));
+  const key = (yy: number) => `${yy}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const real = (k: string) => {
+    const x = new Date(`${k}T12:00`);
+    return !Number.isNaN(x.getTime()) && x.getMonth() + 1 === mo && x.getDate() === d;
+  };
+  if (!m[1] && key(y) <= today) y += 1;
+  return real(key(y)) ? key(y) : null;
+}
 const weekday = (date: string) => new Date(`${date}T00:00`).toLocaleDateString('en-US', { weekday: 'short' });
 
 export function mountPlanAhead(row: HTMLElement, stage: HTMLElement): void {
@@ -115,11 +137,45 @@ export function mountPlanAhead(row: HTMLElement, stage: HTMLElement): void {
       });
       return b;
     };
-    const title = document.createElement('p');
+    const title = document.createElement('label');
     title.className = 'ahead-title';
-    title.innerHTML = '<span></span><span class="meta"></span>';
+    title.innerHTML = '<span></span><input class="meta ahead-date" aria-label="Day to plan (12/3, +3)" autocomplete="off" spellcheck="false" maxlength="10">';
     title.firstElementChild!.textContent = ahead === 1 ? 'Tomorrow' : `In ${ahead} days`;
-    title.lastElementChild!.textContent = short(date);
+    // the day can be typed: 12/3, 1203, +3 (days from today); Enter or leaving the field goes there
+    const day = title.querySelector<HTMLInputElement>('.ahead-date')!;
+    day.value = short(date);
+    day.addEventListener('focus', () => {
+      day.value = `${Number(date.slice(5, 7))}/${Number(date.slice(8))}`;
+      day.select();
+    });
+    const go = () => {
+      const to = dateOf(day.value, dayOf());
+      const n = to ? daysBetween(dayOf(), to) : 0;
+      if (!to || n < 1 || n > MAX_AHEAD) {
+        day.value = short(date);
+        say(to ? `Pick a day from tomorrow to ${MAX_AHEAD} days ahead` : 'Days look like 12/3 or +3', true);
+        return;
+      }
+      if (n === ahead) day.value = short(date);
+      else {
+        ahead = n;
+        render();
+      }
+    };
+    day.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        go();
+        pop.querySelector<HTMLInputElement>('.ahead-date')?.blur();
+      } else if (e.key === 'Escape') {
+        day.value = short(date);
+        day.blur();
+      }
+    });
+    day.addEventListener('blur', () => {
+      if (day.isConnected && day.value !== short(date)) go();
+    });
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'ahead-step ahead-close';

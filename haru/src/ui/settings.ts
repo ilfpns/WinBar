@@ -168,7 +168,7 @@ export function mountSettings(): void {
   }));
 
   // ---- new day: when Today is filed away and starts empty (off: it carries on)
-  const resetTime = dialog.querySelector<HTMLButtonElement>('#reset-time')!;
+  const resetTime = dialog.querySelector<HTMLInputElement>('#reset-time')!;
   const resetOn = dialog.querySelector<HTMLButtonElement>('#reset-on')!;
   // the time stays shown (dimmed) while off, so turning it back on keeps it
   let lastReset = resetAt() ?? DEFAULT_RESET;

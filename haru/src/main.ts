@@ -94,7 +94,7 @@ mountOverview({
   catRings: byId('cat-rings'),
   clear: byId('clear'),
 });
-mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new') });
+mountSchedule({ list: byId('list'), count: byId('count'), add: byId('new'), sum: byId('day-sum'), editor: byId<HTMLFormElement>('editor') });
 mountBulk(byId('bulk'));
 trackHistory();
 // the school's lessons and meals, every day by themselves when switched on (Settings → Today)
