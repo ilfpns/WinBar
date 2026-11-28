@@ -199,3 +199,64 @@
   --cat-commute: color-mix(in srgb, var(--steel) 85%, #000);  --cat-commute-fill: color-mix(in srgb, var(--steel) 22%, #fff);
   --cat-chores: color-mix(in srgb, var(--clay) 85%, #000);    --cat-chores-fill: color-mix(in srgb, var(--clay) 22%, #fff);
 }
+
+/* ---------- neon theme (Settings → Appearance): deep black, colours that glow. A dark theme: everything that is
+   dark-only applies; only the tokens change here, the glow itself is in styles/app/37-neon.css */
+:root[data-theme="neon"] {
+  --ink: 210 235 255;
+  --bg: #020205;
+  --backdrop:
+    var(--noise),
+    radial-gradient(70vmax 55vmax at 8% 4%, rgba(70, 120, 255, 0.10) 0%, rgba(70, 120, 255, 0.05) 30%, rgba(70, 120, 255, 0.015) 60%, transparent 80%),
+    radial-gradient(80vmax 60vmax at 100% 100%, rgba(255, 60, 190, 0.09) 0%, rgba(255, 60, 190, 0.045) 28%, rgba(255, 60, 190, 0.012) 58%, transparent 80%),
+    radial-gradient(60vmax 50vmax at 70% 0%, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 70%),
+    var(--bg);
+  --sheet: linear-gradient(180deg, #0c0c14, #06060b);
+  --sheet-solid: #07070c;
+  --card-bg: #05050a;
+  --slice: #0d0d16; --slice-sel: #1c1c2c; --slice-gap: #000; --slice-base: #04040a;
+  --disk: #000;
+  --surface-2: rgba(120, 160, 255, 0.07);
+  --surface-3: rgba(120, 160, 255, 0.14);
+  --line: #15152a;
+  --line-strong: #262645;
+  --glass-fill: linear-gradient(180deg, rgba(12, 12, 22, 0.9) 0%, rgba(6, 6, 13, 0.92) 55%, rgba(3, 3, 8, 0.94) 100%);
+  --glass-edge: rgba(130, 170, 255, 0.14);
+  --glass-shine: inset 0 1px 0 rgba(160, 200, 255, 0.10), inset 0 0 0 1px rgba(120, 160, 255, 0.03);
+  --glass-drop: 0 24px 60px -16px rgba(0, 0, 0, 0.9), 0 0 40px -18px rgba(90, 120, 255, 0.35);
+  --well: rgba(0, 0, 0, 0.55);
+  --well-border: rgba(130, 170, 255, 0.10);
+  --gray-btn: rgba(120, 160, 255, 0.12);
+  --gray-btn-hover: rgba(120, 160, 255, 0.22);
+  --popover: #07070e;
+
+  --text: #d6defa;
+  --text-strong: #f4f7ff;
+  --text-muted: #8a93b8;
+  --text-subtle: #4d5478;
+
+  --accent: #2bff8f;
+  --chart-bar: #22d877;
+  --info: #3ad8ff;
+  --danger: #ff4d6d;
+  --status-doing: #3ad8ff;
+
+  /* the categories, lit: the same hues pushed to full saturation */
+  --cat-work: #ff6b2c;     --cat-study: #3d9bff;   --cat-school: #1ef2c8;  --cat-project: #7d6bff;
+  --cat-meeting: #ff3d8b;  --cat-meal: #ffcc2e;    --cat-health: #b8ff2e;  --cat-reading: #2ee6ff;
+  --cat-hobby: #d65cff;    --cat-social: #ff8fd0;  --cat-rest: #ffd89a;    --cat-personal: #3dff8a;
+  --cat-commute: #8fb4ff;  --cat-chores: #ff8f5c;  --cat-sleep: #9b6bff;   --cat-etc: #a3abc9;
+  --cat-work-fill: color-mix(in srgb, var(--cat-work) 22%, #030308);       --cat-study-fill: color-mix(in srgb, var(--cat-study) 22%, #030308);
+  --cat-school-fill: color-mix(in srgb, var(--cat-school) 20%, #030308);   --cat-project-fill: color-mix(in srgb, var(--cat-project) 22%, #030308);
+  --cat-meeting-fill: color-mix(in srgb, var(--cat-meeting) 22%, #030308); --cat-meal-fill: color-mix(in srgb, var(--cat-meal) 18%, #030308);
+  --cat-health-fill: color-mix(in srgb, var(--cat-health) 18%, #030308);   --cat-reading-fill: color-mix(in srgb, var(--cat-reading) 20%, #030308);
+  --cat-hobby-fill: color-mix(in srgb, var(--cat-hobby) 22%, #030308);     --cat-social-fill: color-mix(in srgb, var(--cat-social) 20%, #030308);
+  --cat-rest-fill: color-mix(in srgb, var(--cat-rest) 18%, #030308);       --cat-personal-fill: color-mix(in srgb, var(--cat-personal) 20%, #030308);
+  --cat-commute-fill: color-mix(in srgb, var(--cat-commute) 20%, #030308); --cat-chores-fill: color-mix(in srgb, var(--cat-chores) 20%, #030308);
+  --cat-sleep-fill: color-mix(in srgb, var(--cat-sleep) 22%, #030308);     --cat-etc-fill: color-mix(in srgb, var(--cat-etc) 18%, #030308);
+
+  /* how far a lit thing glows */
+  --glow-sm: 0 0 6px;
+  --glow: 0 0 14px;
+  --glow-lg: 0 0 28px;
+}

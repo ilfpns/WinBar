@@ -22,7 +22,7 @@ import { type InstallState, install, installState, onInstallState } from './pwa'
  * from Settings at the overview's foot. Also the rail's hover hints: one floating label beside whichever rail
  * button the pointer is on.
  */
-type Theme = 'dark' | 'light' | 'system';
+type Theme = 'dark' | 'light' | 'neon' | 'system';
 const THEME_KEY = 'haru:theme';
 const GLASS_KEY = 'haru:glass';
 /** Panels and cards see-through (`clear`, `glass`) or not: set on <html>, read by the stylesheet. */
@@ -52,9 +52,15 @@ const write = (k: string, v: string) => {
     // for this visit only
   }
 };
-const savedTheme = (): Theme => (read(THEME_KEY) === 'light' ? 'light' : read(THEME_KEY) === 'system' ? 'system' : 'dark');
+const savedTheme = (): Theme => {
+  const t = read(THEME_KEY);
+  return t === 'light' || t === 'neon' || t === 'system' ? t : 'dark';
+};
+/** The dark one last picked (Dark or Neon): the logo menu's light/dark flip comes back to it. */
+const DARK_KEY = 'haru:theme-dark';
+const savedDark = (): 'dark' | 'neon' => (read(DARK_KEY) === 'neon' ? 'neon' : 'dark');
 const lightQuery = matchMedia('(prefers-color-scheme: light)');
-const applyTheme = (t: Theme) => showTheme(t === 'system' ? (lightQuery.matches ? 'light' : 'dark') : t);
+const applyTheme = (t: Theme) => showTheme(t === 'system' ? (lightQuery.matches ? 'light' : savedDark()) : t);
 
 export function mountSettings(): void {
   const dialog = document.getElementById('settings') as HTMLDialogElement;
@@ -398,6 +404,7 @@ export function mountSettings(): void {
   const menuThemeBtn = menuTheme.closest('button')!;
   function setTheme(t: Theme): void {
     write(THEME_KEY, t);
+    if (t === 'dark' || t === 'neon') write(DARK_KEY, t);
     applyTheme(t);
     paintTheme();
   }
@@ -513,7 +520,7 @@ export function mountSettings(): void {
     const what = item.dataset.menu;
     if (what === 'theme') {
       // flips what is showing (and stops following the system)
-      setTheme(shownTheme() === 'light' ? 'dark' : 'light');
+      setTheme(shownTheme() === 'light' ? savedDark() : 'light');
       return;
     }
     closeMenu();

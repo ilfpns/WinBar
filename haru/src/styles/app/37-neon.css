@@ -1,0 +1,78 @@
+/* ---------- neon theme: what glows. Tokens are in tokens.css (:root[data-theme="neon"]); here the light itself —
+   glows are box-shadow, text-shadow and SVG drop-shadow on things that sit still, so nothing extra animates
+   (the power saver and Reduced motion stay as cheap as in Dark). */
+:root[data-theme="neon"] {
+  --neon: var(--accent);
+}
+
+/* panels: a thin lit rim instead of the frosted sheet's grey edge */
+[data-theme="neon"] :is(.panel, .rail, .drawer-tab, .glass-card, .today-views, .cal-main, .cal-day) {
+  border-color: rgba(130, 170, 255, 0.16);
+  box-shadow: var(--glass-shine), var(--glass-drop), inset 0 0 0 1px rgba(90, 130, 255, 0.04);
+}
+
+/* the greeting: big and lit */
+[data-theme="neon"] .greeting { color: var(--text-strong); text-shadow: 0 0 24px rgba(160, 190, 255, 0.25); }
+[data-theme="neon"] .greeting-mark { color: var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+
+/* ---------- the dial: tasks to come are dark glass rimmed in their colour; the time gone burns in it */
+[data-theme="neon"] :is(#dial, .peek-dial) .slice { fill: color-mix(in srgb, var(--c, #222) 16%, #05050c); }
+[data-theme="neon"] :is(#dial, .peek-dial) .slice.sel { fill: color-mix(in srgb, var(--c, #222) 30%, #05050c); }
+[data-theme="neon"] :is(#dial, .peek-dial) .slice-past { fill: color-mix(in srgb, var(--c) 58%, #05050c); }
+[data-theme="neon"] #dial .halo { filter: blur(10px); opacity: .55; }
+[data-theme="neon"] :is(#dial, .peek-dial) .now-hand { stroke: var(--accent); filter: drop-shadow(0 0 4px var(--accent)) drop-shadow(0 0 10px var(--accent)); }
+[data-theme="neon"] :is(#dial, .peek-dial) .now-dot { fill: #fff; filter: drop-shadow(0 0 6px var(--accent)); }
+[data-theme="neon"] :is(#dial, .peek-dial) .callout-dot { filter: drop-shadow(0 0 4px var(--c, var(--accent))); }
+
+/* ---------- rail and overview */
+[data-theme="neon"] .rail-btn[aria-current="page"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), var(--glow) color-mix(in srgb, var(--accent) 25%, transparent); }
+[data-theme="neon"] .rail-btn[aria-current="page"] .ic { filter: drop-shadow(0 0 5px var(--accent)); }
+[data-theme="neon"] .nav-item[aria-current="page"] { color: var(--text-strong); background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent); }
+[data-theme="neon"] .nav-item[aria-current="page"] .ic { color: var(--accent); filter: drop-shadow(0 0 5px var(--accent)); }
+[data-theme="neon"] .ring-fill { filter: drop-shadow(0 0 4px var(--rc)); }
+[data-theme="neon"] .section-head { color: var(--text-muted); letter-spacing: .14em; }
+
+/* ---------- Tasks: names in caps, mono numbers, dots that glow, now as a lit card */
+[data-theme="neon"] #list .n { text-transform: uppercase; letter-spacing: .06em; font: 500 12.5px/1 var(--font-mono); }
+[data-theme="neon"] #list .t, [data-theme="neon"] #list .d { color: var(--text-muted); }
+[data-theme="neon"] #list .row .dot, [data-theme="neon"] .chip .dot, [data-theme="neon"] .editor-head .dot { box-shadow: 0 0 6px var(--c), 0 0 12px color-mix(in srgb, var(--c) 60%, transparent); }
+[data-theme="neon"] #list .row:hover { background: color-mix(in srgb, var(--c) 8%, transparent); }
+[data-theme="neon"] #list li.now:not(.done) .row {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--c) 18%, #05050c), color-mix(in srgb, var(--c) 5%, #05050c));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 70%, transparent), 0 0 18px -2px color-mix(in srgb, var(--c) 45%, transparent);
+}
+[data-theme="neon"] #list li.now:not(.done) .t { color: var(--c); text-shadow: 0 0 8px var(--c); }
+[data-theme="neon"] #list li.now:not(.done) .n { color: #fff; }
+[data-theme="neon"] #list .check[aria-checked="true"] { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent); }
+[data-theme="neon"] #list .check[data-status="doing"] { box-shadow: 0 0 10px color-mix(in srgb, var(--status-doing) 50%, transparent); }
+[data-theme="neon"] #list .done .n { color: var(--text-subtle); }
+[data-theme="neon"] .sum-bar { background: rgba(120, 160, 255, 0.08); }
+[data-theme="neon"] .sum-bar i { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, #00e1ff), var(--accent)); box-shadow: 0 0 10px var(--accent); }
+[data-theme="neon"] .sum-line strong { font-family: var(--font-mono); letter-spacing: .04em; }
+[data-theme="neon"] .gap-add::after { border-top-color: rgba(130, 170, 255, 0.14); }
+
+/* ---------- the editor */
+[data-theme="neon"] .editor { box-shadow: inset 2px 0 0 var(--c), -6px 0 18px -10px var(--c); }
+[data-theme="neon"] .title-input:focus { border-bottom-color: var(--c, var(--info)); box-shadow: 0 6px 12px -10px var(--c, var(--info)); }
+[data-theme="neon"] .chip[aria-checked="true"] { color: #fff; background: color-mix(in srgb, var(--c) 20%, #05050c); border-color: var(--c); box-shadow: 0 0 12px -2px color-mix(in srgb, var(--c) 70%, transparent); }
+[data-theme="neon"] input.time-field { font-size: 17px; letter-spacing: .06em; }
+[data-theme="neon"] input.time-field:focus { border-color: var(--info); box-shadow: 0 0 0 1px var(--info), 0 0 16px -4px var(--info); }
+[data-theme="neon"] .status-seg[data-status="done"] { --hl: color-mix(in srgb, var(--accent) 18%, transparent); }
+[data-theme="neon"] .btn-solid { background: var(--accent); color: #001a0b; box-shadow: 0 0 14px -2px color-mix(in srgb, var(--accent) 70%, transparent); }
+
+/* the time wheels */
+[data-theme="neon"] .wheels::before { background: color-mix(in srgb, var(--info) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--info) 40%, transparent); }
+[data-theme="neon"] .wheel button.on { color: #fff; text-shadow: 0 0 10px var(--info); }
+
+/* ---------- buttons and switches */
+[data-theme="neon"] .switch[aria-checked="true"] { box-shadow: 0 0 12px -2px color-mix(in srgb, var(--accent) 70%, transparent); }
+[data-theme="neon"] .seg [aria-checked="true"], [data-theme="neon"] .seg [aria-selected="true"] { color: #fff; text-shadow: 0 0 8px rgba(160, 200, 255, 0.6); }
+
+/* ---------- Calendar: today's cell and the days with plans light up */
+[data-theme="neon"] .cal-cell.is-today, [data-theme="neon"] .att-cell.today { box-shadow: inset 0 0 0 1px var(--accent), 0 0 16px -4px var(--accent); }
+
+/* big headings: a soft light behind them */
+[data-theme="neon"] :is(.cal-title, .page-title, .tp-title) { text-shadow: 0 0 28px rgba(140, 180, 255, 0.28); }
+
+/* the power saver's clock, lit */
+[data-theme="neon"] .saver-clock { color: #e9f0ff; text-shadow: 0 0 30px rgba(120, 170, 255, 0.45); }

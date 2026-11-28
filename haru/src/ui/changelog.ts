@@ -17,6 +17,16 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.09',
+    date: '2026-11-28',
+    items: [
+      '새 테마 Neon: 깊은 검정 바탕에 카테고리 색이 은은하게 빛나요 (설정 → Appearance → Theme)',
+      'Neon에서는 지금 할 일 카드·체크·진행 막대·현재 시각 바늘·고른 칩이 빛나고, 할 일 이름은 대문자 모노 글꼴로 보여요',
+      '로고 메뉴의 라이트/다크 전환은 마지막에 고른 어두운 테마(Dark 또는 Neon)로 돌아와요',
+      '메모 안내의 카테고리 목록을 한 줄에 셋씩 보여 줘요',
+    ],
+  },
+  {
     version: '2.08',
     date: '2026-11-28',
     items: [

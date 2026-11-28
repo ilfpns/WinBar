@@ -29,8 +29,8 @@ export const QUICK_ADD_HINT = [
   '  → moves to Today',
   '',
   'categories',
-  // four to a line
-  ...Array.from({ length: Math.ceil(names.length / 4) }, (_, i) => `  ${names.slice(i * 4, i * 4 + 4).join(' · ')}`),
+  // three to a line: four overflow the day panel
+  ...Array.from({ length: Math.ceil(names.length / 3) }, (_, i) => `  ${names.slice(i * 3, i * 3 + 3).join(' · ')}`),
 ].join('\n');
 
 /**
