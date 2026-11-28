@@ -260,3 +260,69 @@
   --glow: 0 0 14px;
   --glow-lg: 0 0 28px;
 }
+
+/* ---------- liquid theme (Settings → Appearance): Apple-like liquid glass — clear frosted sheets with a lit rim,
+   over colour. A dark theme; the tokens here, the glass itself in styles/app/38-liquid.css */
+:root[data-theme="liquid"] {
+  --ink: 255 255 255;
+  --bg: #0b1024;
+  /* the wallpaper the glass shows: soft fields of colour (still; nothing moves behind the panels) */
+  --backdrop:
+    radial-gradient(60vmax 55vmax at 12% 18%, rgba(64, 140, 255, 0.55) 0%, rgba(64, 140, 255, 0.22) 35%, transparent 70%),
+    radial-gradient(55vmax 50vmax at 88% 12%, rgba(191, 90, 242, 0.50) 0%, rgba(191, 90, 242, 0.18) 38%, transparent 72%),
+    radial-gradient(60vmax 55vmax at 78% 92%, rgba(255, 105, 140, 0.42) 0%, rgba(255, 105, 140, 0.15) 40%, transparent 74%),
+    radial-gradient(50vmax 45vmax at 18% 90%, rgba(48, 209, 160, 0.38) 0%, rgba(48, 209, 160, 0.12) 40%, transparent 72%),
+    radial-gradient(40vmax 35vmax at 50% 50%, rgba(255, 190, 90, 0.16) 0%, transparent 70%),
+    linear-gradient(160deg, #101634, #0a0d22 55%, #120c26);
+  --sheet: linear-gradient(160deg, rgba(60, 66, 100, 0.72), rgba(28, 30, 52, 0.78));
+  --sheet-solid: #1b1e34;
+  --card-bg: rgba(20, 22, 40, 0.6);
+  --slice: rgba(255, 255, 255, 0.07); --slice-sel: rgba(255, 255, 255, 0.16); --slice-gap: rgba(10, 12, 30, 0.55); --slice-base: rgba(12, 14, 32, 0.7);
+  --disk: rgba(8, 10, 26, 0.55);
+  --surface-2: rgba(255, 255, 255, 0.08);
+  --surface-3: rgba(255, 255, 255, 0.15);
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  /* the glass: a clear sheet, brighter at the top, a rim of light along its edge */
+  --glass-fill: linear-gradient(160deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.07) 45%, rgba(255, 255, 255, 0.04) 100%);
+  --glass-edge: rgba(255, 255, 255, 0.24);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.06), inset 1px 0 0 rgba(255, 255, 255, 0.08);
+  --glass-drop: 0 30px 70px -20px rgba(4, 6, 24, 0.65), 0 2px 10px rgba(4, 6, 24, 0.25);
+  --noise: none;
+  --well: rgba(255, 255, 255, 0.07);
+  --well-border: rgba(255, 255, 255, 0.12);
+  --gray-btn: rgba(255, 255, 255, 0.14);
+  --gray-btn-hover: rgba(255, 255, 255, 0.24);
+  --popover: rgba(36, 40, 70, 0.72);
+  --blur-glass: 34px;
+
+  --text: rgba(255, 255, 255, 0.86);
+  --text-strong: #ffffff;
+  --text-muted: rgba(235, 240, 255, 0.62);
+  --text-subtle: rgba(235, 240, 255, 0.38);
+
+  /* Apple's system colours (dark) */
+  --accent: #30d158;
+  --chart-bar: #30d158;
+  --info: #0a84ff;
+  --danger: #ff453a;
+  --status-doing: #64d2ff;
+  --cat-work: #ff9f0a;     --cat-study: #0a84ff;   --cat-school: #63e6e2;  --cat-project: #5e5ce6;
+  --cat-meeting: #ff375f;  --cat-meal: #ffd60a;    --cat-health: #32d74b;  --cat-reading: #64d2ff;
+  --cat-hobby: #bf5af2;    --cat-social: #ff6fb1;  --cat-rest: #e5c07b;    --cat-personal: #30d158;
+  --cat-commute: #98a8ff;  --cat-chores: #ff8a5c;  --cat-sleep: #8e7cff;   --cat-etc: #aeaeb2;
+  --cat-work-fill: color-mix(in srgb, var(--cat-work) 40%, transparent);       --cat-study-fill: color-mix(in srgb, var(--cat-study) 40%, transparent);
+  --cat-school-fill: color-mix(in srgb, var(--cat-school) 36%, transparent);   --cat-project-fill: color-mix(in srgb, var(--cat-project) 40%, transparent);
+  --cat-meeting-fill: color-mix(in srgb, var(--cat-meeting) 40%, transparent); --cat-meal-fill: color-mix(in srgb, var(--cat-meal) 34%, transparent);
+  --cat-health-fill: color-mix(in srgb, var(--cat-health) 36%, transparent);   --cat-reading-fill: color-mix(in srgb, var(--cat-reading) 36%, transparent);
+  --cat-hobby-fill: color-mix(in srgb, var(--cat-hobby) 40%, transparent);     --cat-social-fill: color-mix(in srgb, var(--cat-social) 38%, transparent);
+  --cat-rest-fill: color-mix(in srgb, var(--cat-rest) 34%, transparent);       --cat-personal-fill: color-mix(in srgb, var(--cat-personal) 36%, transparent);
+  --cat-commute-fill: color-mix(in srgb, var(--cat-commute) 38%, transparent); --cat-chores-fill: color-mix(in srgb, var(--cat-chores) 38%, transparent);
+  --cat-sleep-fill: color-mix(in srgb, var(--cat-sleep) 40%, transparent);     --cat-etc-fill: color-mix(in srgb, var(--cat-etc) 30%, transparent);
+
+  /* San Francisco where there is one (Apple devices), the usual faces elsewhere */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Geist", "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Geist Mono", "Pretendard Variable", monospace;
+  --radius-sm: 12px;
+  --radius-panel: 28px;
+}

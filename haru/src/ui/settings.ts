@@ -22,7 +22,7 @@ import { type InstallState, install, installState, onInstallState } from './pwa'
  * from Settings at the overview's foot. Also the rail's hover hints: one floating label beside whichever rail
  * button the pointer is on.
  */
-type Theme = 'dark' | 'light' | 'neon' | 'system';
+type Theme = 'dark' | 'light' | 'neon' | 'liquid' | 'system';
 const THEME_KEY = 'haru:theme';
 const GLASS_KEY = 'haru:glass';
 /** Panels and cards see-through (`clear`, `glass`) or not: set on <html>, read by the stylesheet. */
@@ -54,11 +54,14 @@ const write = (k: string, v: string) => {
 };
 const savedTheme = (): Theme => {
   const t = read(THEME_KEY);
-  return t === 'light' || t === 'neon' || t === 'system' ? t : 'dark';
+  return t === 'light' || t === 'neon' || t === 'liquid' || t === 'system' ? t : 'dark';
 };
-/** The dark one last picked (Dark or Neon): the logo menu's light/dark flip comes back to it. */
+/** The dark one last picked (Dark, Neon or Liquid): the logo menu's light/dark flip comes back to it. */
 const DARK_KEY = 'haru:theme-dark';
-const savedDark = (): 'dark' | 'neon' => (read(DARK_KEY) === 'neon' ? 'neon' : 'dark');
+const savedDark = (): 'dark' | 'neon' | 'liquid' => {
+  const t = read(DARK_KEY);
+  return t === 'neon' || t === 'liquid' ? t : 'dark';
+};
 const lightQuery = matchMedia('(prefers-color-scheme: light)');
 const applyTheme = (t: Theme) => showTheme(t === 'system' ? (lightQuery.matches ? 'light' : savedDark()) : t);
 
@@ -404,7 +407,7 @@ export function mountSettings(): void {
   const menuThemeBtn = menuTheme.closest('button')!;
   function setTheme(t: Theme): void {
     write(THEME_KEY, t);
-    if (t === 'dark' || t === 'neon') write(DARK_KEY, t);
+    if (t === 'dark' || t === 'neon' || t === 'liquid') write(DARK_KEY, t);
     applyTheme(t);
     paintTheme();
   }

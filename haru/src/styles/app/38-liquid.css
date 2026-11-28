@@ -1,0 +1,78 @@
+/* ---------- liquid theme: Apple-like liquid glass. Tokens are in tokens.css (:root[data-theme="liquid"]); here the
+   glass — a strong blur that soaks up the colour behind (saturate), a lit rim, round shapes, pill buttons. All of it
+   still: no moving highlights, so the power saver stays as cheap as in Dark. */
+
+/* every sheet of glass: more blur, more colour through it */
+[data-theme="liquid"] :is(.panel, .rail, .drawer-tab, .glass-card, .today-views, .cal-main, .cal-day, .attend, .peek-btn, .peek-bar, .globe-heat, .rail-all-menu, .pop-menu, .logo-menu, .time-pop, .class-pop, .ahead-pop, .plan-pop, .rail-tip) {
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(185%); backdrop-filter: blur(var(--blur-glass)) saturate(185%);
+  border-color: var(--glass-edge);
+}
+/* floating things (menus, pickers, tips) are glass too, a little denser to read on */
+[data-theme="liquid"] :is(.rail-all-menu, .pop-menu, .logo-menu, .time-pop, .class-pop, .ahead-pop, .plan-pop, .rail-tip) {
+  background: linear-gradient(160deg, rgba(70, 78, 120, 0.62), rgba(34, 38, 66, 0.7));
+  box-shadow: var(--glass-shine), 0 24px 60px -16px rgba(4, 6, 24, 0.7);
+}
+/* the settings and other dialogs: a big sheet of glass over a dimmed, blurred page */
+[data-theme="liquid"] dialog { background: linear-gradient(160deg, rgba(60, 66, 104, 0.66), rgba(26, 28, 52, 0.74)); -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%); border: 1px solid var(--glass-edge); box-shadow: var(--glass-shine), 0 40px 100px -20px rgba(0, 0, 0, 0.7); }
+[data-theme="liquid"] dialog::backdrop { background: rgba(6, 8, 24, 0.35); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+
+/* the Glass setting still sets how clear the sheets are */
+:root[data-theme="liquid"][data-glass="clear"] { --glass-fill: linear-gradient(160deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03)); }
+:root[data-theme="liquid"][data-glass="glass"] { --glass-fill: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)); }
+
+/* ---------- controls: pills and soft wells, like the system's */
+[data-theme="liquid"] :is(.btn-sm, .btn-ghost, .btn-solid, .chip, .gap-add, .ed-note-add, .wheel-now) { border-radius: 999px; }
+[data-theme="liquid"] .btn-solid { background: rgba(255, 255, 255, 0.92); color: #0b0d1c; box-shadow: 0 6px 18px -6px rgba(255, 255, 255, 0.35); }
+[data-theme="liquid"] .btn-solid:hover { background: #fff; }
+[data-theme="liquid"] .btn-ghost, [data-theme="liquid"] .btn-sm { background: rgba(255, 255, 255, 0.12); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+[data-theme="liquid"] .seg, [data-theme="liquid"] .status-seg { background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.18); border-radius: 999px; }
+[data-theme="liquid"] .seg button, [data-theme="liquid"] .status-seg button, [data-theme="liquid"] .status-seg::before { border-radius: 999px; }
+[data-theme="liquid"] .seg [aria-checked="true"], [data-theme="liquid"] .seg [aria-selected="true"] { background: rgba(255, 255, 255, 0.2); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 12px -4px rgba(0, 0, 0, 0.35); }
+[data-theme="liquid"] .switch[aria-checked="true"] { background: var(--accent); }
+[data-theme="liquid"] :is(input.time-field, .title-input, .note-input) { border-radius: 14px; }
+[data-theme="liquid"] input.time-field { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.14); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2); }
+[data-theme="liquid"] input.time-field:focus { border-color: var(--info); box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 35%, transparent); }
+[data-theme="liquid"] .title-input { border-radius: 0; }
+[data-theme="liquid"] .title-input:focus { border-bottom-color: var(--info); }
+[data-theme="liquid"] .chip[aria-checked="true"] { background: color-mix(in srgb, var(--c) 34%, rgba(255, 255, 255, 0.1)); border-color: color-mix(in srgb, var(--c) 70%, rgba(255, 255, 255, 0.3)); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+
+/* ---------- rail and overview: the current page is a lens of glass */
+[data-theme="liquid"] .rail-btn { border-radius: 16px; }
+[data-theme="liquid"] .rail-btn[aria-current="page"], [data-theme="liquid"] .nav-item[aria-current="page"] {
+  color: #fff; background: linear-gradient(160deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.08), 0 6px 16px -6px rgba(0, 0, 0, 0.35);
+}
+[data-theme="liquid"] .rail-btn[aria-current="page"]::after { display: none; }
+[data-theme="liquid"] .nav-item { border-radius: 16px; }
+
+/* ---------- Tasks */
+[data-theme="liquid"] #list .row { border-radius: 14px; }
+[data-theme="liquid"] #list .row:hover { background: rgba(255, 255, 255, 0.08); }
+[data-theme="liquid"] #list li.now:not(.done) .row {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 34%, rgba(255, 255, 255, 0.12)), color-mix(in srgb, var(--c) 14%, rgba(255, 255, 255, 0.04)));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, rgba(255, 255, 255, 0.15)), 0 10px 24px -12px rgba(0, 0, 0, 0.5);
+}
+[data-theme="liquid"] #list li.now:not(.done) :is(.t, .n) { color: #fff; }
+[data-theme="liquid"] #list .check { border-radius: 50%; }
+[data-theme="liquid"] #list .check[aria-checked="true"] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45); }
+[data-theme="liquid"] .editor { box-shadow: var(--glass-shine), inset 3px 0 0 var(--c); border-radius: 20px; }
+[data-theme="liquid"] .sum-bar { height: 6px; background: rgba(255, 255, 255, 0.12); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25); }
+[data-theme="liquid"] .sum-bar i { background: linear-gradient(90deg, #64d2ff, var(--accent)); }
+[data-theme="liquid"] .wheels::before { background: rgba(255, 255, 255, 0.14); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+
+/* ---------- the dial: tasks to come are tinted glass, the time gone is the full colour */
+[data-theme="liquid"] :is(#dial, .peek-dial) .slice { fill: color-mix(in srgb, var(--c, #fff) 24%, rgba(255, 255, 255, 0.06)); }
+[data-theme="liquid"] :is(#dial, .peek-dial) .slice.sel { fill: color-mix(in srgb, var(--c, #fff) 40%, rgba(255, 255, 255, 0.1)); }
+[data-theme="liquid"] :is(#dial, .peek-dial) .slice-past { fill: color-mix(in srgb, var(--c) 78%, rgba(255, 255, 255, 0.1)); }
+[data-theme="liquid"] :is(#dial, .peek-dial) .ring-bg { fill: rgba(255, 255, 255, 0.05); }
+[data-theme="liquid"] :is(#dial, .peek-dial) .disk { fill: rgba(10, 12, 32, 0.45); }
+[data-theme="liquid"] :is(#dial, .peek-dial) .now-hand { stroke: #fff; }
+[data-theme="liquid"] :is(#dial, .peek-dial) .now-dot { fill: #fff; }
+
+/* ---------- Calendar */
+[data-theme="liquid"] .cal-cell { border-radius: 16px; background: rgba(255, 255, 255, 0.05); }
+[data-theme="liquid"] .cal-cell:hover { background: rgba(255, 255, 255, 0.1); }
+[data-theme="liquid"] .cal-cell.is-today { background: rgba(255, 255, 255, 0.16); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+
+/* the power saver: the clock over the colour, frosted */
+[data-theme="liquid"] .saver-veil { background: radial-gradient(80vmax 60vmax at 30% 30%, rgba(64, 140, 255, 0.18), transparent 70%), radial-gradient(70vmax 60vmax at 80% 80%, rgba(191, 90, 242, 0.14), transparent 70%), #05060f; }

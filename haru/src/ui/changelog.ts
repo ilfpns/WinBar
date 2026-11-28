@@ -17,6 +17,16 @@ const SEEN_KEY = 'haru:changelog-version';
 
 export const CHANGELOG: Release[] = [
   {
+    version: '2.10',
+    date: '2026-11-28',
+    items: [
+      '새 테마 Liquid: 애플 리퀴드 글래스처럼 색이 번지는 배경 위에 맑은 유리 패널 (설정 → Appearance → Theme)',
+      'Liquid에서는 패널·메뉴·설정 창이 모두 반투명 유리, 버튼은 알약 모양, 색은 애플 시스템 색, 맥에서는 SF 글꼴',
+      'Glass 설정(Solid·Clear·Glass)으로 Liquid 유리의 투명도도 바꿀 수 있어요',
+      '설정의 선택 버튼 글자가 두 줄로 꺾이지 않아요 (2 min 등)',
+    ],
+  },
+  {
     version: '2.09',
     date: '2026-11-28',
     items: [

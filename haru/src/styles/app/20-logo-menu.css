@@ -20,7 +20,7 @@
 .logo-menu [data-menu="settings"] { font-weight: 500; }
 /* settings: segmented pickers and notes */
 .set-seg { grid-auto-columns: auto; }
-.set-seg button { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; font-family: var(--font-sans); }
+.set-seg button { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; font-family: var(--font-sans); white-space: nowrap; }
 .set-seg button .ic { width: 13px; height: 13px; }
 .set-seg button[aria-checked="true"] { background: var(--gray-btn-hover); color: var(--text-strong); }
 .set-note { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }

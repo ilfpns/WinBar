@@ -16,10 +16,11 @@
     // theme and language before the first paint: no flash of the other one
     try {
       var t = localStorage.getItem('haru:theme') || 'dark';
-      if (t === 'system') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : (localStorage.getItem('haru:theme-dark') === 'neon' ? 'neon' : 'dark');
+      if (t === 'system') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : (localStorage.getItem('haru:theme-dark') || 'dark');
       document.documentElement.dataset.theme = t;
       if (t === 'light') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#e9eaee');
       if (t === 'neon') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#020205');
+      if (t === 'liquid') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0b1024');
       document.documentElement.lang = localStorage.getItem('haru:lang') === 'ko' ? 'ko' : 'en';
     } catch (e) { document.documentElement.dataset.theme = 'dark'; }
   </script>
@@ -366,11 +367,12 @@
         <p class="set-lead">How Haru looks on this device.</p>
         <div class="set-card">
           <div class="set-row">
-            <div class="set-label"><strong>Theme</strong><span>Dark, light, neon, or whatever the system uses</span></div>
+            <div class="set-label"><strong>Theme</strong><span>Dark, light, neon, liquid glass, or whatever the system uses</span></div>
             <div class="seg set-seg" id="set-theme" role="radiogroup" aria-label="Theme">
               <button type="button" role="radio" data-theme-pick="dark"><i data-icon="moon"></i>Dark</button>
               <button type="button" role="radio" data-theme-pick="light"><i data-icon="sun"></i>Light</button>
               <button type="button" role="radio" data-theme-pick="neon"><i data-icon="zap"></i>Neon</button>
+              <button type="button" role="radio" data-theme-pick="liquid"><i data-icon="droplet"></i>Liquid</button>
               <button type="button" role="radio" data-theme-pick="system"><i data-icon="monitor"></i>System</button>
             </div>
           </div>

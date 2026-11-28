@@ -7,7 +7,7 @@
 
 - `index.html`: 페이지마다 `<main class="… page" id="…">` 하나, 페이지 목록 세 곳(타이틀바 `.tb-tabs`, 레일 `#rail`, 오버뷰 `.panel-left .nav`), 설정 대화상자.
 - `src/main.ts`: 모든 모듈을 붙이는 곳(`mount…` 호출 순서). 새 기능은 여기서 마운트한다.
-- `src/styles/tokens.css`: 색·크기 변수(다크 / `:root[data-theme="light"]` / `:root[data-theme="neon"]`).
+- `src/styles/tokens.css`: 색·크기 변수(다크 / `:root[data-theme="light"]` / `:root[data-theme="neon"]` / `:root[data-theme="liquid"]`).
 - `src/styles/app.css`: `@import` 목록뿐이다. 실제 스타일은 `src/styles/app/NN-이름.css`에 있다(아래 CSS 지도).
 
 ## 폴더별
@@ -68,6 +68,7 @@
 | `32-library` `33-flow` `34-glass` `35-tour` | Library, Today Flow, Glass 투명도, 안내 투어·사용 안내 |
 | `36-brief` | 아침 브리핑, 응원 하트·알림 |
 | `37-neon` | Neon 테마의 빛(글로우). 색은 `tokens.css`의 `:root[data-theme="neon"]` |
+| `38-liquid` | Liquid 테마의 유리(블러·채도·빛 테두리·알약 버튼). 색은 `tokens.css`의 `:root[data-theme="liquid"]` |
 
 새 부분은 맨 뒤에 새 번호로 추가하고 `app.css`의 `@import` 목록에도 넣는다.
 
